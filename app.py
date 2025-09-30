@@ -551,7 +551,7 @@ INDEX_HTML = """
       
       <!-- Single Camera in Center -->
       <div style="position: relative; display: inline-block; margin-bottom: 20px;">
-        <video id="video" autoplay playsinline muted style="width: 640px; height: 480px; background: #f0f0f0; border-radius: 12px; object-fit: cover; border: 2px solid #ddd;"></video>
+        <video id="video" autoplay playsinline muted style="width: 640px; height: 480px; background: #f0f0f0; border-radius: 12px; object-fit: cover; border: 2px solid #ddd; transform: scaleX(-1);"></video>
         <canvas id="overlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 12px; width: 640px; height: 480px; z-index: 10; background: transparent;"></canvas>
         <div id="cameraStatus" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px;">Camera inactive</div>
         </div>
@@ -623,14 +623,17 @@ INDEX_HTML = """
       ctx.clearRect(0, 0, overlay.width, overlay.height);
       
       if (x && y && width && height) {
+        // Mirror the coordinates to match the mirrored video
+        const mirroredX = videoWidth - x - width;
+        
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
-        ctx.strokeRect(x, y, width, height);
+        ctx.strokeRect(mirroredX, y, width, height);
         
         if (label) {
           ctx.fillStyle = color;
           ctx.font = 'bold 16px Arial';
-          ctx.fillText(label, x, Math.max(y - 10, 20));
+          ctx.fillText(label, mirroredX, Math.max(y - 10, 20));
         }
       }
     }
@@ -1299,7 +1302,7 @@ RETAKE_HTML = """
       <h3>Capture & Compare</h3>
         </div>
         <div class="camera-container" id="cameraContainer">
-          <video id="video" autoplay playsinline muted style="display: none;"></video>
+          <video id="video" autoplay playsinline muted style="display: none; transform: scaleX(-1);"></video>
           <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" />
           <div class="camera-placeholder" id="cameraPlaceholder">
             <i class="fas fa-camera"></i>
@@ -1343,7 +1346,7 @@ RETAKE_HTML = """
     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 12px; max-width: 600px; width: 90%;">
       <h2>Daftarkan Face Recognition</h2>
       <div style="text-align: center; margin: 20px 0;">
-        <video id="registerVideo" autoplay playsinline muted style="width: 400px; height: 300px; background: #111; border-radius: 8px;"></video>
+        <video id="registerVideo" autoplay playsinline muted style="width: 400px; height: 300px; background: #111; border-radius: 8px; transform: scaleX(-1);"></video>
         <div style="margin: 16px 0;">
           <button id="btnStartRegister" style="padding: 12px 24px; margin: 8px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer;">Mulai Kamera</button>
           <button id="btnBurstCapture" disabled style="padding: 12px 24px; margin: 8px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer;">Burst Foto (5 detik)</button>
