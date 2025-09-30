@@ -950,7 +950,68 @@ RETAKE_HTML = """
       }
     }
 
-    // Remove duplicate event handlers - they are already defined above
+    // Add event handler for Start button on retake page
+    document.getElementById('btnStart').onclick = async () => {
+      try {
+        setOut('Starting camera...');
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { width: 640, height: 480 } 
+        });
+        document.getElementById('video').srcObject = stream;
+        document.getElementById('btnStart').disabled = true;
+        document.getElementById('btnSnap').disabled = false;
+        setOut('Camera started. Click "Capture & Compare" to take a photo.');
+      } catch (e) {
+        setOut('Camera error: ' + e.message);
+      }
+    };
+
+    // Add event handler for Capture & Compare button
+    document.getElementById('btnSnap').onclick = async () => {
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      
+      if (!video.srcObject) {
+        setOut('Please start camera first');
+        return;
+      }
+      
+      try {
+        setOut('Capturing photo...');
+        
+        // Capture current frame
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        
+        setOut('Comparing with profile photo...');
+        
+        // Send to compare API
+        const r = await fetch('/api/compare_with_profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_b64: dataUrl.split(',')[1] })
+        });
+        
+        const j = await r.json();
+        setOut(j);
+        
+        if (j.ok) {
+          const similarity = j.similarity;
+          if (similarity > 0.6) {
+            setOut(`Match! Similarity: ${similarity} (High confidence)`);
+          } else if (similarity > 0.4) {
+            setOut(`Possible match. Similarity: ${similarity} (Medium confidence)`);
+          } else {
+            setOut(`No match. Similarity: ${similarity} (Low confidence)`);
+          }
+        } else {
+          setOut('Comparison failed: ' + (j.error || 'Unknown error'));
+        }
+      } catch (e) {
+        setOut('Capture error: ' + e.message);
+      }
+    };
 
     // Face Registration Modal Controls
     document.getElementById('btnRegister').onclick = () => {
