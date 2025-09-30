@@ -108,9 +108,12 @@ def fetch_member_encodings() -> List[MemberEnc]:
       member (id BIGINT PK, gym_member_id BIGINT, email VARCHAR, enc LONGTEXT)
     where `enc` stores a JSON array of floats (length 512) or a base64 npy blob.
     """
-    conn = get_db_conn()
-    cur = conn.cursor()
+    conn = None
+    cur = None
     try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        
         # First, check if enc column exists, if not create it
         cur.execute("SHOW COLUMNS FROM member LIKE 'enc'")
         if not cur.fetchone():
@@ -153,9 +156,14 @@ def fetch_member_encodings() -> List[MemberEnc]:
             vec = vec / norm
             out.append(MemberEnc(member_pk=member_pk, gym_member_id=gym_id or 0, email=email, enc=vec))
         return out
+    except Exception as e:
+        print(f"DEBUG: Database error in fetch_member_encodings: {e}")
+        return []
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 # Cache encodings in memory for faster search
@@ -169,11 +177,15 @@ _RECOGNITION_COOLDOWN = 60  # 60 seconds cooldown per user (increased from 30)
 def ensure_cache_loaded():
     global _MEMBER_CACHE
     if not _MEMBER_CACHE:
-        print("DEBUG: Loading member encodings from database...")
-        _MEMBER_CACHE = fetch_member_encodings()
-        print(f"DEBUG: Loaded {len(_MEMBER_CACHE)} member encodings")
-        for member in _MEMBER_CACHE:
-            print(f"DEBUG: Member {member.member_pk}: {member.email} (gym_id: {member.gym_member_id})")
+        try:
+            print("DEBUG: Loading member encodings from database...")
+            _MEMBER_CACHE = fetch_member_encodings()
+            print(f"DEBUG: Loaded {len(_MEMBER_CACHE)} member encodings")
+            for member in _MEMBER_CACHE:
+                print(f"DEBUG: Member {member.member_pk}: {member.email} (gym_id: {member.gym_member_id})")
+        except Exception as e:
+            print(f"DEBUG: Error loading member cache: {e}")
+            _MEMBER_CACHE = []
 
 
 def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
@@ -218,15 +230,21 @@ def mark_user_recognized(member_id: int):
 
 def find_best_match(query_vec: np.ndarray) -> Tuple[Optional[MemberEnc], float, float]:
     """Return (best_member, best_score, second_best_score)."""
-    ensure_cache_loaded()
-    if not _MEMBER_CACHE:
+    try:
+        ensure_cache_loaded()
+        if not _MEMBER_CACHE:
+            print("DEBUG: No members in cache")
+            return None, 0.0, 0.0
+        # Query already normalized
+        sims = [(m, float(np.dot(query_vec, m.enc))) for m in _MEMBER_CACHE]
+        sims.sort(key=lambda x: x[1], reverse=True)
+        best = sims[0]
+        second = sims[1] if len(sims) > 1 else (None, 0.0)
+        print(f"DEBUG: Best match: {best[0].email if best[0] else 'None'} (score: {best[1]:.4f})")
+        return best[0], best[1], second[1]
+    except Exception as e:
+        print(f"DEBUG: Error in find_best_match: {e}")
         return None, 0.0, 0.0
-    # Query already normalized
-    sims = [(m, float(np.dot(query_vec, m.enc))) for m in _MEMBER_CACHE]
-    sims.sort(key=lambda x: x[1], reverse=True)
-    best = sims[0]
-    second = sims[1] if len(sims) > 1 else (None, 0.0)
-    return best[0], best[1], second[1]
 
 
 # -------------------- GymMaster API Helpers --------------------
