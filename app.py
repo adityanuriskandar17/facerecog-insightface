@@ -56,6 +56,8 @@ GYM_API_KEY = os.getenv("GYM_API_KEY", "")
 GYM_BASE_URL = os.getenv("GYM_BASE_URL", "")
 GYM_LOGIN_URL = os.getenv("GYM_LOGIN_URL", "")
 GYM_PROFILE_URL = os.getenv("GYM_PROFILE_URL", "")
+# For profile update, we need to use a different endpoint or method
+# Based on the env, the profile URL is for GET, we need to find the correct UPDATE endpoint
 GYM_GATE_URL = os.getenv("GYM_GATE_URL", "")
 CHECKIN_ENABLED = os.getenv("CHECKIN_ENABLED", "True").lower() == "true"
 
@@ -1067,6 +1069,40 @@ RETAKE_HTML = """
       cursor: not-allowed;
     }
     
+    .btn-update {
+      background: #28a745;
+      color: white;
+      border: none;
+    }
+    
+    .btn-update:hover {
+      background: #218838;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    }
+    
+    .btn-update:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .btn-reset {
+      background: #ffc107;
+      color: #212529;
+      border: none;
+    }
+    
+    .btn-reset:hover {
+      background: #e0a800;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
+    }
+    
+    .btn-reset:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
     .btn-register {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
@@ -1134,6 +1170,7 @@ RETAKE_HTML = """
         </div>
         <div class="camera-container" id="cameraContainer">
           <video id="video" autoplay playsinline muted style="display: none;"></video>
+          <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" />
           <div class="camera-placeholder" id="cameraPlaceholder">
             <i class="fas fa-camera"></i>
             <p>Face captured</p>
@@ -1147,6 +1184,18 @@ RETAKE_HTML = """
           <button id="btnSnap" class="btn btn-capture" disabled>
             <i class="fas fa-user-check"></i>
             Capture & Compare
+          </button>
+          <button id="btnCapturePhoto" class="btn btn-capture" disabled>
+            <i class="fas fa-camera"></i>
+            Capture Photo
+          </button>
+          <button id="btnUpdatePhoto" class="btn btn-update" disabled>
+            <i class="fas fa-upload"></i>
+            Update to GymMaster
+          </button>
+          <button id="btnResetPhoto" class="btn btn-reset" disabled>
+            <i class="fas fa-redo"></i>
+            Reset Photo
           </button>
           <button id="btnRegister" class="btn btn-register">
             <i class="fas fa-check"></i>
@@ -1307,7 +1356,8 @@ RETAKE_HTML = """
         
         document.getElementById('btnStart').disabled = true;
         document.getElementById('btnSnap').disabled = false;
-        setOut('Camera started. Click "Capture & Compare" to take a photo.');
+        document.getElementById('btnCapturePhoto').disabled = false;
+        setOut('Camera started. Click "Capture Photo" to take a photo.');
       } catch (e) {
         setOut('Camera error: ' + e.message);
       }
@@ -1398,6 +1448,159 @@ RETAKE_HTML = """
           icon: 'error',
           confirmButtonText: 'OK',
           confirmButtonColor: '#f44336'
+        });
+      }
+    };
+
+    // Add event handler for Capture Photo button
+    document.getElementById('btnCapturePhoto').onclick = async () => {
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const capturedImage = document.getElementById('capturedImage');
+      const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+      
+      if (!video.srcObject) {
+        setOut('Please start camera first');
+        return;
+      }
+      
+      try {
+        setOut('Capturing photo...');
+        
+        // Capture current frame
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        
+        // Show captured image
+        capturedImage.src = dataUrl;
+        capturedImage.style.display = 'block';
+        video.style.display = 'none';
+        cameraPlaceholder.style.display = 'none';
+        
+        // Update button states
+        document.getElementById('btnCapturePhoto').disabled = true;
+        document.getElementById('btnUpdatePhoto').disabled = false;
+        document.getElementById('btnResetPhoto').disabled = false;
+        
+        setOut('Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.');
+        
+        // Show success notification
+        Swal.fire({
+          title: '📸 Photo Captured!',
+          text: 'Review your photo. If satisfied, click "Update to GymMaster" to upload.',
+          icon: 'success',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#28a745',
+          timer: 3000,
+          timerProgressBar: true
+        });
+        
+      } catch (e) {
+        setOut('Capture error: ' + e.message);
+        Swal.fire({
+          title: '❌ Error',
+          text: 'Failed to capture photo: ' + e.message,
+          icon: 'error',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc3545'
+        });
+      }
+    };
+
+    // Add event handler for Reset Photo button
+    document.getElementById('btnResetPhoto').onclick = () => {
+      const video = document.getElementById('video');
+      const capturedImage = document.getElementById('capturedImage');
+      const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+      
+      // Reset to camera view
+      video.style.display = 'block';
+      capturedImage.style.display = 'none';
+      cameraPlaceholder.style.display = 'none';
+      
+      // Update button states
+      document.getElementById('btnCapturePhoto').disabled = false;
+      document.getElementById('btnUpdatePhoto').disabled = true;
+      document.getElementById('btnResetPhoto').disabled = true;
+      
+      setOut('Photo reset. You can now capture a new photo.');
+    };
+
+    // Add event handler for Update Profile Photo button
+    document.getElementById('btnUpdatePhoto').onclick = async () => {
+      const capturedImage = document.getElementById('capturedImage');
+      
+      if (!capturedImage.src || capturedImage.style.display === 'none') {
+        setOut('Please capture a photo first');
+        return;
+      }
+      
+      try {
+        // Use the captured image data
+        const dataUrl = capturedImage.src;
+        
+        // Show confirmation dialog
+        const result = await Swal.fire({
+          title: '⚠️ Update Profile Photo?',
+          text: 'Are you sure you want to update your profile photo in GymMaster? This action cannot be undone.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#28a745',
+          cancelButtonColor: '#dc3545',
+          confirmButtonText: 'Yes, Update Photo',
+          cancelButtonText: 'Cancel',
+          reverseButtons: true
+        });
+        
+        if (result.isConfirmed) {
+          setOut('Updating profile photo...');
+          
+          // Send to update API
+          const r = await fetch('/api/update_profile_photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_b64: dataUrl.split(',')[1] })
+          });
+          
+          const j = await r.json();
+          setOut(j);
+          
+          if (j.ok) {
+            // Success notification
+            Swal.fire({
+              title: '✅ Success!',
+              text: 'Profile photo updated successfully in GymMaster',
+              icon: 'success',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#28a745',
+              timer: 3000,
+              timerProgressBar: true
+            });
+            
+            // Reload profile to show updated photo
+            setTimeout(() => {
+              loadProfile();
+            }, 1000);
+          } else {
+            // Error notification
+            Swal.fire({
+              title: '❌ Update Failed',
+              text: 'Failed to update profile photo: ' + (j.error || 'Unknown error'),
+              icon: 'error',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#dc3545'
+            });
+          }
+        }
+      } catch (e) {
+        setOut('Update error: ' + e.message);
+        Swal.fire({
+          title: '❌ Error',
+          text: 'Failed to update profile photo: ' + e.message,
+          icon: 'error',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc3545'
         });
       }
     };
@@ -1739,6 +1942,127 @@ def api_compare_with_profile():
 
     sim = float(np.dot(emb_live, emb_prof) / (np.linalg.norm(emb_live)*np.linalg.norm(emb_prof)+1e-8))
     return jsonify({"ok": True, "similarity": round(sim, 4), "threshold_note": "higher is more similar; ~0.6-0.8 usually same person for ArcFace crops"})
+
+
+@app.route("/api/update_profile_photo", methods=["POST"])
+def api_update_profile_photo():
+    token = session.get('gym_token')
+    if not token:
+        return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
+
+    data = request.get_json(force=True)
+    image_b64 = data.get("image_b64")
+    if not image_b64:
+        return jsonify({"ok": False, "error": "No image provided"}), 400
+
+    try:
+        # Prepare the request payload - try different formats
+        payload = {
+            "api_key": GYM_API_KEY,
+            "token": token,
+            "memberphoto": f"data:image/jpeg;base64,{image_b64}"
+        }
+        
+        print(f"DEBUG: Updating profile photo to GymMaster...")
+        print(f"DEBUG: API Key: {GYM_API_KEY[:10]}...")
+        print(f"DEBUG: Token: {token[:20]}...")
+        print(f"DEBUG: Image size: {len(image_b64)} characters")
+        
+        # Based on API documentation: memberphoto accepts jpg, png, or base64 encoded string
+        # Type: formData file or string
+        success = False
+        error_msg = ""
+        data = {}
+        
+        # Try the working endpoint (endpoint 3) with correct format
+        endpoint = f"{GYM_BASE_URL}/portal/api/v1/member/profile"
+        
+        # Approach 1: Form data with file upload (recommended by API docs)
+        try:
+            print("DEBUG: Trying Form data with file upload (recommended approach)")
+            files = {
+                'memberphoto': ('photo.jpg', base64.b64decode(image_b64), 'image/jpeg')
+            }
+            form_data = {
+                'api_key': GYM_API_KEY,
+                'token': token
+            }
+            r = requests.post(endpoint, data=form_data, files=files, timeout=30)
+            r.raise_for_status()
+            data = r.json()
+            print(f"DEBUG: Form data response: {data}")
+            if data.get("error") is None:
+                success = True
+        except Exception as e:
+            error_msg = f"Form data failed: {str(e)}"
+            print(f"DEBUG: {error_msg}")
+        
+        # Approach 2: Form data with base64 string
+        if not success:
+            try:
+                print("DEBUG: Trying Form data with base64 string")
+                form_data = {
+                    'api_key': GYM_API_KEY,
+                    'token': token,
+                    'memberphoto': image_b64
+                }
+                r = requests.post(endpoint, data=form_data, timeout=30)
+                r.raise_for_status()
+                data = r.json()
+                print(f"DEBUG: Form data base64 response: {data}")
+                if data.get("error") is None:
+                    success = True
+            except Exception as e:
+                error_msg = f"Form data base64 failed: {str(e)}"
+                print(f"DEBUG: {error_msg}")
+        
+        # Approach 3: JSON with base64 (fallback)
+        if not success:
+            try:
+                print("DEBUG: Trying JSON with base64 (fallback)")
+                payload2 = {
+                    "api_key": GYM_API_KEY,
+                    "token": token,
+                    "memberphoto": image_b64
+                }
+                r = requests.post(endpoint, json=payload2, timeout=30)
+                r.raise_for_status()
+                data = r.json()
+                print(f"DEBUG: JSON base64 response: {data}")
+                if data.get("error") is None:
+                    success = True
+            except Exception as e:
+                error_msg = f"JSON base64 failed: {str(e)}"
+                print(f"DEBUG: {error_msg}")
+        
+        if not success:
+            return jsonify({
+                "ok": False, 
+                "error": f"All approaches failed. Last error: {error_msg}"
+            })
+        
+        print(f"DEBUG: Final GymMaster response: {data}")
+        
+        if data.get("error") is None:
+            # Clear cached profile data to force reload
+            session.pop('profile_data', None)
+            return jsonify({
+                "ok": True, 
+                "message": "Profile photo updated successfully",
+                "response": data.get("result", {})
+            })
+        else:
+            return jsonify({
+                "ok": False, 
+                "error": f"GymMaster API error: {data.get('error')}"
+            })
+            
+    except requests.exceptions.RequestException as e:
+        print(f"DEBUG: Request error: {e}")
+        return jsonify({"ok": False, "error": f"Failed to connect to GymMaster: {str(e)}"})
+    except Exception as e:
+        print(f"DEBUG: Unexpected error: {e}")
+        return jsonify({"ok": False, "error": f"Unexpected error: {str(e)}"})
 
 
 @app.route("/api/register_face", methods=["POST"])
