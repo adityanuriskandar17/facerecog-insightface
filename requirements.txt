@@ -6,3 +6,4 @@ insightface
 onnxruntime
 opencv-python-headless
 numpy
+redis

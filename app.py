@@ -27,6 +27,7 @@ import base64
 import io
 import json
 import os
+import pickle
 import threading
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, List
@@ -34,6 +35,7 @@ from typing import Dict, Optional, Tuple, List
 import cv2
 import mysql.connector
 import numpy as np
+import redis
 import requests
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
@@ -51,6 +53,12 @@ DB = dict(
     user=os.getenv("DB_USER", "root"),
     password=os.getenv("DB_PASSWORD", ""),
 )
+
+# Redis configuration
+REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
 
 GYM_API_KEY = os.getenv("GYM_API_KEY", "")
 GYM_BASE_URL = os.getenv("GYM_BASE_URL", "")
@@ -100,6 +108,26 @@ def get_db_conn():
         host=DB["host"], port=DB["port"], database=DB["database"],
         user=DB["user"], password=DB["password"], autocommit=True
     )
+
+
+def get_redis_conn():
+    """Get Redis connection with fallback handling"""
+    try:
+        r = redis.Redis(
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            db=REDIS_DB,
+            password=REDIS_PASSWORD,
+            decode_responses=False,  # We'll handle binary data
+            socket_connect_timeout=5,
+            socket_timeout=5
+        )
+        # Test connection
+        r.ping()
+        return r
+    except Exception as e:
+        print(f"DEBUG: Redis connection failed: {e}")
+        return None
 
 
 def fetch_member_encodings() -> List[MemberEnc]:
@@ -173,19 +201,93 @@ _MEMBER_CACHE: List[MemberEnc] = []
 _LAST_RECOGNITION_TIME = {}  # {member_id: timestamp}
 _RECOGNITION_COOLDOWN = 60  # 60 seconds cooldown per user (increased from 30)
 
+# Cache refresh system
+_LAST_CACHE_REFRESH = 0  # Timestamp of last cache refresh
+_CACHE_REFRESH_INTERVAL = 300  # 5 minutes - refresh cache every 5 minutes
 
-def ensure_cache_loaded():
-    global _MEMBER_CACHE
+# Redis cache keys
+REDIS_MEMBER_CACHE_KEY = "face_gate:member_encodings"
+REDIS_PROFILE_CACHE_KEY = "face_gate:profile:{}"  # {} will be replaced with member_id
+REDIS_CACHE_TTL = 3600  # 1 hour cache TTL
+
+
+def get_member_encodings_from_redis() -> Optional[List[MemberEnc]]:
+    """Get member encodings from Redis cache"""
+    r = get_redis_conn()
+    if not r:
+        return None
+    
+    try:
+        cached_data = r.get(REDIS_MEMBER_CACHE_KEY)
+        if cached_data:
+            print("DEBUG: Loading member encodings from Redis cache...")
+            members = pickle.loads(cached_data)
+            print(f"DEBUG: Loaded {len(members)} member encodings from Redis")
+            return members
+    except Exception as e:
+        print(f"DEBUG: Error loading from Redis: {e}")
+    
+    return None
+
+
+def save_member_encodings_to_redis(members: List[MemberEnc]):
+    """Save member encodings to Redis cache"""
+    r = get_redis_conn()
+    if not r:
+        return
+    
+    try:
+        print("DEBUG: Saving member encodings to Redis cache...")
+        serialized = pickle.dumps(members)
+        r.setex(REDIS_MEMBER_CACHE_KEY, REDIS_CACHE_TTL, serialized)
+        print(f"DEBUG: Saved {len(members)} member encodings to Redis")
+    except Exception as e:
+        print(f"DEBUG: Error saving to Redis: {e}")
+
+
+def ensure_cache_loaded(force_refresh=False):
+    global _MEMBER_CACHE, _LAST_CACHE_REFRESH
+    import time
+    
+    current_time = time.time()
+    
+    # Check if we need to refresh cache (every 5 minutes)
+    should_refresh = (
+        force_refresh or 
+        (current_time - _LAST_CACHE_REFRESH) > _CACHE_REFRESH_INTERVAL
+    )
+    
+    # If force_refresh is True, skip cache and reload from database
+    if should_refresh:
+        print("DEBUG: Cache refresh needed, reloading from database...")
+        _MEMBER_CACHE = []
+        invalidate_member_cache()
+        _LAST_CACHE_REFRESH = current_time
+    
     if not _MEMBER_CACHE:
-        try:
-            print("DEBUG: Loading member encodings from database...")
-            _MEMBER_CACHE = fetch_member_encodings()
-            print(f"DEBUG: Loaded {len(_MEMBER_CACHE)} member encodings")
-            for member in _MEMBER_CACHE:
-                print(f"DEBUG: Member {member.member_pk}: {member.email} (gym_id: {member.gym_member_id})")
-        except Exception as e:
-            print(f"DEBUG: Error loading member cache: {e}")
-            _MEMBER_CACHE = []
+        # Try Redis first (only if not force refresh)
+        if not should_refresh:
+            cached_members = get_member_encodings_from_redis()
+            if cached_members:
+                _MEMBER_CACHE = cached_members
+                print(f"DEBUG: Loaded {len(_MEMBER_CACHE)} members from Redis cache")
+        
+        # If no cache or force refresh, load from database
+        if not _MEMBER_CACHE:
+            try:
+                print("DEBUG: Loading member encodings from database...")
+                _MEMBER_CACHE = fetch_member_encodings()
+                print(f"DEBUG: Loaded {len(_MEMBER_CACHE)} member encodings from database")
+                
+                # Save to Redis for next time
+                if _MEMBER_CACHE:
+                    save_member_encodings_to_redis(_MEMBER_CACHE)
+                
+                for member in _MEMBER_CACHE:
+                    print(f"DEBUG: Member {member.member_pk}: {member.email} (gym_id: {member.gym_member_id})")
+            except Exception as e:
+                print(f"DEBUG: Error loading member cache: {e}")
+                _MEMBER_CACHE = []
 
 
 def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
@@ -314,7 +416,98 @@ def gym_open_gate(token: str, doorid: int) -> Optional[Dict]:
     return None
 
 
+def get_profile_from_redis(member_id: int) -> Optional[Dict]:
+    """Get profile data from Redis cache"""
+    r = get_redis_conn()
+    if not r:
+        return None
+    
+    try:
+        cache_key = REDIS_PROFILE_CACHE_KEY.format(member_id)
+        cached_data = r.get(cache_key)
+        if cached_data:
+            print(f"DEBUG: Loading profile for member {member_id} from Redis cache...")
+            profile = json.loads(cached_data)
+            print(f"DEBUG: Loaded profile from Redis: {profile.get('fullname', 'Unknown')}")
+            return profile
+    except Exception as e:
+        print(f"DEBUG: Error loading profile from Redis: {e}")
+    
+    return None
+
+
+def save_profile_to_redis(member_id: int, profile: Dict):
+    """Save profile data to Redis cache"""
+    r = get_redis_conn()
+    if not r:
+        return
+    
+    try:
+        cache_key = REDIS_PROFILE_CACHE_KEY.format(member_id)
+        serialized = json.dumps(profile)
+        r.setex(cache_key, REDIS_CACHE_TTL, serialized)
+        print(f"DEBUG: Saved profile for member {member_id} to Redis cache")
+    except Exception as e:
+        print(f"DEBUG: Error saving profile to Redis: {e}")
+
+
+def invalidate_member_cache():
+    """Invalidate member encodings cache (both Redis and memory)"""
+    global _MEMBER_CACHE
+    _MEMBER_CACHE = []
+    
+    r = get_redis_conn()
+    if r:
+        try:
+            r.delete(REDIS_MEMBER_CACHE_KEY)
+            print("DEBUG: Invalidated member encodings cache in Redis")
+        except Exception as e:
+            print(f"DEBUG: Error invalidating member cache in Redis: {e}")
+
+
+def invalidate_profile_cache(member_id: int):
+    """Invalidate profile cache for specific member"""
+    r = get_redis_conn()
+    if r:
+        try:
+            cache_key = REDIS_PROFILE_CACHE_KEY.format(member_id)
+            r.delete(cache_key)
+            print(f"DEBUG: Invalidated profile cache for member {member_id}")
+        except Exception as e:
+            print(f"DEBUG: Error invalidating profile cache: {e}")
+
+
+def clear_all_cache():
+    """Clear all Redis cache"""
+    r = get_redis_conn()
+    if r:
+        try:
+            # Get all keys with our prefix
+            keys = r.keys("face_gate:*")
+            if keys:
+                r.delete(*keys)
+                print(f"DEBUG: Cleared {len(keys)} cache entries from Redis")
+        except Exception as e:
+            print(f"DEBUG: Error clearing Redis cache: {e}")
+
+
 def gym_get_profile(token: str) -> Optional[Dict]:
+    # Extract member_id from token if possible for caching
+    member_id = None
+    try:
+        import jwt
+        # Try to decode token to get member_id (if it's a JWT)
+        decoded = jwt.decode(token, options={"verify_signature": False})
+        member_id = decoded.get('id')
+    except:
+        pass
+    
+    # Try Redis cache first if we have member_id
+    if member_id:
+        cached_profile = get_profile_from_redis(member_id)
+        if cached_profile:
+            return cached_profile
+    
     # Use GET request with query parameters as specified
     endpoint = f"{GYM_BASE_URL}/portal/api/v1/member/profile"
     params = {
@@ -339,9 +532,15 @@ def gym_get_profile(token: str) -> Optional[Dict]:
             # Check if result is a dictionary with profile data
             if isinstance(result, dict) and "memberphoto" in result:
                 print(f"DEBUG: Found profile data with memberphoto: {result.get('memberphoto')}")  # Debug logging
+                # Save to Redis cache
+                if member_id:
+                    save_profile_to_redis(member_id, result)
                 return result
             elif isinstance(result, dict) and len(result) > 1:  # Has multiple fields, likely profile data
                 print(f"DEBUG: Found profile data with keys: {list(result.keys())}")  # Debug logging
+                # Save to Redis cache
+                if member_id:
+                    save_profile_to_redis(member_id, result)
                 return result
             else:
                 print(f"DEBUG: Result is not profile data: {result}")  # Debug logging
@@ -2135,6 +2334,60 @@ def api_compare_with_profile():
     return jsonify({"ok": True, "similarity": round(sim, 4), "threshold_note": "higher is more similar; ~0.6-0.8 usually same person for ArcFace crops"})
 
 
+@app.route("/api/cache/clear", methods=["POST"])
+def api_clear_cache():
+    """Clear all cache (Redis + memory)"""
+    try:
+        clear_all_cache()
+        invalidate_member_cache()
+        return jsonify({"ok": True, "message": "All cache cleared successfully"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/cache/status", methods=["GET"])
+def api_cache_status():
+    """Get cache status information"""
+    try:
+        r = get_redis_conn()
+        redis_status = "connected" if r else "disconnected"
+        
+        cache_info = {
+            "redis_status": redis_status,
+            "memory_cache_size": len(_MEMBER_CACHE),
+            "cache_ttl": REDIS_CACHE_TTL,
+            "refresh_interval": _CACHE_REFRESH_INTERVAL,
+            "last_refresh": _LAST_CACHE_REFRESH
+        }
+        
+        if r:
+            try:
+                keys = r.keys("face_gate:*")
+                cache_info["redis_keys_count"] = len(keys)
+                cache_info["redis_memory_usage"] = r.memory_usage("face_gate:*")
+            except:
+                cache_info["redis_keys_count"] = 0
+                cache_info["redis_memory_usage"] = 0
+        
+        return jsonify({"ok": True, "cache": cache_info})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/cache/refresh", methods=["POST"])
+def api_refresh_cache():
+    """Manually refresh cache from database"""
+    try:
+        ensure_cache_loaded(force_refresh=True)
+        return jsonify({
+            "ok": True, 
+            "message": "Cache refreshed successfully",
+            "member_count": len(_MEMBER_CACHE)
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/api/update_profile_photo", methods=["POST"])
 def api_update_profile_photo():
     token = session.get('gym_token')
@@ -2343,8 +2596,7 @@ def api_register_face():
         conn.close()
         
         # Clear cache to force reload
-        global _MEMBER_CACHE
-        _MEMBER_CACHE = []
+        invalidate_member_cache()
         
         return jsonify({
             "ok": True, 
