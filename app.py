@@ -801,6 +801,7 @@ RETAKE_HTML = """
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FTL Retake & Compare</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; margin: 24px; }
     .row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
@@ -1000,16 +1001,58 @@ RETAKE_HTML = """
           const similarity = j.similarity;
           if (similarity > 0.6) {
             setOut(`Match! Similarity: ${similarity} (High confidence)`);
+            // SweetAlert for successful match
+            Swal.fire({
+              title: '✅ Face Match!',
+              text: `Tingkat kesamaan: ${(similarity * 100).toFixed(1)}% (Tinggi)`,
+              icon: 'success',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#4CAF50',
+              timer: 3000,
+              timerProgressBar: true
+            });
           } else if (similarity > 0.4) {
             setOut(`Possible match. Similarity: ${similarity} (Medium confidence)`);
+            // SweetAlert for possible match
+            Swal.fire({
+              title: '⚠️ Kemungkinan Match',
+              text: `Tingkat kesamaan: ${(similarity * 100).toFixed(1)}% (Sedang)`,
+              icon: 'warning',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#FF9800'
+            });
           } else {
             setOut(`No match. Similarity: ${similarity} (Low confidence)`);
+            // SweetAlert for no match
+            Swal.fire({
+              title: '❌ Tidak Match',
+              text: `Tingkat kesamaan: ${(similarity * 100).toFixed(1)}% (Rendah) - Beda orang`,
+              icon: 'error',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#f44336'
+            });
           }
         } else {
           setOut('Comparison failed: ' + (j.error || 'Unknown error'));
+          // SweetAlert for error
+          Swal.fire({
+            title: '❌ Error',
+            text: 'Gagal membandingkan foto: ' + (j.error || 'Unknown error'),
+            icon: 'error',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#f44336'
+          });
         }
       } catch (e) {
         setOut('Capture error: ' + e.message);
+        // SweetAlert for capture error
+        Swal.fire({
+          title: '❌ Error',
+          text: 'Gagal mengambil foto: ' + e.message,
+          icon: 'error',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#f44336'
+        });
       }
     };
 
