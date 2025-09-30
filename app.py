@@ -802,41 +802,360 @@ RETAKE_HTML = """
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FTL Retake & Compare</title>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; margin: 24px; }
-    .row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
-    video, img, canvas { width: 360px; height: 360px; object-fit: cover; border-radius: 12px; background: #111; }
-    .card { border: 1px solid #eee; padding: 16px; border-radius: 12px; }
-    button { padding: 10px 16px; border-radius: 10px; border: 1px solid #ddd; cursor: pointer; }
-    input { padding: 8px 12px; border: 1px solid #ccc; border-radius: 8px; width: 280px; }
-    .stack { display: grid; gap: 12px; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      background: #f8f9fa;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #6f42c1;
+      margin-bottom: 10px;
+    }
+    
+    .header p {
+      color: #6c757d;
+      font-size: 1.1rem;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .row { 
+      display: flex; 
+      gap: 30px; 
+      align-items: flex-start; 
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .card { 
+      background: white;
+      border: 1px solid #e9ecef; 
+      padding: 30px; 
+      border-radius: 16px; 
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      min-width: 350px;
+      max-width: 400px;
+    }
+    
+    .card-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #f8f9fa;
+    }
+    
+    .card-header h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #495057;
+      margin-left: 10px;
+    }
+    
+    .card-header i {
+      font-size: 1.5rem;
+      color: #6f42c1;
+    }
+    
+    .profile-field {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      border: 1px solid #e9ecef;
+    }
+    
+    .profile-field i {
+      font-size: 1.2rem;
+      color: #6f42c1;
+      margin-right: 15px;
+      width: 20px;
+    }
+    
+    .profile-field input {
+      border: none;
+      background: transparent;
+      font-size: 1rem;
+      color: #495057;
+      width: 100%;
+      outline: none;
+    }
+    
+    .logout-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background-color 0.3s;
+    }
+    
+    .logout-btn:hover {
+      background: #c82333;
+    }
+    
+    .status-message {
+      margin-top: 15px;
+      padding: 10px;
+      background: #d4edda;
+      color: #155724;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .photo-container {
+      width: 100%;
+      height: 300px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .photo-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 12px;
+    }
+    
+    .photo-placeholder {
+      text-align: center;
+    }
+    
+    .photo-placeholder i {
+      font-size: 4rem;
+      margin-bottom: 15px;
+      opacity: 0.8;
+    }
+    
+    .photo-placeholder p {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+    
+    .photo-info {
+      background: #e3f2fd;
+      color: #1976d2;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      text-align: center;
+      margin-top: 15px;
+    }
+    
+    .camera-container {
+      width: 100%;
+      height: 300px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .camera-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 12px;
+    }
+    
+    .camera-placeholder {
+      text-align: center;
+    }
+    
+    .camera-placeholder i {
+      font-size: 4rem;
+      margin-bottom: 15px;
+      opacity: 0.8;
+    }
+    
+    .camera-placeholder p {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+    
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.3s;
+    }
+    
+    .btn-start {
+      background: white;
+      color: #495057;
+      border: 2px solid #e9ecef;
+    }
+    
+    .btn-start:hover {
+      background: #f8f9fa;
+      border-color: #6f42c1;
+    }
+    
+    .btn-capture {
+      background: white;
+      color: #495057;
+      border: 2px solid #e9ecef;
+    }
+    
+    .btn-capture:hover {
+      background: #f8f9fa;
+      border-color: #6f42c1;
+    }
+    
+    .btn-capture:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .btn-register {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+    }
+    
+    .btn-register:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    canvas { display: none; }
+    
+    .hidden { display: none; }
   </style>
 </head>
 <body>
-  <h1>Profile & Face Registration</h1>
-  <div class="row">
-    <div class="card stack">
-      <h3>User Profile</h3>
-      <div id="profileInfo" style="text-align: center; padding: 20px;">
-        <div id="loadingProfile">Loading profile...</div>
-      </div>
-      <div style="text-align: center; margin-top: 15px;">
-        <button id="btnLogout" onclick="logout()" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Logout</button>
-      </div>
-      <pre id="log"></pre>
+  <div class="container">
+    <div class="header">
+      <h1>Profile & Face Registration</h1>
+      <p>Secure biometric authentication and identity verification system</p>
     </div>
-    <div class="card stack">
-      <h3>Profile Photo</h3>
-      <img id="profile" alt="profile" />
-    </div>
-    <div class="card stack">
-      <h3>Capture & Compare</h3>
-      <video id="video" autoplay playsinline muted></video>
-      <button id="btnStart">Start</button>
-      <button id="btnSnap" disabled>Capture & Compare</button>
-      <button id="btnRegister" style="background: #4CAF50; color: white;">Daftarkan Face Recognition</button>
-      <canvas id="canvas" width="640" height="480" style="display:none"></canvas>
-      <pre id="out"></pre>
+    
+    <div class="row">
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-user"></i>
+          <h3>User Profile</h3>
+        </div>
+        <div id="profileInfo">
+          <div id="loadingProfile">Loading profile...</div>
+        </div>
+        <button id="btnLogout" class="logout-btn" onclick="logout()">
+          <i class="fas fa-arrow-right"></i>
+          Logout
+        </button>
+        <div id="statusMessage" class="status-message hidden">
+          <i class="fas fa-check"></i>
+          <span>Profile photo loaded successfully</span>
+        </div>
+        <pre id="log" style="display: none;"></pre>
+      </div>
+      
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-camera"></i>
+          <h3>Profile Photo</h3>
+        </div>
+        <div class="photo-container" id="photoContainer">
+          <img id="profile" alt="profile" style="display: none;" />
+          <div class="photo-placeholder" id="photoPlaceholder">
+            <i class="fas fa-camera"></i>
+            <p>Profile photo will be displayed here</p>
+          </div>
+        </div>
+        <div class="photo-info">
+          This photo is used as reference for face recognition matching
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-user-check"></i>
+          <h3>Capture & Compare</h3>
+        </div>
+        <div class="camera-container" id="cameraContainer">
+          <video id="video" autoplay playsinline muted style="display: none;"></video>
+          <div class="camera-placeholder" id="cameraPlaceholder">
+            <i class="fas fa-camera"></i>
+            <p>Face captured</p>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button id="btnStart" class="btn btn-start">
+            <i class="fas fa-play"></i>
+            Start Camera
+          </button>
+          <button id="btnSnap" class="btn btn-capture" disabled>
+            <i class="fas fa-user-check"></i>
+            Capture & Compare
+          </button>
+          <button id="btnRegister" class="btn btn-register">
+            <i class="fas fa-check"></i>
+            Register Face Recognition
+          </button>
+        </div>
+        <canvas id="canvas" width="640" height="480"></canvas>
+        <pre id="out" style="display: none;"></pre>
+      </div>
     </div>
   </div>
   
@@ -888,30 +1207,49 @@ RETAKE_HTML = """
           token = j.token;
           const profile = j.profile;
           
-          // Display profile info
+          // Display profile info with styled fields
           profileInfo.innerHTML = `
-            <div style="margin-bottom: 15px;">
-              <strong>Name:</strong> ${profile.fullname || 'N/A'}<br>
-              <strong>Email:</strong> ${profile.email || 'N/A'}<br>
-              <strong>Phone:</strong> ${profile.phonecell || 'N/A'}<br>
-              <strong>Member ID:</strong> ${profile.id || 'N/A'}
+            <div class="profile-field">
+              <i class="fas fa-user"></i>
+              <input type="text" value="${profile.fullname || 'N/A'}" readonly>
+            </div>
+            <div class="profile-field">
+              <i class="fas fa-envelope"></i>
+              <input type="text" value="${profile.email || 'N/A'}" readonly>
+            </div>
+            <div class="profile-field">
+              <i class="fas fa-phone"></i>
+              <input type="text" value="${profile.phonecell || 'N/A'}" readonly>
+            </div>
+            <div class="profile-field">
+              <i class="fas fa-id-card"></i>
+              <input type="text" value="${profile.id || 'N/A'}" readonly>
             </div>
           `;
           
           // Load profile photo
+          const photoContainer = document.getElementById('photoContainer');
+          const photoPlaceholder = document.getElementById('photoPlaceholder');
+          const statusMessage = document.getElementById('statusMessage');
+          
           if (profile.memberphoto) {
             setLog('Loading profile photo: ' + profile.memberphoto);
             img.src = profile.memberphoto;
             img.onerror = () => {
               setLog('Error loading profile photo: ' + profile.memberphoto);
-              img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYwIiBoZWlnaHQ9IjM2MCIgdmlld0JveD0iMCAwIDM2MCAzNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzNjAiIGhlaWdodD0iMzYwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xODAgMTIwQzE0OC41IDEyMCAxMjAgMTQ4LjUgMTIwIDE4MEMxMjAgMjExLjUgMTQ4LjUgMjQwIDE4MCAyNDBDMjExLjUgMjQwIDI0MCAyMTEuNSAyNDAgMTgwQzI0MCAxNDguNSAyMTEuNSAxMjAgMTgwIDEyMFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4MCAyMDBDMTY4IDIwMCAxNTggMTkwIDE1OCAxODBDMTU4IDE2NiAxNjggMTU2IDE4MCAxNTZDMjA0IDE1NiAyMTQgMTY2IDIxNCAxODBDMjE0IDE5MCAyMDQgMjAwIDE4MCAyMDBaIiBmaWxsPSIjRkZGRkZGIi8+Cjx0ZXh0IHg9IjE4MCIgeT0iMzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2NjY2IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiPk5vIFBob3RvPC90ZXh0Pgo8L3N2Zz4K';
+              photoPlaceholder.style.display = 'block';
+              img.style.display = 'none';
             };
             img.onload = () => {
               setLog('Profile photo loaded successfully');
+              img.style.display = 'block';
+              photoPlaceholder.style.display = 'none';
+              statusMessage.classList.remove('hidden');
             };
           } else {
             setLog('No profile photo found');
-            img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYwIiBoZWlnaHQ9IjM2MCIgdmlld0JveD0iMCAwIDM2MCAzNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzNjAiIGhlaWdodD0iMzYwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xODAgMTIwQzE0OC41IDEyMCAxMjAgMTQ4LjUgMTIwIDE4MEMxMjAgMjExLjUgMTQ4LjUgMjQwIDE4MCAyNDBDMjExLjUgMjQwIDI0MCAyMTEuNSAyNDAgMTgwQzI0MCAxNDguNSAyMTEuNSAxMjAgMTgwIDEyMFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4MCAyMDBDMTY4IDIwMCAxNTggMTkwIDE1OCAxODBDMTU4IDE2NiAxNjggMTU2IDE4MCAxNTZDMjA0IDE1NiAyMTQgMTY2IDIxNCAxODBDMjE0IDE5MCAyMDQgMjAwIDE4MCAyMDBaIiBmaWxsPSIjRkZGRkZGIi8+Cjx0ZXh0IHg9IjE4MCIgeT0iMzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2NjY2IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiPk5vIFBob3RvPC90ZXh0Pgo8L3N2Zz4K';
+            photoPlaceholder.style.display = 'block';
+            img.style.display = 'none';
           }
         } else {
           profileInfo.innerHTML = '<div style="color: red;">Not logged in. Please go back to login page.</div>';
@@ -958,7 +1296,15 @@ RETAKE_HTML = """
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { width: 640, height: 480 } 
         });
-        document.getElementById('video').srcObject = stream;
+        
+        const video = document.getElementById('video');
+        const cameraContainer = document.getElementById('cameraContainer');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        
+        video.srcObject = stream;
+        video.style.display = 'block';
+        cameraPlaceholder.style.display = 'none';
+        
         document.getElementById('btnStart').disabled = true;
         document.getElementById('btnSnap').disabled = false;
         setOut('Camera started. Click "Capture & Compare" to take a photo.');
