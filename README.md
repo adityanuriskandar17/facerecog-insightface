@@ -134,3 +134,7 @@ This project is for educational and development purposes.
 ## Support
 
 For issues and questions, please create an issue in the GitHub repository.
+
+cooldown per user
+_LAST_RECOGNITION_TIME = {}  # {member_id: timestamp}
+_RECOGNITION_COOLDOWN = 30 

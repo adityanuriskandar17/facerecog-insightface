@@ -161,6 +161,10 @@ def fetch_member_encodings() -> List[MemberEnc]:
 # Cache encodings in memory for faster search
 _MEMBER_CACHE: List[MemberEnc] = []
 
+# Throttling system to prevent spam
+_LAST_RECOGNITION_TIME = {}  # {member_id: timestamp}
+_RECOGNITION_COOLDOWN = 60  # 60 seconds cooldown per user (increased from 30)
+
 
 def ensure_cache_loaded():
     global _MEMBER_CACHE
@@ -174,6 +178,28 @@ def ensure_cache_loaded():
 
 def cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8))
+
+
+def is_user_throttled(member_id: int) -> bool:
+    """Check if user is in cooldown period"""
+    import time
+    current_time = time.time()
+    
+    if member_id in _LAST_RECOGNITION_TIME:
+        time_since_last = current_time - _LAST_RECOGNITION_TIME[member_id]
+        if time_since_last < _RECOGNITION_COOLDOWN:
+            remaining_time = _RECOGNITION_COOLDOWN - time_since_last
+            print(f"DEBUG: User {member_id} is throttled. {remaining_time:.1f}s remaining")
+            return True
+    
+    return False
+
+
+def mark_user_recognized(member_id: int):
+    """Mark user as recognized to start cooldown"""
+    import time
+    _LAST_RECOGNITION_TIME[member_id] = time.time()
+    print(f"DEBUG: User {member_id} marked as recognized. Cooldown started.")
 
 
 def find_best_match(query_vec: np.ndarray) -> Tuple[Optional[MemberEnc], float, float]:
@@ -555,6 +581,7 @@ INDEX_HTML = """
     let stream = null;
     let recognitionInterval = null;
     let lastRecognitionTime = 0;
+    let isProcessing = false; // Flag to prevent multiple simultaneous requests
 
     function setLog(obj) {
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
@@ -667,8 +694,8 @@ INDEX_HTML = """
         setLog('Camera started.');
         updateDetectionDisplay(null, 'Camera active - detecting faces...');
         
-        // Start automatic face recognition every 2 seconds
-        recognitionInterval = setInterval(performRecognition, 2000);
+        // Start automatic face recognition every 4 seconds
+        recognitionInterval = setInterval(performRecognition, 4000);
         console.log('Recognition interval started');
       } catch (e) {
         console.error('Camera error:', e);
@@ -697,11 +724,12 @@ INDEX_HTML = """
     }
 
     async function performRecognition() {
-      if (!stream || !doorid || !canvas) return;
+      if (!stream || !doorid || !canvas || isProcessing) return;
       
       const now = Date.now();
-      if (now - lastRecognitionTime < 1500) return; // Throttle to prevent too frequent calls
+      if (now - lastRecognitionTime < 3000) return; // Increased throttle to 3 seconds
       lastRecognitionTime = now;
+      isProcessing = true; // Set flag to prevent multiple requests
       
       try {
       const ctx = canvas.getContext('2d');
@@ -728,6 +756,8 @@ INDEX_HTML = """
         if (j.ok && j.matched && j.candidate) {
           const name = j.candidate.email || `Member ${j.candidate.gym_member_id}`;
           const confidence = j.best_score;
+          
+          // Immediately show the name and draw bounding box
           updateDetectionDisplay(name, 'Face recognized', confidence);
           
           // Draw bounding box for recognized face
@@ -739,8 +769,18 @@ INDEX_HTML = """
             drawBoundingBox(100, 100, 200, 200, '#4CAF50', name);
           }
           
-          // Auto-open gate if matched
-          if (j.gate && !j.gate.error) {
+          // Check if user is throttled
+          if (j.gate && j.gate.throttled) {
+            updateDetectionDisplay(name, 'User in cooldown period', confidence);
+            // Change bounding box color to yellow for throttled user
+            if (j.bbox && j.bbox.length === 4) {
+              const [x1, y1, x2, y2] = j.bbox;
+              drawBoundingBox(x1, y1, x2-x1, y2-y1, '#FFC107', 'Cooldown');
+            } else {
+              drawBoundingBox(100, 100, 200, 200, '#FFC107', 'Cooldown');
+            }
+          } else if (j.gate && !j.gate.error) {
+            // Auto-open gate if matched and not throttled
             updateDetectionDisplay(name, 'Gate opened successfully!', confidence);
           }
         } else if (j.ok && !j.matched) {
@@ -759,6 +799,8 @@ INDEX_HTML = """
       } catch (e) {
         updateDetectionDisplay(null, 'Recognition error: ' + e.message);
         setLog('Recognition error: ' + e.message);
+      } finally {
+        isProcessing = false; // Reset flag when done
       }
     }
 
@@ -1148,19 +1190,19 @@ RETAKE_HTML = """
 <body>
   <div class="container">
     <div class="header">
-      <h1>Profile & Face Registration</h1>
+  <h1>Profile & Face Registration</h1>
       <p>Secure biometric authentication and identity verification system</p>
     </div>
     
-    <div class="row">
+  <div class="row">
       <div class="card">
         <div class="card-header">
           <i class="fas fa-user"></i>
-          <h3>User Profile</h3>
+      <h3>User Profile</h3>
         </div>
         <div id="profileInfo">
-          <div id="loadingProfile">Loading profile...</div>
-        </div>
+        <div id="loadingProfile">Loading profile...</div>
+      </div>
         <button id="btnLogout" class="logout-btn" onclick="logout()">
           <i class="fas fa-arrow-right"></i>
           Logout
@@ -1168,15 +1210,15 @@ RETAKE_HTML = """
         <div id="statusMessage" class="status-message hidden">
           <i class="fas fa-check"></i>
           <span>Profile photo loaded successfully</span>
-        </div>
-        <pre id="log" style="display: none;"></pre>
       </div>
+        <pre id="log" style="display: none;"></pre>
+    </div>
       
       <div class="card">
         <div class="card-header">
           <i class="fas fa-camera"></i>
-          <h3>Profile Photo</h3>
-        </div>
+      <h3>Profile Photo</h3>
+    </div>
         <div class="photo-container" id="photoContainer">
           <img id="profile" alt="profile" style="display: none;" />
           <div class="photo-placeholder" id="photoPlaceholder">
@@ -1192,7 +1234,7 @@ RETAKE_HTML = """
       <div class="card">
         <div class="card-header">
           <i class="fas fa-user-check"></i>
-          <h3>Capture & Compare</h3>
+      <h3>Capture & Compare</h3>
         </div>
         <div class="camera-container" id="cameraContainer">
           <video id="video" autoplay playsinline muted style="display: none;"></video>
@@ -1268,7 +1310,7 @@ RETAKE_HTML = """
       
       try {
         if (loadingProfile) {
-          loadingProfile.textContent = 'Loading profile...';
+        loadingProfile.textContent = 'Loading profile...';
         }
         
         // Check if we have session data from login
@@ -1330,15 +1372,15 @@ RETAKE_HTML = """
           }
         } else {
           if (profileInfo) {
-            profileInfo.innerHTML = '<div style="color: red;">Not logged in. Please go back to login page.</div>';
+          profileInfo.innerHTML = '<div style="color: red;">Not logged in. Please go back to login page.</div>';
           }
         }
       } catch (e) {
         if (profileInfo) {
-          profileInfo.innerHTML = '<div style="color: red;">Error loading profile: ' + e.message + '</div>';
+        profileInfo.innerHTML = '<div style="color: red;">Error loading profile: ' + e.message + '</div>';
         }
         if (typeof setLog === 'function') {
-          setLog('Error: ' + e.message);
+        setLog('Error: ' + e.message);
         }
       }
     }
@@ -1846,6 +1888,12 @@ def api_recognize_open_gate():
 
     if matched and best.gym_member_id:
         print(f"DEBUG: Face matched with member ID: {best.gym_member_id}")
+        
+        # Check if user is throttled
+        if is_user_throttled(best.gym_member_id):
+            resp["gate"] = {"error": "User in cooldown period", "throttled": True}
+            return jsonify(resp)
+        
         token = gym_login_with_memberid(best.gym_member_id)
         if token:
             print(f"DEBUG: Login successful, token obtained")
@@ -1854,6 +1902,8 @@ def api_recognize_open_gate():
             if gate:
                 print(f"DEBUG: Gate opened successfully: {gate}")
                 resp["gate"] = gate
+                # Mark user as recognized to start cooldown
+                mark_user_recognized(best.gym_member_id)
             else:
                 print(f"DEBUG: Gate opening failed")
                 resp["gate"] = {"error": "Gate API failed"}
