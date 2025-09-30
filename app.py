@@ -219,14 +219,40 @@ def gym_login_with_email(email: str, password: str) -> Optional[Dict]:
 
 def gym_open_gate(token: str, doorid: int) -> Optional[Dict]:
     payload = {"api_key": GYM_API_KEY, "doorid": doorid, "token": token}
-    try:
-        r = requests.post(GYM_GATE_URL, json=payload, timeout=15)
-        r.raise_for_status()
-        data = r.json()
-        if data.get("error") is None:
-            return data["result"]["response"]
-    except Exception:
-        return None
+    
+    # Try different possible endpoints for gate opening
+    possible_endpoints = [
+        GYM_GATE_URL,  # Original from env
+        f"{GYM_BASE_URL}/portal/api/v2/member/kiosk/checkin",  # Try without 'e' at the end
+        f"{GYM_BASE_URL}/portal/api/v1/member/kiosk/checkin",   # Try v1 instead of v2
+        f"{GYM_BASE_URL}/portal/api/v1/gate/open",              # Try different path
+        f"{GYM_BASE_URL}/portal/api/v2/gate/open",              # Try v2 gate
+        f"{GYM_BASE_URL}/portal/api/v1/member/checkin",        # Try member checkin
+        f"{GYM_BASE_URL}/portal/api/v2/member/checkin"         # Try v2 member checkin
+    ]
+    
+    for i, endpoint in enumerate(possible_endpoints):
+        try:
+            print(f"DEBUG: Trying gate endpoint {i+1}: {endpoint}")
+            print(f"DEBUG: Payload: {payload}")
+            
+            r = requests.post(endpoint, json=payload, timeout=15)
+            r.raise_for_status()
+            data = r.json()
+            
+            print(f"DEBUG: Gate API response: {data}")
+            
+            if data.get("error") is None:
+                print(f"DEBUG: Gate opened successfully with endpoint {i+1}")
+                return data["result"]["response"]
+            else:
+                print(f"DEBUG: Gate API error: {data.get('error')}")
+                
+        except Exception as e:
+            print(f"DEBUG: Endpoint {i+1} failed: {e}")
+            continue
+    
+    print(f"DEBUG: All gate endpoints failed")
     return None
 
 
@@ -1819,14 +1845,23 @@ def api_recognize_open_gate():
     }
 
     if matched and best.gym_member_id:
+        print(f"DEBUG: Face matched with member ID: {best.gym_member_id}")
         token = gym_login_with_memberid(best.gym_member_id)
         if token:
+            print(f"DEBUG: Login successful, token obtained")
             session['gym_token'] = token
             gate = gym_open_gate(token, int(doorid))
-            resp["gate"] = gate if gate else {"error": "Gate API failed"}
+            if gate:
+                print(f"DEBUG: Gate opened successfully: {gate}")
+                resp["gate"] = gate
+            else:
+                print(f"DEBUG: Gate opening failed")
+                resp["gate"] = {"error": "Gate API failed"}
         else:
+            print(f"DEBUG: Login failed for member ID: {best.gym_member_id}")
             resp["gate"] = {"error": "Login API failed"}
     else:
+        print(f"DEBUG: Face not matched or no member ID")
         resp["gate"] = {"error": "Face not confidently matched"}
 
     return jsonify(resp)
