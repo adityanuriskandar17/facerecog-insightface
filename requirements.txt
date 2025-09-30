@@ -1,0 +1,8 @@
+flask
+python-dotenv
+mysql-connector-python
+requests
+insightface
+onnxruntime
+opencv-python-headless
+numpy
