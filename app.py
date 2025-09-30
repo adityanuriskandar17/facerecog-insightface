@@ -195,6 +195,20 @@ def is_user_throttled(member_id: int) -> bool:
     return False
 
 
+def get_user_cooldown_remaining(member_id: int) -> int:
+    """Get remaining cooldown time in seconds for user"""
+    import time
+    current_time = time.time()
+    
+    if member_id in _LAST_RECOGNITION_TIME:
+        time_since_last = current_time - _LAST_RECOGNITION_TIME[member_id]
+        if time_since_last < _RECOGNITION_COOLDOWN:
+            remaining_time = _RECOGNITION_COOLDOWN - time_since_last
+            return int(remaining_time)
+    
+    return 0
+
+
 def mark_user_recognized(member_id: int):
     """Mark user as recognized to start cooldown"""
     import time
@@ -555,6 +569,9 @@ INDEX_HTML = """
       <div id="detectionResult" style="padding: 20px; margin: 20px 0; border-radius: 10px; background: #f8f9fa; border: 1px solid #dee2e6; min-height: 80px; text-align: center;">
         <div id="detectedName" style="font-size: 32px; font-weight: bold; color: #333; margin-bottom: 10px;">No face detected</div>
         <div id="detectionStatus" style="font-size: 18px; color: #666;">Camera inactive</div>
+        <div id="countdownTimer" style="display: none; font-size: 16px; color: #ff6b35; font-weight: bold; margin-top: 10px; padding: 8px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+          <i class="fas fa-clock"></i> Next scan available in: <span id="countdownSeconds">0</span> seconds
+        </div>
       </div>
       
       <div style="color: #666; font-size: 14px;">
@@ -582,6 +599,8 @@ INDEX_HTML = """
     let recognitionInterval = null;
     let lastRecognitionTime = 0;
     let isProcessing = false; // Flag to prevent multiple simultaneous requests
+    let countdownInterval = null; // For countdown timer
+    let remainingCooldown = 0; // Remaining cooldown time in seconds
 
     function setLog(obj) {
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
@@ -636,6 +655,44 @@ INDEX_HTML = """
       } else {
         detectedName.style.color = '#333';
       }
+    }
+
+    function showCountdownTimer(seconds) {
+      const countdownTimer = document.getElementById('countdownTimer');
+      const countdownSeconds = document.getElementById('countdownSeconds');
+      
+      if (seconds > 0) {
+        countdownTimer.style.display = 'block';
+        countdownSeconds.textContent = seconds;
+        remainingCooldown = seconds;
+        
+        // Start countdown
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+        }
+        
+        countdownInterval = setInterval(() => {
+          remainingCooldown--;
+          countdownSeconds.textContent = remainingCooldown;
+          
+          if (remainingCooldown <= 0) {
+            hideCountdownTimer();
+          }
+        }, 1000);
+      } else {
+        hideCountdownTimer();
+      }
+    }
+
+    function hideCountdownTimer() {
+      const countdownTimer = document.getElementById('countdownTimer');
+      countdownTimer.style.display = 'none';
+      
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+      remainingCooldown = 0;
     }
 
     async function startCam() {
@@ -716,6 +773,7 @@ INDEX_HTML = """
         clearInterval(recognitionInterval);
         recognitionInterval = null;
       }
+      hideCountdownTimer(); // Hide countdown when camera stops
       setButtons(false);
       setLog('Camera stopped.');
       updateDetectionDisplay(null, 'Camera inactive');
@@ -772,6 +830,9 @@ INDEX_HTML = """
           // Check if user is throttled
           if (j.gate && j.gate.throttled) {
             updateDetectionDisplay(name, 'User in cooldown period', confidence);
+            // Show countdown timer for cooldown with exact remaining time
+            const cooldownSeconds = j.gate.cooldown_remaining || 60; // Use server-provided time
+            showCountdownTimer(cooldownSeconds);
             // Change bounding box color to yellow for throttled user
             if (j.bbox && j.bbox.length === 4) {
               const [x1, y1, x2, y2] = j.bbox;
@@ -782,6 +843,7 @@ INDEX_HTML = """
           } else if (j.gate && !j.gate.error) {
             // Auto-open gate if matched and not throttled
             updateDetectionDisplay(name, 'Gate opened successfully!', confidence);
+            hideCountdownTimer(); // Hide timer if gate opened successfully
           }
         } else if (j.ok && !j.matched) {
           updateDetectionDisplay('Unknown person', 'Face detected but not recognized');
@@ -1891,7 +1953,12 @@ def api_recognize_open_gate():
         
         # Check if user is throttled
         if is_user_throttled(best.gym_member_id):
-            resp["gate"] = {"error": "User in cooldown period", "throttled": True}
+            cooldown_remaining = get_user_cooldown_remaining(best.gym_member_id)
+            resp["gate"] = {
+                "error": "User in cooldown period", 
+                "throttled": True,
+                "cooldown_remaining": cooldown_remaining
+            }
             return jsonify(resp)
         
         token = gym_login_with_memberid(best.gym_member_id)
