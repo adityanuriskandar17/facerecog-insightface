@@ -744,19 +744,135 @@ INDEX_HTML = """
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FTL Face Gate</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; margin: 24px; }
+    body { 
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
+      margin: 24px; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
     .row { display: flex; gap: 24px; align-items: flex-start; }
-    video, canvas, img { width: 420px; height: 315px; background: #111; border-radius: 12px; object-fit: cover; }
-    button { padding: 10px 16px; border-radius: 10px; border: 1px solid #ddd; cursor: pointer; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    video, canvas, img { 
+      width: 420px; 
+      height: 315px; 
+      background: #111; 
+      border-radius: 12px; 
+      object-fit: cover; 
+      max-width: 100%;
+    }
+    button { 
+      padding: 10px 16px; 
+      border-radius: 10px; 
+      border: 1px solid #ddd; 
+      cursor: pointer; 
+      transition: all 0.3s;
+    }
+    button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     .ok { color: #0a7; }
     .warn { color: #b70; }
-    .err { color: #c31; }n
+    .err { color: #c31; }
     .pill { padding: 2px 8px; border: 1px solid #999; border-radius: 999px; font-size: 12px; }
-    .card { border: 1px solid #eee; padding: 16px; border-radius: 12px; }
+    .card { border: 1px solid #eee; padding: 16px; border-radius: 12px; background: white; }
     .muted { color: #777; }
     .field { display: inline-flex; gap: 8px; align-items: center; }
     .stack { display: grid; gap: 12px; }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      body { margin: 10px; }
+      .row { flex-direction: column; gap: 16px; }
+      video, canvas, img { 
+        width: 100%; 
+        max-width: 400px; 
+        height: auto; 
+        min-height: 250px; 
+      }
+      button { padding: 8px 12px; font-size: 14px; }
+    }
+    
+    @media (max-width: 480px) {
+      body { margin: 5px; }
+      video, canvas, img { 
+        width: 100%; 
+        min-height: 200px; 
+      }
+      button { padding: 6px 10px; font-size: 12px; }
+    }
+    
+    /* Fullscreen Styles */
+    .fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+      background: black !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      margin: 0 !important;
+    }
+    
+    .fullscreen #video {
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      min-height: 100vh !important;
+      border-radius: 0 !important;
+      object-fit: cover !important;
+    }
+    
+    .fullscreen #overlay {
+      width: 100vw !important;
+      height: 100vh !important;
+      border-radius: 0 !important;
+    }
+    
+    .fullscreen #cameraStatus {
+      top: 20px !important;
+      left: 20px !important;
+      font-size: 16px !important;
+      padding: 10px 15px !important;
+    }
+    
+    .fullscreen #fullscreenBtn {
+      top: 20px !important;
+      right: 20px !important;
+      font-size: 16px !important;
+      padding: 12px 16px !important;
+    }
+    
+    .fullscreen .detection-info {
+      position: absolute !important;
+      bottom: 20px !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      background: rgba(0,0,0,0.8) !important;
+      color: white !important;
+      border-radius: 10px !important;
+      padding: 15px 25px !important;
+      max-width: 90vw !important;
+    }
+    
+    /* Fullscreen Exit Button */
+    .fullscreen-exit {
+      position: absolute !important;
+      top: 20px !important;
+      right: 80px !important;
+      background: rgba(220, 53, 69, 0.8) !important;
+      color: white !important;
+      border: none !important;
+      padding: 12px 16px !important;
+      border-radius: 8px !important;
+      cursor: pointer !important;
+      font-size: 16px !important;
+      z-index: 10000 !important;
+    }
+    
+    .fullscreen-exit:hover {
+      background: rgba(220, 53, 69, 1) !important;
+    }
   </style>
 </head>
 <body>
@@ -766,11 +882,14 @@ INDEX_HTML = """
         Door ID: <span id="doorid" class="pill">19456</span>
           </div>
       
-      <!-- Single Camera in Center -->
-      <div style="position: relative; display: inline-block; margin-bottom: 20px;">
-        <video id="video" autoplay playsinline muted style="width: 640px; height: 480px; background: #f0f0f0; border-radius: 12px; object-fit: cover; border: 2px solid #ddd; transform: scaleX(-1);"></video>
-        <canvas id="overlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 12px; width: 640px; height: 480px; z-index: 10; background: transparent;"></canvas>
-        <div id="cameraStatus" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px;">Camera inactive</div>
+        <!-- Single Camera in Center -->
+        <div id="cameraContainer" style="position: relative; display: inline-block; margin-bottom: 20px;">
+          <video id="video" autoplay playsinline muted style="width: 100%; max-width: 640px; height: auto; min-height: 300px; background: #f0f0f0; border-radius: 12px; object-fit: cover; border: 2px solid #ddd; transform: scaleX(-1);"></video>
+          <canvas id="overlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 12px; width: 100%; height: 100%; z-index: 10; background: transparent;"></canvas>
+          <div id="cameraStatus" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px;">Camera inactive</div>
+          <button id="fullscreenBtn" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 12px;">
+            <i class="fas fa-expand"></i> Fullscreen
+          </button>
         </div>
       
       <!-- Control Buttons -->
@@ -813,11 +932,12 @@ INDEX_HTML = """
     const btnStop = document.getElementById('btnStop');
 
     let stream = null;
-    let recognitionInterval = null;
-    let lastRecognitionTime = 0;
-    let isProcessing = false; // Flag to prevent multiple simultaneous requests
-    let countdownInterval = null; // For countdown timer
-    let remainingCooldown = 0; // Remaining cooldown time in seconds
+      let recognitionInterval = null;
+      let lastRecognitionTime = 0;
+      let isProcessing = false; // Flag to prevent multiple simultaneous requests
+      let countdownInterval = null; // For countdown timer
+      let remainingCooldown = 0; // Remaining cooldown time in seconds
+      let isFullscreen = false; // Fullscreen state
 
     function setLog(obj) {
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
@@ -830,34 +950,74 @@ INDEX_HTML = """
       const videoWidth = video.videoWidth || 640;
       const videoHeight = video.videoHeight || 480;
       
-      // Set canvas size to match video
-      overlay.width = videoWidth;
-      overlay.height = videoHeight;
-      overlay.style.width = '640px';
-      overlay.style.height = '480px';
+      // Get actual display dimensions
+      const displayWidth = video.clientWidth;
+      const displayHeight = video.clientHeight;
+      
+      // Set canvas size to match video display size (responsive)
+      overlay.width = displayWidth;
+      overlay.height = displayHeight;
+      overlay.style.width = displayWidth + 'px';
+      overlay.style.height = displayHeight + 'px';
       
       // Clear canvas with transparent background
       ctx.clearRect(0, 0, overlay.width, overlay.height);
       
       if (x && y && width && height) {
+        // Scale coordinates from video resolution to display resolution
+        const scaleX = displayWidth / videoWidth;
+        const scaleY = displayHeight / videoHeight;
+        
+        const scaledX = x * scaleX;
+        const scaledY = y * scaleY;
+        const scaledWidth = width * scaleX;
+        const scaledHeight = height * scaleY;
+        
         // Mirror the coordinates to match the mirrored video
-        const mirroredX = videoWidth - x - width;
+        const mirroredX = displayWidth - scaledX - scaledWidth;
         
         ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(mirroredX, y, width, height);
+        ctx.lineWidth = Math.max(2, 3 * Math.min(scaleX, scaleY)); // Responsive line width
+        ctx.strokeRect(mirroredX, scaledY, scaledWidth, scaledHeight);
         
         if (label) {
           ctx.fillStyle = color;
-          ctx.font = 'bold 16px Arial';
-          ctx.fillText(label, mirroredX, Math.max(y - 10, 20));
+          const fontSize = Math.max(12, 16 * Math.min(scaleX, scaleY)); // Responsive font size
+          ctx.font = `bold ${fontSize}px Arial`;
+          ctx.fillText(label, mirroredX, Math.max(scaledY - 10, 20));
         }
+        
+        // Debug logging for mobile
+        console.log('Bounding box debug:', {
+          original: { x, y, width, height },
+          videoSize: { videoWidth, videoHeight },
+          displaySize: { displayWidth, displayHeight },
+          scale: { scaleX, scaleY },
+          scaled: { scaledX, scaledY, scaledWidth, scaledHeight },
+          mirrored: { mirroredX }
+        });
       }
     }
 
     function clearBoundingBox() {
+      if (!overlay) return;
       const ctx = overlay.getContext('2d');
       ctx.clearRect(0, 0, overlay.width, overlay.height);
+    }
+
+    function syncOverlayWithVideo() {
+      if (!overlay || !video) return;
+      
+      const displayWidth = video.clientWidth;
+      const displayHeight = video.clientHeight;
+      
+      // Ensure overlay matches video display size exactly
+      overlay.width = displayWidth;
+      overlay.height = displayHeight;
+      overlay.style.width = displayWidth + 'px';
+      overlay.style.height = displayHeight + 'px';
+      
+      console.log('Overlay synced with video:', displayWidth, 'x', displayHeight);
     }
 
     function setButtons(running) {
@@ -904,16 +1064,58 @@ INDEX_HTML = """
       }
     }
 
-    function hideCountdownTimer() {
-      const countdownTimer = document.getElementById('countdownTimer');
-      countdownTimer.style.display = 'none';
-      
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
+      function hideCountdownTimer() {
+        const countdownTimer = document.getElementById('countdownTimer');
+        countdownTimer.style.display = 'none';
+        
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+        }
+        remainingCooldown = 0;
       }
-      remainingCooldown = 0;
-    }
+
+      function toggleFullscreen() {
+        const cameraContainer = document.getElementById('cameraContainer');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        
+        if (!isFullscreen) {
+          // Enter fullscreen
+          cameraContainer.classList.add('fullscreen');
+          fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit';
+          
+          // Add exit button
+          const exitBtn = document.createElement('button');
+          exitBtn.id = 'fullscreenExitBtn';
+          exitBtn.className = 'fullscreen-exit';
+          exitBtn.innerHTML = '<i class="fas fa-times"></i> Exit Fullscreen';
+          exitBtn.onclick = toggleFullscreen;
+          cameraContainer.appendChild(exitBtn);
+          
+          isFullscreen = true;
+          console.log('Entered fullscreen mode');
+        } else {
+          // Exit fullscreen
+          cameraContainer.classList.remove('fullscreen');
+          fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
+          
+          // Remove exit button
+          const exitBtn = document.getElementById('fullscreenExitBtn');
+          if (exitBtn) {
+            exitBtn.remove();
+          }
+          
+          isFullscreen = false;
+          console.log('Exited fullscreen mode');
+        }
+      }
+
+      function handleFullscreenChange() {
+        // Handle browser fullscreen API
+        if (!document.fullscreenElement && isFullscreen) {
+          toggleFullscreen();
+        }
+      }
 
     async function startCam() {
       try {
@@ -930,6 +1132,9 @@ INDEX_HTML = """
           console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
           cameraStatus.textContent = 'Camera active';
           cameraStatus.style.background = 'rgba(0,150,0,0.8)';
+          
+          // Sync overlay with video dimensions
+          syncOverlayWithVideo();
         };
         
         video.oncanplay = () => {
@@ -1094,6 +1299,36 @@ INDEX_HTML = """
       console.log('Stop camera button clicked');
       stopCam();
     };
+    
+    // Fullscreen functionality
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    if (fullscreenBtn) {
+      fullscreenBtn.onclick = toggleFullscreen;
+    }
+    
+    // Listen for fullscreen changes
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    
+    // Handle window resize for mobile responsiveness
+    window.addEventListener('resize', () => {
+      if (overlay && video) {
+        // Sync overlay with video when window resizes
+        syncOverlayWithVideo();
+      }
+    });
+    
+    // Handle orientation change for mobile
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => {
+        if (overlay && video) {
+          // Sync overlay with video after orientation change
+          syncOverlayWithVideo();
+        }
+      }, 100);
+    });
     
     function debugCamera() {
       console.log('=== CAMERA DEBUG INFO ===');
