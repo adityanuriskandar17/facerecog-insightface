@@ -1241,7 +1241,9 @@ RETAKE_HTML = """
       const loadingProfile = document.getElementById('loadingProfile');
       
       try {
-        loadingProfile.textContent = 'Loading profile...';
+        if (loadingProfile) {
+          loadingProfile.textContent = 'Loading profile...';
+        }
         
         // Check if we have session data from login
         const r = await fetch('/api/get_profile', {
@@ -1301,11 +1303,17 @@ RETAKE_HTML = """
             img.style.display = 'none';
           }
         } else {
-          profileInfo.innerHTML = '<div style="color: red;">Not logged in. Please go back to login page.</div>';
+          if (profileInfo) {
+            profileInfo.innerHTML = '<div style="color: red;">Not logged in. Please go back to login page.</div>';
+          }
         }
       } catch (e) {
-        profileInfo.innerHTML = '<div style="color: red;">Error loading profile: ' + e.message + '</div>';
-        setLog('Error: ' + e.message);
+        if (profileInfo) {
+          profileInfo.innerHTML = '<div style="color: red;">Error loading profile: ' + e.message + '</div>';
+        }
+        if (typeof setLog === 'function') {
+          setLog('Error: ' + e.message);
+        }
       }
     }
 
@@ -1577,6 +1585,16 @@ RETAKE_HTML = """
               timer: 3000,
               timerProgressBar: true
             });
+            
+            // Update User Profile section with success message
+            const profileInfo = document.getElementById('profileInfo');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            // Show success message in User Profile section
+            statusMessage.innerHTML = '<i class="fas fa-check"></i><span>Foto telah di update ke gymmaster</span>';
+            statusMessage.classList.remove('hidden');
+            statusMessage.style.background = '#d4edda';
+            statusMessage.style.color = '#155724';
             
             // Reload profile to show updated photo
             setTimeout(() => {
