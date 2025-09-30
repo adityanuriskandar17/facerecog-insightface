@@ -265,13 +265,191 @@ def gym_get_profile(token: str) -> Optional[Dict]:
             return None
     except Exception as e:
         print(f"DEBUG: Exception in gym_get_profile: {e}")  # Debug logging
-        return None
+    return None
 
 
 # -------------------- Flask App --------------------
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
+
+LOGIN_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FTL Face Gate - Login</title>
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .login-header p {
+            color: #666;
+            margin: 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .login-btn:hover {
+            background: #0056b3;
+        }
+        .login-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            text-align: center;
+            transition: background-color 0.2s;
+        }
+        .back-btn:hover {
+            background: #545b62;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .success-message {
+            color: #28a745;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>FTL Face Gate</h1>
+            <p>Login to Register Face</p>
+        </div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="login-btn" id="loginBtn">Login</button>
+        </form>
+        
+        <div id="message"></div>
+        
+        <a href="/" class="back-btn">← Back to Face Recognition</a>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const messageDiv = document.getElementById('message');
+            
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Logging in...';
+            messageDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/retake_login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    messageDiv.innerHTML = '<div class="success-message">Login successful! Redirecting...</div>';
+                    setTimeout(() => {
+                        window.location.href = '/retake';
+                    }, 1500);
+                } else {
+                    messageDiv.innerHTML = '<div class="error-message">Login failed: ' + (result.error || 'Invalid credentials') + '</div>';
+                }
+            } catch (error) {
+                messageDiv.innerHTML = '<div class="error-message">Login error: ' + error.message + '</div>';
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
+            }
+        });
+    </script>
+</body>
+</html>
+"""
 
 INDEX_HTML = """
 <!doctype html>
@@ -288,7 +466,7 @@ INDEX_HTML = """
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     .ok { color: #0a7; }
     .warn { color: #b70; }
-    .err { color: #c31; }
+    .err { color: #c31; }n
     .pill { padding: 2px 8px; border: 1px solid #999; border-radius: 999px; font-size: 12px; }
     .card { border: 1px solid #eee; padding: 16px; border-radius: 12px; }
     .muted { color: #777; }
@@ -296,25 +474,25 @@ INDEX_HTML = """
     .stack { display: grid; gap: 12px; }
   </style>
 </head>
-  <body>
+<body>
     <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column;">
       <h1 style="margin-bottom: 20px;">FTL Face Gate</h1>
       <div style="margin-bottom: 20px;">
         Door ID: <span id="doorid" class="pill">19456</span>
-      </div>
+          </div>
       
       <!-- Single Camera in Center -->
       <div style="position: relative; display: inline-block; margin-bottom: 20px;">
         <video id="video" autoplay playsinline muted style="width: 640px; height: 480px; background: #f0f0f0; border-radius: 12px; object-fit: cover; border: 2px solid #ddd;"></video>
         <canvas id="overlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 12px; width: 640px; height: 480px; z-index: 10; background: transparent;"></canvas>
         <div id="cameraStatus" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px;">Camera inactive</div>
-      </div>
+        </div>
       
       <!-- Control Buttons -->
       <div style="margin-bottom: 20px;">
         <button id="btnStart" disabled style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #007bff; color: white; cursor: pointer;">Start Camera</button>
         <button id="btnStop" disabled style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #dc3545; color: white; cursor: pointer;">Stop Camera</button>
-        <button id="btnRetake" onclick="location.href='/retake'" style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #28a745; color: white; cursor: pointer;">Register Face</button>
+        <button id="btnRetake" onclick="location.href='/login'" style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #28a745; color: white; cursor: pointer;">Register Face</button>
         <button id="btnDebug" onclick="debugCamera()" style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #ffc107; color: black; cursor: pointer;">Debug Camera</button>
         <button id="btnToggleOverlay" onclick="toggleOverlay()" style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #6f42c1; color: white; cursor: pointer;">Hide Overlay</button>
       </div>
@@ -327,8 +505,8 @@ INDEX_HTML = """
       
       <div style="color: #666; font-size: 14px;">
         Face recognition runs automatically when camera is active.
-      </div>
     </div>
+  </div>
   <script>
     const q = new URLSearchParams(location.search);
     const doorid = q.get('doorid');
@@ -498,15 +676,15 @@ INDEX_HTML = """
       lastRecognitionTime = now;
       
       try {
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         
         updateDetectionDisplay(null, 'Recognizing...');
         
-        const r = await fetch('/api/recognize_open_gate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+      const r = await fetch('/api/recognize_open_gate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ doorid: parseInt(doorid), image_b64: dataUrl.split(',')[1] })
         });
         
@@ -634,13 +812,16 @@ RETAKE_HTML = """
   </style>
 </head>
 <body>
-  <h1>Retake & Compare</h1>
+  <h1>Profile & Face Registration</h1>
   <div class="row">
     <div class="card stack">
-      <h3>Step 1: Login (email + password)</h3>
-      <input id="email" type="email" placeholder="Email" />
-      <input id="password" type="password" placeholder="Password" />
-      <button id="btnLogin">Login</button>
+      <h3>User Profile</h3>
+      <div id="profileInfo" style="text-align: center; padding: 20px;">
+        <div id="loadingProfile">Loading profile...</div>
+      </div>
+      <div style="text-align: center; margin-top: 15px;">
+        <button id="btnLogout" onclick="logout()" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Logout</button>
+      </div>
       <pre id="log"></pre>
     </div>
     <div class="card stack">
@@ -685,33 +866,89 @@ RETAKE_HTML = """
 
     let token=null; let stream=null; let registerStream=null; let burstInterval=null;
 
-    document.getElementById('btnLogin').onclick = async () => {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const r = await fetch('/api/retake_login', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const j = await r.json();
-      setLog(j);
-      if (j.ok) {
-        token = j.token;
-        if (j.profile && typeof j.profile === 'object' && j.profile.memberphoto) {
-          setLog('Loading profile photo: ' + j.profile.memberphoto);
-          img.src = j.profile.memberphoto;
-          img.onerror = () => {
-            setLog('Error loading profile photo: ' + j.profile.memberphoto);
+    // Auto-load profile when page loads
+    async function loadProfile() {
+      const profileInfo = document.getElementById('profileInfo');
+      const loadingProfile = document.getElementById('loadingProfile');
+      
+      try {
+        loadingProfile.textContent = 'Loading profile...';
+        
+        // Check if we have session data from login
+        const r = await fetch('/api/get_profile', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const j = await r.json();
+        setLog(j);
+        
+        if (j.ok && j.profile) {
+          token = j.token;
+          const profile = j.profile;
+          
+          // Display profile info
+          profileInfo.innerHTML = `
+            <div style="margin-bottom: 15px;">
+              <strong>Name:</strong> ${profile.fullname || 'N/A'}<br>
+              <strong>Email:</strong> ${profile.email || 'N/A'}<br>
+              <strong>Phone:</strong> ${profile.phonecell || 'N/A'}<br>
+              <strong>Member ID:</strong> ${profile.id || 'N/A'}
+            </div>
+          `;
+          
+          // Load profile photo
+          if (profile.memberphoto) {
+            setLog('Loading profile photo: ' + profile.memberphoto);
+            img.src = profile.memberphoto;
+            img.onerror = () => {
+              setLog('Error loading profile photo: ' + profile.memberphoto);
+              img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYwIiBoZWlnaHQ9IjM2MCIgdmlld0JveD0iMCAwIDM2MCAzNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzNjAiIGhlaWdodD0iMzYwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xODAgMTIwQzE0OC41IDEyMCAxMjAgMTQ4LjUgMTIwIDE4MEMxMjAgMjExLjUgMTQ4LjUgMjQwIDE4MCAyNDBDMjExLjUgMjQwIDI0MCAyMTEuNSAyNDAgMTgwQzI0MCAxNDguNSAyMTEuNSAxMjAgMTgwIDEyMFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4MCAyMDBDMTY4IDIwMCAxNTggMTkwIDE1OCAxODBDMTU4IDE2NiAxNjggMTU2IDE4MCAxNTZDMjA0IDE1NiAyMTQgMTY2IDIxNCAxODBDMjE0IDE5MCAyMDQgMjAwIDE4MCAyMDBaIiBmaWxsPSIjRkZGRkZGIi8+Cjx0ZXh0IHg9IjE4MCIgeT0iMzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2NjY2IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiPk5vIFBob3RvPC90ZXh0Pgo8L3N2Zz4K';
+            };
+            img.onload = () => {
+              setLog('Profile photo loaded successfully');
+            };
+          } else {
+            setLog('No profile photo found');
             img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYwIiBoZWlnaHQ9IjM2MCIgdmlld0JveD0iMCAwIDM2MCAzNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzNjAiIGhlaWdodD0iMzYwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xODAgMTIwQzE0OC41IDEyMCAxMjAgMTQ4LjUgMTIwIDE4MEMxMjAgMjExLjUgMTQ4LjUgMjQwIDE4MCAyNDBDMjExLjUgMjQwIDI0MCAyMTEuNSAyNDAgMTgwQzI0MCAxNDguNSAyMTEuNSAxMjAgMTgwIDEyMFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4MCAyMDBDMTY4IDIwMCAxNTggMTkwIDE1OCAxODBDMTU4IDE2NiAxNjggMTU2IDE4MCAxNTZDMjA0IDE1NiAyMTQgMTY2IDIxNCAxODBDMjE0IDE5MCAyMDQgMjAwIDE4MCAyMDBaIiBmaWxsPSIjRkZGRkZGIi8+Cjx0ZXh0IHg9IjE4MCIgeT0iMzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2NjY2IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiPk5vIFBob3RvPC90ZXh0Pgo8L3N2Zz4K';
-          };
-          img.onload = () => {
-            setLog('Profile photo loaded successfully');
-          };
+          }
         } else {
-          setLog('No profile photo found - profile type: ' + typeof j.profile + ', has memberphoto: ' + (j.profile && j.profile.memberphoto ? 'yes' : 'no'));
-          img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYwIiBoZWlnaHQ9IjM2MCIgdmlld0JveD0iMCAwIDM2MCAzNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzNjAiIGhlaWdodD0iMzYwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xODAgMTIwQzE0OC41IDEyMCAxMjAgMTQ4LjUgMTIwIDE4MEMxMjAgMjExLjUgMTQ4LjUgMjQwIDE4MCAyNDBDMjExLjUgMjQwIDI0MCAyMTEuNSAyNDAgMTgwQzI0MCAxNDguNSAyMTEuNSAxMjAgMTgwIDEyMFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4MCAyMDBDMTY4IDIwMCAxNTggMTkwIDE1OCAxODBDMTU4IDE2NiAxNjggMTU2IDE4MCAxNTZDMjA0IDE1NiAyMTQgMTY2IDIxNCAxODBDMjE0IDE5MCAyMDQgMjAwIDE4MCAyMDBaIiBmaWxsPSIjRkZGRkZGIi8+Cjx0ZXh0IHg9IjE4MCIgeT0iMzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2NjY2IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiPk5vIFBob3RvPC90ZXh0Pgo8L3N2Zz4K';
+          profileInfo.innerHTML = '<div style="color: red;">Not logged in. Please go back to login page.</div>';
         }
+      } catch (e) {
+        profileInfo.innerHTML = '<div style="color: red;">Error loading profile: ' + e.message + '</div>';
+        setLog('Error: ' + e.message);
       }
-    };
+    }
+
+    // Load profile when page loads
+    loadProfile();
+
+    // Logout function
+    async function logout() {
+      try {
+        const r = await fetch('/api/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const j = await r.json();
+        setLog('Logout: ' + JSON.stringify(j));
+        
+        if (j.ok) {
+          // Clear local variables
+          token = null;
+          
+          // Redirect to login page
+          window.location.href = '/login';
+        } else {
+          alert('Logout failed: ' + (j.error || 'Unknown error'));
+        }
+      } catch (e) {
+        setLog('Logout error: ' + e.message);
+        alert('Logout error: ' + e.message);
+      }
+    }
 
     // Remove duplicate event handlers - they are already defined above
 
@@ -784,10 +1021,10 @@ RETAKE_HTML = """
           
           // Send frames to server for encoding
           const r = await fetch('/api/register_face', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ frames: capturedFrames })
-          });
-          const j = await r.json();
+      });
+      const j = await r.json();
           
           if (j.ok) {
             progress.textContent = 'Face recognition berhasil didaftarkan!';
@@ -810,8 +1047,18 @@ def index():
     return render_template_string(INDEX_HTML)
 
 
+@app.route("/login")
+def login():
+    return render_template_string(LOGIN_HTML)
+
 @app.route("/retake")
 def retake():
+    # Check if user is logged in
+    token = session.get('gym_token')
+    if not token:
+        # Redirect to login page if not logged in
+        return redirect(url_for('login'))
+    
     return render_template_string(RETAKE_HTML)
 
 
@@ -959,11 +1206,47 @@ def api_retake_login():
     })
 
 
+@app.route("/api/get_profile", methods=["GET"])
+def api_get_profile():
+    token = session.get('gym_token')
+    if not token:
+        return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
+
+    # Get profile from session
+    profile = session.get('profile_data')
+    if not profile:
+        # Try to get from API if not in session
+        profile = gym_get_profile(token)
+        if profile:
+            session['profile_data'] = profile
+
+    if not profile:
+        return jsonify({"ok": False, "error": "Failed to fetch profile"})
+
+    return jsonify({
+        "ok": True,
+        "token": token,
+        "profile": profile
+    })
+
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    # Clear session data
+    session.pop('gym_token', None)
+    session.pop('profile_data', None)
+    
+    return jsonify({
+        "ok": True,
+        "message": "Logged out successfully"
+    })
+
+
 @app.route("/api/compare_with_profile", methods=["POST"])
 def api_compare_with_profile():
     token = session.get('gym_token')
     if not token:
-        return jsonify({"ok": False, "error": "Not logged in"}), 401
+        return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
 
     # Try to get profile from session first, then from API if needed
     profile = session.get('profile_data')
@@ -1012,7 +1295,7 @@ def api_compare_with_profile():
 def api_register_face():
     token = session.get('gym_token')
     if not token:
-        return jsonify({"ok": False, "error": "Not logged in"}), 401
+        return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
 
     # Get user email from session or profile
     profile = session.get('profile_data')
