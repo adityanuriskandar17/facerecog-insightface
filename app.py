@@ -1989,7 +1989,7 @@ RETAKE_HTML = """
       <div style="text-align: center; margin: 20px 0;">
         <div style="position: relative; width: 100%; max-width: 500px; height: 300px; margin: 0 auto; background: #111; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
           <video id="registerVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 2; background: #000;"></video>
-          <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 3;" />
+          <img id="registerCapturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 3;" />
           <div id="cameraPlaceholder" style="width: 100%; height: 100%; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d; position: absolute; top: 0; left: 0; border-radius: 12px;">
             <i class="fas fa-camera" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
             <div style="font-size: 18px; font-weight: 500;">Camera Inactive</div>
@@ -1999,12 +1999,12 @@ RETAKE_HTML = """
       
       <style>
         @media (max-width: 768px) {
-          #registerVideo, #capturedImage {
+          #registerVideo, #registerCapturedImage {
             object-fit: contain !important;
           }
         }
         @media (max-width: 480px) {
-          #registerVideo, #capturedImage {
+          #registerVideo, #registerCapturedImage {
             object-fit: contain !important;
           }
         }
@@ -2481,11 +2481,11 @@ RETAKE_HTML = """
       
       // Reset modal state
       const registerVideo = document.getElementById('registerVideo');
-      const capturedImage = document.getElementById('capturedImage');
+      const registerCapturedImage = document.getElementById('registerCapturedImage');
       const cameraPlaceholder = document.getElementById('cameraPlaceholder');
       
       registerVideo.style.display = 'none';
-      capturedImage.style.display = 'none';
+      registerCapturedImage.style.display = 'none';
       cameraPlaceholder.style.display = 'flex';
       
       // Reset button states
@@ -2583,7 +2583,7 @@ RETAKE_HTML = """
     // Capture Photo button in modal
     document.getElementById('btnCapturePhoto').onclick = async () => {
       const registerVideo = document.getElementById('registerVideo');
-      const capturedImage = document.getElementById('capturedImage');
+      const registerCapturedImage = document.getElementById('registerCapturedImage');
       const cameraPlaceholder = document.getElementById('cameraPlaceholder');
       
       if (!registerStream) {
@@ -2598,12 +2598,12 @@ RETAKE_HTML = """
         const dataUrl = registerCanvas.toDataURL('image/jpeg', 0.9);
         
         // Show captured image
-        capturedImage.src = dataUrl;
-        capturedImage.style.display = 'block';
+        registerCapturedImage.src = dataUrl;
+        registerCapturedImage.style.display = 'block';
         registerVideo.style.display = 'none';
         
         // Ensure image loads properly
-        capturedImage.onload = () => {
+        registerCapturedImage.onload = () => {
           console.log('Captured image loaded successfully');
         };
         
@@ -2621,11 +2621,11 @@ RETAKE_HTML = """
     // Reset Photo button in modal
     document.getElementById('btnResetPhoto').onclick = () => {
       const registerVideo = document.getElementById('registerVideo');
-      const capturedImage = document.getElementById('capturedImage');
+      const registerCapturedImage = document.getElementById('registerCapturedImage');
       
       // Reset to camera view
       registerVideo.style.display = 'block';
-      capturedImage.style.display = 'none';
+      registerCapturedImage.style.display = 'none';
       
       // Update button states
       document.getElementById('btnCapturePhoto').disabled = false;
@@ -2637,15 +2637,15 @@ RETAKE_HTML = """
 
     // Update Photo button in modal
     document.getElementById('btnUpdatePhoto').onclick = async () => {
-      const capturedImage = document.getElementById('capturedImage');
+      const registerCapturedImage = document.getElementById('registerCapturedImage');
       
-      if (!capturedImage.src || capturedImage.style.display === 'none') {
+      if (!registerCapturedImage.src || registerCapturedImage.style.display === 'none') {
         document.getElementById('registerProgress').textContent = 'Please capture a photo first';
         return;
       }
       
       try {
-        const dataUrl = capturedImage.src;
+        const dataUrl = registerCapturedImage.src;
         
         document.getElementById('registerProgress').textContent = 'Updating profile photo...';
         
