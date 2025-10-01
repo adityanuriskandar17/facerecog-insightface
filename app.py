@@ -117,16 +117,19 @@ def get_redis_conn():
             host=REDIS_HOST,
             port=REDIS_PORT,
             db=REDIS_DB,
-            password=REDIS_PASSWORD,
+            password=REDIS_PASSWORD if REDIS_PASSWORD else None,
             decode_responses=False,  # We'll handle binary data
-            socket_connect_timeout=5,
-            socket_timeout=5
+            socket_connect_timeout=2,  # Reduced timeout
+            socket_timeout=2,  # Reduced timeout
+            retry_on_timeout=False  # Disable retry for faster failure
         )
         # Test connection
         r.ping()
         return r
     except Exception as e:
-        print(f"DEBUG: Redis connection failed: {e}")
+        # Only log Redis errors in debug mode, don't spam logs
+        if "AUTH" not in str(e):  # Skip AUTH errors to reduce log spam
+            print(f"DEBUG: Redis connection failed: {e}")
         return None
 
 
@@ -199,11 +202,16 @@ _MEMBER_CACHE: List[MemberEnc] = []
 
 # Throttling system to prevent spam
 _LAST_RECOGNITION_TIME = {}  # {member_id: timestamp}
-_RECOGNITION_COOLDOWN = 10  # 60 seconds cooldown per user (increased from 30)
+_RECOGNITION_COOLDOWN = 10  # 10 seconds cooldown per user
 
-# Cache refresh system
+# Face recognition model cache
+_face_rec_model = None
+_face_det = None
+_insightface_lock = threading.Lock()
+
+# Cache refresh system - optimized for better performance
 _LAST_CACHE_REFRESH = 0  # Timestamp of last cache refresh
-_CACHE_REFRESH_INTERVAL = 300  # 5 minutes - refresh cache every 5 minutes
+_CACHE_REFRESH_INTERVAL = 1800  # 30 minutes - refresh cache every 30 minutes (increased from 5)
 
 # Redis cache keys
 REDIS_MEMBER_CACHE_KEY = "face_gate:member_encodings"
@@ -249,9 +257,13 @@ def ensure_cache_loaded(force_refresh=False):
     global _MEMBER_CACHE, _LAST_CACHE_REFRESH
     import time
     
+    # If cache is already loaded and not force refresh, return immediately
+    if _MEMBER_CACHE and not force_refresh:
+        return
+    
     current_time = time.time()
     
-    # Check if we need to refresh cache (every 5 minutes)
+    # Check if we need to refresh cache (every 30 minutes)
     should_refresh = (
         force_refresh or 
         (current_time - _LAST_CACHE_REFRESH) > _CACHE_REFRESH_INTERVAL
@@ -271,6 +283,7 @@ def ensure_cache_loaded(force_refresh=False):
             if cached_members:
                 _MEMBER_CACHE = cached_members
                 print(f"DEBUG: Loaded {len(_MEMBER_CACHE)} members from Redis cache")
+                return  # Exit early if loaded from Redis
         
         # If no cache or force refresh, load from database
         if not _MEMBER_CACHE:
@@ -283,8 +296,10 @@ def ensure_cache_loaded(force_refresh=False):
                 if _MEMBER_CACHE:
                     save_member_encodings_to_redis(_MEMBER_CACHE)
                 
-                for member in _MEMBER_CACHE:
-                    print(f"DEBUG: Member {member.member_pk}: {member.email} (gym_id: {member.gym_member_id})")
+                # Only print member details in debug mode
+                if len(_MEMBER_CACHE) <= 5:  # Only print if small number of members
+                    for member in _MEMBER_CACHE:
+                        print(f"DEBUG: Member {member.member_pk}: {member.email} (gym_id: {member.gym_member_id})")
             except Exception as e:
                 print(f"DEBUG: Error loading member cache: {e}")
                 _MEMBER_CACHE = []
@@ -335,15 +350,27 @@ def find_best_match(query_vec: np.ndarray) -> Tuple[Optional[MemberEnc], float, 
     try:
         ensure_cache_loaded()
         if not _MEMBER_CACHE:
-            print("DEBUG: No members in cache")
             return None, 0.0, 0.0
-        # Query already normalized
-        sims = [(m, float(np.dot(query_vec, m.enc))) for m in _MEMBER_CACHE]
-        sims.sort(key=lambda x: x[1], reverse=True)
-        best = sims[0]
-        second = sims[1] if len(sims) > 1 else (None, 0.0)
-        print(f"DEBUG: Best match: {best[0].email if best[0] else 'None'} (score: {best[1]:.4f})")
-        return best[0], best[1], second[1]
+        
+        # Optimized similarity calculation - only compute top matches
+        best_score = -1.0
+        second_best_score = -1.0
+        best_member = None
+        
+        # Single pass to find top 2 matches
+        for member in _MEMBER_CACHE:
+            score = float(np.dot(query_vec, member.enc))
+            if score > best_score:
+                second_best_score = best_score
+                best_score = score
+                best_member = member
+            elif score > second_best_score:
+                second_best_score = score
+        
+        if best_member:
+            print(f"DEBUG: Best match: {best_member.email} (score: {best_score:.4f})")
+        
+        return best_member, best_score, second_best_score
     except Exception as e:
         print(f"DEBUG: Error in find_best_match: {e}")
         return None, 0.0, 0.0
@@ -912,8 +939,8 @@ INDEX_HTML = """
     .fullscreen-exit {
       position: absolute !important;
       top: 20px !important;
-      right: 80px !important;
-      background: rgba(220, 53, 69, 0.8) !important;
+      right: 20px !important;
+      background: rgba(220, 53, 69, 0.9) !important;
       color: white !important;
       border: none !important;
       padding: 12px 16px !important;
@@ -921,10 +948,77 @@ INDEX_HTML = """
       cursor: pointer !important;
       font-size: 16px !important;
       z-index: 10000 !important;
+      min-width: 120px !important;
+      text-align: center !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
     }
     
     .fullscreen-exit:hover {
       background: rgba(220, 53, 69, 1) !important;
+    }
+    
+    /* Mobile-specific fullscreen exit button */
+    @media (max-width: 768px) {
+      .fullscreen-exit {
+        top: 10px !important;
+        right: 10px !important;
+        padding: 8px 12px !important;
+        font-size: 14px !important;
+        min-width: 100px !important;
+      }
+      
+      .fullscreen #fullscreenBtn {
+        top: 10px !important;
+        right: 120px !important;
+        font-size: 14px !important;
+        padding: 8px 12px !important;
+      }
+    }
+    
+    /* High resolution mobile screens (1080x2436, iPhone X style) */
+    @media (max-width: 414px) and (min-height: 800px) {
+      .fullscreen-exit {
+        top: 15px !important;
+        right: 15px !important;
+        padding: 10px 14px !important;
+        font-size: 16px !important;
+        min-width: 110px !important;
+        z-index: 10001 !important;
+      }
+      
+      .fullscreen #fullscreenBtn {
+        top: 15px !important;
+        right: 140px !important;
+        font-size: 16px !important;
+        padding: 10px 14px !important;
+        z-index: 10001 !important;
+      }
+      
+      .fullscreen #cameraStatus {
+        top: 15px !important;
+        left: 15px !important;
+        font-size: 18px !important;
+        padding: 12px 18px !important;
+        z-index: 10001 !important;
+      }
+    }
+    
+    /* Ultra-wide mobile screens */
+    @media (min-width: 400px) and (max-width: 500px) and (min-height: 800px) {
+      .fullscreen-exit {
+        top: 20px !important;
+        right: 20px !important;
+        padding: 12px 16px !important;
+        font-size: 18px !important;
+        min-width: 120px !important;
+      }
+      
+      .fullscreen #fullscreenBtn {
+        top: 20px !important;
+        right: 150px !important;
+        font-size: 18px !important;
+        padding: 12px 16px !important;
+      }
     }
   </style>
 </head>
@@ -938,7 +1032,6 @@ INDEX_HTML = """
             <span id="doorid" class="pill" style="background: #495057; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">19456</span>
           </div>
         </div>
-        <div style="color: #999; font-size: 12px;">Open preview in new tab</div>
       </div>
       
         <!-- Camera Display Area -->
@@ -1047,12 +1140,13 @@ INDEX_HTML = """
       let remainingCooldown = 0; // Remaining cooldown time in seconds
       let isFullscreen = false; // Fullscreen state
       let lastSuccessfulRecognitionTime = 0; // Track when user was last successfully recognized
+      let lastBoundingBox = null; // Store last bounding box info for redraw
 
     function setLog(obj) {
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
     }
     
-    function drawBoundingBox(x, y, width, height, color = '#00FF00', label = '') {
+    function drawFaceTracking(x, y, width, height, color = '#00FF00', label = '') {
       if (!overlay) return;
       
       const ctx = overlay.getContext('2d');
@@ -1073,45 +1167,92 @@ INDEX_HTML = """
       ctx.clearRect(0, 0, overlay.width, overlay.height);
       
       if (x && y && width && height) {
-        // Scale coordinates from video resolution to display resolution
+        // Improved scaling for mobile devices
         const scaleX = displayWidth / videoWidth;
         const scaleY = displayHeight / videoHeight;
         
-        const scaledX = x * scaleX;
-        const scaledY = y * scaleY;
-        const scaledWidth = width * scaleX;
-        const scaledHeight = height * scaleY;
+        // Use uniform scaling to maintain aspect ratio
+        const scale = Math.min(scaleX, scaleY);
         
-        // Mirror the coordinates to match the mirrored video
-        const mirroredX = displayWidth - scaledX - scaledWidth;
+        // Calculate face center with proper scaling
+        const faceCenterX = (x + width / 2) * scale;
+        const faceCenterY = (y + height / 2) * scale;
         
-        ctx.strokeStyle = color;
-        ctx.lineWidth = Math.max(2, 3 * Math.min(scaleX, scaleY)); // Responsive line width
-        ctx.strokeRect(mirroredX, scaledY, scaledWidth, scaledHeight);
+        // Mirror for mobile (video is mirrored) - but only X coordinate
+        const mirroredCenterX = displayWidth - faceCenterX;
         
-        if (label) {
-          ctx.fillStyle = color;
-          const fontSize = Math.max(12, 16 * Math.min(scaleX, scaleY)); // Responsive font size
-          ctx.font = `bold ${fontSize}px Arial`;
-          ctx.fillText(label, mirroredX, Math.max(scaledY - 10, 20));
-        }
+        // Adjust Y position based on device type
+        const centerX = mirroredCenterX;
+        
+        // Detect if device is mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                        window.innerWidth <= 768 || 
+                        ('ontouchstart' in window);
+        
+        // Different Y offset for mobile vs desktop
+        const yOffset = isMobile ? (height * scale * 1) : (height * scale * 0.1);
+        const centerY = faceCenterY + yOffset;
+        
+        // Draw only the face outline rectangle - no circles or crosshairs
+        
+        // 5. Face outline tracking
+        const faceWidth = width * scale;
+        const faceHeight = height * scale;
+        const faceX = displayWidth - (x + width) * scale;
+        const faceY = y * scale + yOffset; // Use same offset as centerY
         
         // Debug logging for mobile
-        console.log('Bounding box debug:', {
+        console.log('Face tracking debug:', {
           original: { x, y, width, height },
+          scaled: { faceX, faceY, faceWidth, faceHeight },
+          center: { centerX, centerY },
+          scale: scale,
           videoSize: { videoWidth, videoHeight },
           displaySize: { displayWidth, displayHeight },
-          scale: { scaleX, scaleY },
-          scaled: { scaledX, scaledY, scaledWidth, scaledHeight },
-          mirrored: { mirroredX }
+          device: { isMobile, yOffset, userAgent: navigator.userAgent.substring(0, 50) }
+        });
+        
+        // Draw face outline as solid rectangle
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]); // Solid line
+        ctx.strokeRect(faceX, faceY, faceWidth, faceHeight);
+        
+        if (label) {
+          // Draw label above face
+          ctx.fillStyle = color;
+          ctx.font = 'bold 14px Arial';
+          
+          const textMetrics = ctx.measureText(label);
+          const textPadding = 4;
+          const labelX = centerX - textMetrics.width / 2;
+          const labelY = centerY - 50;
+          
+          // Background for text
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+          ctx.fillRect(labelX - textPadding, labelY - 16, 
+                      textMetrics.width + textPadding * 2, 20);
+          
+          ctx.fillStyle = color;
+          ctx.fillText(label, labelX, labelY - 2);
+        }
+        
+        // Store tracking info for redraw
+        lastBoundingBox = { x, y, width, height, color, label };
+        
+        console.log('Face tracking debug:', {
+          center: { x: centerX, y: centerY },
+          faceRect: { x: faceX, y: faceY, width: faceWidth, height: faceHeight },
+          displaySize: { displayWidth, displayHeight }
         });
       }
     }
 
-    function clearBoundingBox() {
+    function clearFaceIndicator() {
       if (!overlay) return;
       const ctx = overlay.getContext('2d');
       ctx.clearRect(0, 0, overlay.width, overlay.height);
+      lastBoundingBox = null; // Clear stored face indicator info
     }
 
     function syncOverlayWithVideo() {
@@ -1126,7 +1267,45 @@ INDEX_HTML = """
       overlay.style.width = displayWidth + 'px';
       overlay.style.height = displayHeight + 'px';
       
+      // Force redraw face tracking if one exists
+      if (lastBoundingBox) {
+        const { x, y, width, height, color, label } = lastBoundingBox;
+        drawFaceTracking(x, y, width, height, color, label);
+      }
+      
       console.log('Overlay synced with video:', displayWidth, 'x', displayHeight);
+    }
+    
+    // Enhanced sync function for mobile
+    function forceSyncOverlay() {
+      if (!overlay || !video) return;
+      
+      // Wait for video to be ready
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        setTimeout(forceSyncOverlay, 100);
+        return;
+      }
+      
+      const displayWidth = video.clientWidth;
+      const displayHeight = video.clientHeight;
+      
+      // Force overlay dimensions
+      overlay.width = displayWidth;
+      overlay.height = displayHeight;
+      overlay.style.width = displayWidth + 'px';
+      overlay.style.height = displayHeight + 'px';
+      
+      // Clear and redraw
+      const ctx = overlay.getContext('2d');
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      
+      // Redraw face tracking if exists
+      if (lastBoundingBox) {
+        const { x, y, width, height, color, label } = lastBoundingBox;
+        drawFaceTracking(x, y, width, height, color, label);
+      }
+      
+      console.log('Force sync completed:', displayWidth, 'x', displayHeight);
     }
 
     function setButtons(running) {
@@ -1272,13 +1451,29 @@ INDEX_HTML = """
           cameraContainer.classList.add('fullscreen');
           fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit';
           
-          // Add exit button
+          // Add exit button with mobile-optimized text
           const exitBtn = document.createElement('button');
           exitBtn.id = 'fullscreenExitBtn';
           exitBtn.className = 'fullscreen-exit';
-          exitBtn.innerHTML = '<i class="fas fa-times"></i> Exit Fullscreen';
+          
+          // Use shorter text for mobile and high resolution screens
+          const isMobile = window.innerWidth <= 768;
+          const isHighResMobile = window.innerHeight > 2000 && (window.innerHeight / window.innerWidth) > 2;
+          const shouldUseShortText = isMobile || isHighResMobile;
+          
+          exitBtn.innerHTML = shouldUseShortText ? 
+            '<i class="fas fa-times"></i> Exit' : 
+            '<i class="fas fa-times"></i> Exit Fullscreen';
+            
           exitBtn.onclick = toggleFullscreen;
           cameraContainer.appendChild(exitBtn);
+          
+          // Sync overlay after entering fullscreen
+          setTimeout(() => {
+            if (overlay && video) {
+              syncOverlayWithVideo();
+            }
+          }, 100);
           
           isFullscreen = true;
           console.log('Entered fullscreen mode');
@@ -1292,6 +1487,13 @@ INDEX_HTML = """
           if (exitBtn) {
             exitBtn.remove();
           }
+          
+          // Sync overlay after exiting fullscreen
+          setTimeout(() => {
+            if (overlay && video) {
+              syncOverlayWithVideo();
+            }
+          }, 100);
           
           isFullscreen = false;
           console.log('Exited fullscreen mode');
@@ -1310,10 +1512,10 @@ INDEX_HTML = """
         console.log('Requesting camera access...');
         stream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
-            facingMode: 'user', 
-            width: { ideal: 1280, max: 1920 }, 
-            height: { ideal: 720, max: 1080 },
-            aspectRatio: { ideal: 16/9 }
+            facingMode: { ideal: 'user' },
+            width: { ideal: 1080, max: 1920 },
+            height: { ideal: 1920, max: 2436 },
+            frameRate: { ideal: 15, max: 30 }
           } 
         });
         console.log('Camera stream obtained:', stream);
@@ -1326,6 +1528,13 @@ INDEX_HTML = """
           console.log('Video metadata loaded');
           console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
           
+          // Update canvas dimensions to match video
+          if (canvas) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            console.log('Canvas updated to:', canvas.width, 'x', canvas.height);
+          }
+          
           // Show video and hide placeholder
           video.style.display = 'block';
           document.getElementById('cameraPlaceholder').style.display = 'none';
@@ -1334,8 +1543,10 @@ INDEX_HTML = """
           cameraStatus.innerHTML = '<i class="fas fa-circle" style="font-size: 8px; color: #28a745;"></i><span>Online</span>';
           cameraStatus.style.background = 'rgba(40, 167, 69, 0.9)';
           
-          // Sync overlay with video dimensions
-          syncOverlayWithVideo();
+          // Force sync overlay with video dimensions
+          setTimeout(() => {
+            forceSyncOverlay();
+          }, 200);
         };
         
         video.oncanplay = () => {
@@ -1367,11 +1578,12 @@ INDEX_HTML = """
           }
         }, 1000);
         
-        // Create canvas for image capture
+        // Create canvas for image capture with mobile-optimized size
         canvas = document.createElement('canvas');
-        canvas.width = 1280;
-        canvas.height = 720;
-        console.log('Canvas created');
+        // Use fallback dimensions if video not ready
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        console.log('Canvas created with dimensions:', canvas.width, 'x', canvas.height);
         
         setButtons(true);
         setLog('Camera started.');
@@ -1380,8 +1592,8 @@ INDEX_HTML = """
         // Hide any existing countdown timer when camera starts
         hideCountdownTimer();
         
-        // Start automatic face recognition every 4 seconds
-        recognitionInterval = setInterval(performRecognition, 4000);
+        // Start automatic face recognition every 3 seconds for better mobile performance
+        recognitionInterval = setInterval(performRecognition, 3000);
         console.log('Recognition interval started');
       } catch (e) {
         console.error('Camera error:', e);
@@ -1426,8 +1638,36 @@ INDEX_HTML = """
       
       try {
       const ctx = canvas.getContext('2d');
+      
+      // Ensure canvas has proper dimensions
+      if (canvas.width === 0 || canvas.height === 0) {
+        console.error('Canvas has zero dimensions');
+        updateDetectionDisplay(null, 'Camera error - invalid dimensions');
+        return;
+      }
+      
+      // Ensure video is ready
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        console.error('Video not ready');
+        updateDetectionDisplay(null, 'Camera error - video not ready');
+        return;
+      }
+      
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
+      
+      // Debug logging
+      console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+      console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+      console.log('DataURL length:', dataUrl.length);
+      console.log('Base64 length:', dataUrl.split(',')[1].length);
+      
+      // Validate image data
+      if (dataUrl.length < 1000) {
+        console.error('Image too small:', dataUrl.length);
+        updateDetectionDisplay(null, 'Camera error - image too small');
+        return;
+      }
         
         updateDetectionDisplay(null, 'Recognizing...');
         
@@ -1440,9 +1680,17 @@ INDEX_HTML = """
         let j;
         try {
           j = await r.json();
+          console.log('Server response:', j);
         } catch (e) {
           console.error('JSON parse error:', e);
           updateDetectionDisplay(null, 'Server error: Invalid response');
+          return;
+        }
+        
+        // Handle server errors
+        if (!r.ok) {
+          console.error('Server error:', r.status, j);
+          updateDetectionDisplay(null, j.error || 'Server error');
           return;
         }
         
@@ -1453,13 +1701,28 @@ INDEX_HTML = """
           // Immediately show the name and draw bounding box
           updateDetectionDisplay(name, 'Face recognized', confidence);
           
-          // Draw bounding box for recognized face
+          // Draw face tracking for recognized face
           if (j.bbox && j.bbox.length === 4) {
             const [x1, y1, x2, y2] = j.bbox;
-            drawBoundingBox(x1, y1, x2-x1, y2-y1, '#4CAF50', name);
+            console.log('Server bbox coordinates:', { x1, y1, x2, y2 });
+            console.log('Calculated width/height:', { width: x2-x1, height: y2-y1 });
+            drawFaceTracking(x1, y1, x2-x1, y2-y1, '#4CAF50', name);
           } else {
-            // Draw a default box if no bbox
-            drawBoundingBox(100, 100, 200, 200, '#4CAF50', name);
+            // Use center-based fallback with device-specific positioning
+            const centerX = video.videoWidth / 2;
+            
+            // Detect if device is mobile for fallback too
+            const isMobileFallback = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                                   window.innerWidth <= 768 || 
+                                   ('ontouchstart' in window);
+            
+            const fallbackYOffset = isMobileFallback ? (video.videoHeight * 0.1) : (video.videoHeight * 0.05);
+            const centerY = video.videoHeight / 2 + fallbackYOffset;
+            
+            // Use larger fallback size for better visibility on mobile
+            const fallbackSize = Math.min(video.videoWidth, video.videoHeight) * 0.4;
+            console.log('Using fallback coordinates:', { centerX, centerY, fallbackSize, isMobileFallback, fallbackYOffset });
+            drawFaceTracking(centerX - fallbackSize/2, centerY - fallbackSize/2, fallbackSize, fallbackSize, '#4CAF50', name);
           }
           
           // Check if user is throttled
@@ -1496,12 +1759,22 @@ INDEX_HTML = """
               hideCountdownTimer();
             }
             
-            // Change bounding box color to yellow for throttled user
+            // Change face tracking color to yellow for throttled user
             if (j.bbox && j.bbox.length === 4) {
               const [x1, y1, x2, y2] = j.bbox;
-              drawBoundingBox(x1, y1, x2-x1, y2-y1, '#FFC107', 'Cooldown');
+              console.log('Cooldown bbox coordinates:', { x1, y1, x2, y2 });
+              drawFaceTracking(x1, y1, x2-x1, y2-y1, '#FFC107', 'Cooldown');
             } else {
-              drawBoundingBox(100, 100, 200, 200, '#FFC107', 'Cooldown');
+              // Use center-based fallback for cooldown with device detection
+              const centerX = video.videoWidth / 2;
+              const isMobileCooldown = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                                     window.innerWidth <= 768 || 
+                                     ('ontouchstart' in window);
+              const cooldownYOffset = isMobileCooldown ? (video.videoHeight * 0.1) : (video.videoHeight * 0.05);
+              const centerY = video.videoHeight / 2 + cooldownYOffset;
+              const fallbackSize = Math.min(video.videoWidth, video.videoHeight) * 0.4;
+              console.log('Using cooldown fallback coordinates:', { centerX, centerY, fallbackSize, isMobileCooldown, cooldownYOffset });
+              drawFaceTracking(centerX - fallbackSize/2, centerY - fallbackSize/2, fallbackSize, fallbackSize, '#FFC107', 'Cooldown');
             }
           } else if (j.gate && !j.gate.error) {
             // Auto-open gate if matched and not throttled
@@ -1515,16 +1788,26 @@ INDEX_HTML = """
           }
         } else if (j.ok && !j.matched) {
           updateDetectionDisplay('Unknown person', 'Face detected but not recognized');
-          // Draw red bounding box for unknown face
+          // Draw orange face tracking for unknown face
           if (j.bbox && j.bbox.length === 4) {
             const [x1, y1, x2, y2] = j.bbox;
-            drawBoundingBox(x1, y1, x2-x1, y2-y1, '#FF9800', 'Unknown');
+            console.log('Unknown face bbox coordinates:', { x1, y1, x2, y2 });
+            drawFaceTracking(x1, y1, x2-x1, y2-y1, '#FF9800', 'Unknown');
           } else {
-            drawBoundingBox(100, 100, 200, 200, '#FF9800', 'Unknown');
+            // Use center-based fallback for unknown with device detection
+            const centerX = video.videoWidth / 2;
+            const isMobileUnknown = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                                  window.innerWidth <= 768 || 
+                                  ('ontouchstart' in window);
+            const unknownYOffset = isMobileUnknown ? (video.videoHeight * 0.1) : (video.videoHeight * 0.05);
+            const centerY = video.videoHeight / 2 + unknownYOffset;
+            const fallbackSize = Math.min(video.videoWidth, video.videoHeight) * 0.4;
+            console.log('Using unknown fallback coordinates:', { centerX, centerY, fallbackSize, isMobileUnknown, unknownYOffset });
+            drawFaceTracking(centerX - fallbackSize/2, centerY - fallbackSize/2, fallbackSize, fallbackSize, '#FF9800', 'Unknown');
           }
         } else {
           updateDetectionDisplay(null, j.error || 'No face detected');
-          clearBoundingBox();
+          clearFaceIndicator();
         }
       } catch (e) {
         updateDetectionDisplay(null, 'Recognition error: ' + e.message);
@@ -1558,8 +1841,10 @@ INDEX_HTML = """
     // Handle window resize for mobile responsiveness
     window.addEventListener('resize', () => {
       if (overlay && video) {
-        // Sync overlay with video when window resizes
-        syncOverlayWithVideo();
+        // Force sync overlay with video when window resizes
+        setTimeout(() => {
+          forceSyncOverlay();
+        }, 200); // Longer delay for mobile
       }
     });
     
@@ -1567,9 +1852,20 @@ INDEX_HTML = """
     window.addEventListener('orientationchange', () => {
       setTimeout(() => {
         if (overlay && video) {
-          // Sync overlay with video after orientation change
-          syncOverlayWithVideo();
+          // Force sync overlay with video after orientation change
+          forceSyncOverlay();
         }
+        // Restart camera after orientation change for better mobile compatibility
+        if (stream && video.videoWidth === 0) {
+          console.log('Restarting camera after orientation change');
+          stopCam();
+          setTimeout(() => startCam(), 1000);
+        }
+        
+        // Additional sync for mobile screens
+        setTimeout(() => {
+          forceSyncOverlay();
+        }, 500);
       }, 100);
     });
     
@@ -1588,8 +1884,14 @@ INDEX_HTML = """
       console.log('Recognition interval:', recognitionInterval);
       console.log('Door ID:', doorid);
       
-      // Test if we can access camera
-      navigator.mediaDevices.getUserMedia({ video: true })
+      // Test if we can access camera with mobile-optimized constraints
+      navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 15 }
+        } 
+      })
         .then(stream => {
           console.log('Camera access test: SUCCESS');
           console.log('Test stream:', stream);
@@ -2222,7 +2524,11 @@ RETAKE_HTML = """
       try {
         setOut('Starting camera...');
         const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { width: 640, height: 480 } 
+          video: { 
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 },
+            frameRate: { ideal: 15, max: 30 }
+          } 
         });
         
         const video = document.getElementById('video');
@@ -2264,7 +2570,7 @@ RETAKE_HTML = """
         // Capture current frame
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
         
         setOut('Comparing with profile photo...');
         
@@ -2360,7 +2666,7 @@ RETAKE_HTML = """
         // Capture current frame
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
         
         // Show captured image
         capturedImage.src = dataUrl;
@@ -2572,9 +2878,13 @@ RETAKE_HTML = """
           registerStream = null;
         }
         
-        // Request camera with simple constraints
+        // Request camera with mobile-optimized constraints
         registerStream = await navigator.mediaDevices.getUserMedia({ 
-          video: true
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            frameRate: { ideal: 15 }
+          }
         });
         
         console.log('Camera stream obtained:', registerStream);
@@ -2818,13 +3128,39 @@ def retake():
 
 def b64_to_bgr(image_b64: str) -> Optional[np.ndarray]:
     try:
+        if not image_b64 or len(image_b64.strip()) == 0:
+            print("DEBUG: Empty image_b64")
+            return None
+            
         if image_b64.startswith("data:image"):
             image_b64 = image_b64.split(",", 1)[1]
+            
+        # Validate base64 string
+        if len(image_b64) < 100:  # Too small for a valid image
+            print(f"DEBUG: Image too small: {len(image_b64)} characters")
+            return None
+            
         data = base64.b64decode(image_b64)
+        if len(data) < 1000:  # Too small for a valid image
+            print(f"DEBUG: Decoded data too small: {len(data)} bytes")
+            return None
+            
         im = np.frombuffer(data, np.uint8)
         bgr = cv2.imdecode(im, cv2.IMREAD_COLOR)
+        
+        if bgr is None:
+            print("DEBUG: cv2.imdecode returned None")
+            return None
+            
+        if bgr.shape[0] < 50 or bgr.shape[1] < 50:  # Too small image
+            print(f"DEBUG: Image too small: {bgr.shape}")
+            return None
+            
+        print(f"DEBUG: Successfully decoded image: {bgr.shape}")
         return bgr
-    except Exception:
+        
+    except Exception as e:
+        print(f"DEBUG: b64_to_bgr error: {str(e)}")
         return None
 
 
