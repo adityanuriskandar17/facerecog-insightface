@@ -67,7 +67,7 @@ GYM_PROFILE_URL = os.getenv("GYM_PROFILE_URL", "https://ftl.gymmasteronline.com/
 # For profile update, we need to use a different endpoint or method
 # Based on the env, the profile URL is for GET, we need to find the correct UPDATE endpoint
 GYM_GATE_URL = os.getenv("GYM_GATE_URL", "https://ftl.gymmasteronline.com/portal/api/v2/member/kiosk/checkin")
-CHECKIN_ENABLED = os.getenv("CHECKIN_ENABLED", "True").lower() == "true"
+CHECKIN_ENABLED = True
 
 # InsightFace model (ArcFace) setup
 # Use onnxruntime (CPU by default) for portability.
@@ -199,7 +199,7 @@ _MEMBER_CACHE: List[MemberEnc] = []
 
 # Throttling system to prevent spam
 _LAST_RECOGNITION_TIME = {}  # {member_id: timestamp}
-_RECOGNITION_COOLDOWN = 60  # 60 seconds cooldown per user (increased from 30)
+_RECOGNITION_COOLDOWN = 10  # 60 seconds cooldown per user (increased from 30)
 
 # Cache refresh system
 _LAST_CACHE_REFRESH = 0  # Timestamp of last cache refresh
@@ -743,11 +743,13 @@ INDEX_HTML = """
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FTL Face Gate</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     body { 
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
-      margin: 24px; 
-      background: white;
+      margin: 0; 
+      padding: 20px;
+      background: #f5f5f5;
       min-height: 100vh;
     }
     .row { display: flex; gap: 24px; align-items: flex-start; }
@@ -779,24 +781,32 @@ INDEX_HTML = """
     
     /* Responsive Design */
     @media (max-width: 768px) {
-      body { margin: 10px; }
+      body { margin: 10px; padding: 10px; }
       .row { flex-direction: column; gap: 16px; }
+      #cameraContainer { 
+        height: 400px !important; 
+        min-height: 400px !important;
+      }
       video, canvas, img { 
         width: 100%; 
-        max-width: 400px; 
-        height: auto; 
-        min-height: 250px; 
+        height: 100%;
+        object-fit: contain !important;
       }
-      button { padding: 8px 12px; font-size: 14px; }
+      button { padding: 10px 16px; font-size: 14px; }
     }
     
     @media (max-width: 480px) {
-      body { margin: 5px; }
+      body { margin: 5px; padding: 5px; }
+      #cameraContainer { 
+        height: 350px !important; 
+        min-height: 350px !important;
+      }
       video, canvas, img { 
         width: 100%; 
-        min-height: 200px; 
+        height: 100%;
+        object-fit: contain !important;
       }
-      button { padding: 6px 10px; font-size: 12px; }
+      button { padding: 8px 12px; font-size: 12px; }
     }
     
     /* Fullscreen Styles */
@@ -876,44 +886,99 @@ INDEX_HTML = """
   </style>
 </head>
 <body>
-    <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column;">
-      <h1 style="margin-bottom: 20px;">FTL Face Gate</h1>
-      <div style="margin-bottom: 20px;">
-        Door ID: <span id="doorid" class="pill">19456</span>
+    <div style="max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 32px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+        <div>
+          <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700; color: #333;">FTL Face Gate</h1>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: #666; font-size: 14px;">Door ID:</span>
+            <span id="doorid" class="pill" style="background: #495057; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">19456</span>
           </div>
+        </div>
+        <div style="color: #999; font-size: 12px;">Open preview in new tab</div>
+      </div>
       
-        <!-- Single Camera in Center -->
-        <div id="cameraContainer" style="position: relative; display: inline-block; margin-bottom: 20px;">
-          <video id="video" autoplay playsinline muted style="width: 100%; max-width: 640px; height: auto; min-height: 300px; background: #f0f0f0; border-radius: 12px; object-fit: cover; border: 2px solid #ddd; transform: scaleX(-1);"></video>
+        <!-- Camera Display Area -->
+        <div id="cameraContainer" style="position: relative; width: 100%; height: 450px; background: #f8f9fa; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <video id="video" autoplay playsinline muted style="width: 100%; height: 100%; background: #f8f9fa; border-radius: 12px; object-fit: contain; border: none; transform: scaleX(-1); display: none;"></video>
           <canvas id="overlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 12px; width: 100%; height: 100%; z-index: 10; background: transparent;"></canvas>
-          <div id="cameraStatus" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px;">Camera inactive</div>
-          <button id="fullscreenBtn" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 12px;">
-            <i class="fas fa-expand"></i> Fullscreen
+          
+          <!-- Camera Placeholder -->
+          <div id="cameraPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d;">
+            <div style="width: 48px; height: 36px; border: 2px solid #6c757d; border-radius: 8px; position: relative; margin-bottom: 12px;">
+              <div style="width: 16px; height: 16px; border: 2px solid #6c757d; border-radius: 50%; position: absolute; top: 8px; left: 14px;"></div>
+            </div>
+            <div style="font-size: 16px; font-weight: 500; color: #6c757d;">Camera Inactive</div>
+          </div>
+          
+          <!-- Status Badge -->
+          <div id="cameraStatus" style="position: absolute; top: 12px; left: 12px; background: #495057; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">
+            Offline
+          </div>
+          
+          <!-- Fullscreen Button -->
+          <button id="fullscreenBtn" style="position: absolute; top: 12px; right: 12px; background: #495057; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;">
+            <i class="fas fa-expand" style="font-size: 12px;"></i>
           </button>
         </div>
       
       <!-- Control Buttons -->
-      <div style="margin-bottom: 20px;">
-        <button id="btnStart" disabled style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #007bff; color: white; cursor: pointer;">Start Camera</button>
-        <button id="btnStop" disabled style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #dc3545; color: white; cursor: pointer;">Stop Camera</button>
-        <button id="btnRetake" onclick="location.href='/login'" style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #28a745; color: white; cursor: pointer;">Register Face</button>
-        <button id="btnDebug" onclick="debugCamera()" style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #ffc107; color: black; cursor: pointer;">Debug Camera</button>
-        <button id="btnToggleOverlay" onclick="toggleOverlay()" style="margin: 5px; padding: 10px 20px; border: none; border-radius: 5px; background: #6f42c1; color: white; cursor: pointer;">Hide Overlay</button>
+      <div style="margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+        <button id="btnStart" disabled style="padding: 12px 20px; border: none; border-radius: 8px; background: #007bff; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,123,255,0.3);">
+          <i class="fas fa-camera" style="font-size: 14px;"></i>
+          <span>Start Camera</span>
+        </button>
+        <button id="btnStop" disabled style="padding: 12px 20px; border: none; border-radius: 8px; background: #dc3545; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(220,53,69,0.3);">
+          <i class="fas fa-stop" style="font-size: 14px;"></i>
+          <span>Stop Camera</span>
+        </button>
+        <button id="btnRetake" onclick="location.href='/login'" style="padding: 12px 20px; border: none; border-radius: 8px; background: #28a745; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(40,167,69,0.3);">
+          <i class="fas fa-user-plus" style="font-size: 14px;"></i>
+          <span>Register Face</span>
+        </button>
+        <button id="btnDebug" onclick="debugCamera()" style="padding: 12px 20px; border: none; border-radius: 8px; background: #ffc107; color: #212529; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(255,193,7,0.3);">
+          <i class="fas fa-cog" style="font-size: 14px;"></i>
+          <span>Debug Camera</span>
+        </button>
+        <button id="btnToggleOverlay" onclick="toggleOverlay()" style="padding: 12px 20px; border: none; border-radius: 8px; background: #20c997; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(32,201,151,0.3);">
+          <i class="fas fa-eye" style="font-size: 14px;"></i>
+          <span>Show Overlay</span>
+        </button>
       </div>
       
-      <!-- Detection Result - Just Name -->
-      <div id="detectionResult" style="padding: 20px; margin: 20px 0; border-radius: 10px; background: #f8f9fa; border: 1px solid #dee2e6; min-height: 80px; text-align: center;">
-        <div id="detectedName" style="font-size: 32px; font-weight: bold; color: #333; margin-bottom: 10px;">No face detected</div>
-        <div id="detectionStatus" style="font-size: 18px; color: #666;">Camera inactive</div>
-        <div id="countdownTimer" style="display: none; font-size: 16px; color: #ff6b35; font-weight: bold; margin-top: 10px; padding: 8px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
-          <i class="fas fa-clock"></i> Next scan available in: <span id="countdownSeconds">0</span> seconds
+      <!-- Status Cards -->
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+        <!-- Face Detection Status -->
+        <div id="detectionResult" style="padding: 16px; border-radius: 12px; background: #f8f9fa; border: 1px solid #e9ecef; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: #dc3545; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
+            <i class="fas fa-times"></i>
+          </div>
+          <div id="detectedName" style="font-size: 16px; font-weight: 500; color: #333;">No face detected</div>
+        </div>
+        
+        <!-- Camera Status -->
+        <div id="cameraStatusCard" style="padding: 16px; border-radius: 12px; background: #f8f9fa; border: 1px solid #e9ecef; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <div id="cameraStatusIcon" style="width: 32px; height: 32px; border-radius: 50%; background: #dc3545; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
+            <i class="fas fa-times"></i>
+          </div>
+          <div id="detectionStatus" style="font-size: 16px; font-weight: 500; color: #333;">Camera inactive</div>
+        </div>
+        
+        <!-- Countdown Timer -->
+        <div id="countdownTimer" style="display: none; padding: 16px; border-radius: 12px; background: #fff3cd; border: 1px solid #ffeaa7; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.3s ease; opacity: 0; transform: translateY(10px);">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffc107; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div style="flex: 1;">
+            <div style="font-size: 14px; font-weight: 500; color: #856404;">Next scan available in: <span id="countdownSeconds" style="font-weight: bold; color: #d63384;">0</span> seconds</div>
+          </div>
         </div>
       </div>
       
-      <div style="color: #666; font-size: 14px;">
+      <div style="color: #999; font-size: 14px; text-align: center; margin-top: 16px;">
         Face recognition runs automatically when camera is active.
+      </div>
     </div>
-  </div>
   <script>
     const q = new URLSearchParams(location.search);
     const doorid = q.get('doorid');
@@ -938,6 +1003,7 @@ INDEX_HTML = """
       let countdownInterval = null; // For countdown timer
       let remainingCooldown = 0; // Remaining cooldown time in seconds
       let isFullscreen = false; // Fullscreen state
+      let lastSuccessfulRecognitionTime = 0; // Track when user was last successfully recognized
 
     function setLog(obj) {
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
@@ -1026,14 +1092,67 @@ INDEX_HTML = """
     }
 
     function updateDetectionDisplay(name, status, confidence = null) {
+      const detectionResult = document.getElementById('detectionResult');
+      const statusIcon = detectionResult.querySelector('i');
+      const statusCircle = detectionResult.querySelector('div');
+      
+      // Update camera status card
+      const cameraStatusCard = document.getElementById('cameraStatusCard');
+      const cameraStatusIcon = document.getElementById('cameraStatusIcon');
+      const cameraStatusIconElement = cameraStatusIcon.querySelector('i');
+      
       detectedName.textContent = name || 'No face detected';
       detectionStatus.textContent = status;
       
-      if (name && confidence) {
-        detectedName.style.color = confidence > 0.6 ? '#4CAF50' : '#FF9800';
+      // Check if it's a success message (gate opened, recognized, etc.)
+      const isSuccess = status.toLowerCase().includes('success') || 
+                       status.toLowerCase().includes('opened') || 
+                       status.toLowerCase().includes('recognized') ||
+                       status.toLowerCase().includes('gate opened');
+      
+      if (isSuccess) {
+        // Success state - green checkmark for both cards
+        detectedName.style.color = '#28a745';
+        statusIcon.className = 'fas fa-check';
+        statusCircle.style.background = '#28a745';
+        
+        // Update camera status card to success
+        cameraStatusIconElement.className = 'fas fa-check';
+        cameraStatusIcon.style.background = '#28a745';
+        detectionStatus.style.color = '#28a745';
+      } else if (name && confidence) {
+        // Face detected with confidence
+        detectedName.style.color = confidence > 0.6 ? '#28a745' : '#ffc107';
         detectionStatus.textContent = `${status} (${Math.round(confidence * 100)}% confidence)`;
+        
+        // Update status icon and color
+        statusIcon.className = confidence > 0.6 ? 'fas fa-check' : 'fas fa-exclamation-triangle';
+        statusCircle.style.background = confidence > 0.6 ? '#28a745' : '#ffc107';
+        
+        // Update camera status card
+        cameraStatusIconElement.className = confidence > 0.6 ? 'fas fa-check' : 'fas fa-exclamation-triangle';
+        cameraStatusIcon.style.background = confidence > 0.6 ? '#28a745' : '#ffc107';
+        detectionStatus.style.color = confidence > 0.6 ? '#28a745' : '#ffc107';
+      } else if (name) {
+        // Face detected but no confidence
+        detectedName.style.color = '#ffc107';
+        statusIcon.className = 'fas fa-exclamation-triangle';
+        statusCircle.style.background = '#ffc107';
+        
+        // Update camera status card
+        cameraStatusIconElement.className = 'fas fa-exclamation-triangle';
+        cameraStatusIcon.style.background = '#ffc107';
+        detectionStatus.style.color = '#ffc107';
       } else {
+        // No face detected or error
         detectedName.style.color = '#333';
+        statusIcon.className = 'fas fa-times';
+        statusCircle.style.background = '#dc3545';
+        
+        // Update camera status card
+        cameraStatusIconElement.className = 'fas fa-times';
+        cameraStatusIcon.style.background = '#dc3545';
+        detectionStatus.style.color = '#333';
       }
     }
 
@@ -1041,19 +1160,35 @@ INDEX_HTML = """
       const countdownTimer = document.getElementById('countdownTimer');
       const countdownSeconds = document.getElementById('countdownSeconds');
       
+      console.log('showCountdownTimer called with:', seconds);
+      
       if (seconds > 0) {
-        countdownTimer.style.display = 'block';
-        countdownSeconds.textContent = seconds;
-        remainingCooldown = seconds;
-        
-        // Start countdown
+        // Clear any existing interval
         if (countdownInterval) {
           clearInterval(countdownInterval);
         }
         
+        // Show timer with smooth transition
+        countdownTimer.style.display = 'flex';
+        countdownTimer.style.opacity = '0';
+        countdownTimer.style.transform = 'translateY(10px)';
+        
+        // Animate in
+        setTimeout(() => {
+          countdownTimer.style.transition = 'all 0.3s ease';
+          countdownTimer.style.opacity = '1';
+          countdownTimer.style.transform = 'translateY(0)';
+        }, 10);
+        
+        countdownSeconds.textContent = seconds;
+        remainingCooldown = seconds;
+        
+        // Start countdown
         countdownInterval = setInterval(() => {
           remainingCooldown--;
           countdownSeconds.textContent = remainingCooldown;
+          
+          console.log('Countdown:', remainingCooldown);
           
           if (remainingCooldown <= 0) {
             hideCountdownTimer();
@@ -1066,7 +1201,17 @@ INDEX_HTML = """
 
       function hideCountdownTimer() {
         const countdownTimer = document.getElementById('countdownTimer');
-        countdownTimer.style.display = 'none';
+        
+        console.log('hideCountdownTimer called');
+        
+        // Animate out
+        countdownTimer.style.transition = 'all 0.3s ease';
+        countdownTimer.style.opacity = '0';
+        countdownTimer.style.transform = 'translateY(-10px)';
+        
+        setTimeout(() => {
+          countdownTimer.style.display = 'none';
+        }, 300);
         
         if (countdownInterval) {
           clearInterval(countdownInterval);
@@ -1120,7 +1265,14 @@ INDEX_HTML = """
     async function startCam() {
       try {
         console.log('Requesting camera access...');
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'user', 
+            width: { ideal: 1280, max: 1920 }, 
+            height: { ideal: 720, max: 1080 },
+            aspectRatio: { ideal: 16/9 }
+          } 
+        });
         console.log('Camera stream obtained:', stream);
         
         video.srcObject = stream;
@@ -1130,8 +1282,14 @@ INDEX_HTML = """
         video.onloadedmetadata = () => {
           console.log('Video metadata loaded');
           console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
-          cameraStatus.textContent = 'Camera active';
-          cameraStatus.style.background = 'rgba(0,150,0,0.8)';
+          
+          // Show video and hide placeholder
+          video.style.display = 'block';
+          document.getElementById('cameraPlaceholder').style.display = 'none';
+          
+          // Update status
+          cameraStatus.innerHTML = '<i class="fas fa-circle" style="font-size: 8px; color: #28a745;"></i><span>Online</span>';
+          cameraStatus.style.background = 'rgba(40, 167, 69, 0.9)';
           
           // Sync overlay with video dimensions
           syncOverlayWithVideo();
@@ -1139,8 +1297,8 @@ INDEX_HTML = """
         
         video.oncanplay = () => {
           console.log('Video can play');
-          cameraStatus.textContent = 'Camera streaming';
-          cameraStatus.style.background = 'rgba(0,150,0,0.8)';
+          cameraStatus.innerHTML = '<i class="fas fa-circle" style="font-size: 8px; color: #28a745;"></i><span>Streaming</span>';
+          cameraStatus.style.background = 'rgba(40, 167, 69, 0.9)';
         };
         
         video.onerror = (e) => {
@@ -1168,13 +1326,16 @@ INDEX_HTML = """
         
         // Create canvas for image capture
         canvas = document.createElement('canvas');
-        canvas.width = 640;
-        canvas.height = 480;
+        canvas.width = 1280;
+        canvas.height = 720;
         console.log('Canvas created');
         
         setButtons(true);
         setLog('Camera started.');
         updateDetectionDisplay(null, 'Camera active - detecting faces...');
+        
+        // Hide any existing countdown timer when camera starts
+        hideCountdownTimer();
         
         // Start automatic face recognition every 4 seconds
         recognitionInterval = setInterval(performRecognition, 4000);
@@ -1202,8 +1363,14 @@ INDEX_HTML = """
       setButtons(false);
       setLog('Camera stopped.');
       updateDetectionDisplay(null, 'Camera inactive');
-      cameraStatus.textContent = 'Camera inactive';
-      cameraStatus.style.background = 'rgba(0,0,0,0.7)';
+      
+      // Show placeholder and hide video
+      video.style.display = 'none';
+      document.getElementById('cameraPlaceholder').style.display = 'flex';
+      
+      // Update status
+      cameraStatus.innerHTML = '<i class="fas fa-circle" style="font-size: 8px; color: #dc3545;"></i><span>Offline</span>';
+      cameraStatus.style.background = 'rgba(108, 117, 125, 0.9)';
     }
 
     async function performRecognition() {
@@ -1254,10 +1421,38 @@ INDEX_HTML = """
           
           // Check if user is throttled
           if (j.gate && j.gate.throttled) {
+            console.log('User is throttled, showing cooldown timer');
             updateDetectionDisplay(name, 'User in cooldown period', confidence);
-            // Show countdown timer for cooldown with exact remaining time
-            const cooldownSeconds = j.gate.cooldown_remaining || 60; // Use server-provided time
-            showCountdownTimer(cooldownSeconds);
+            
+            // Get exact remaining time from server
+            const serverCooldownSeconds = j.gate.cooldown_remaining || 10;
+            console.log('Server cooldown seconds:', serverCooldownSeconds);
+            
+            // Calculate time elapsed since last successful recognition
+            const currentTime = Date.now();
+            
+            // If we don't have lastSuccessfulRecognitionTime, use server time directly
+            let actualRemainingTime;
+            if (lastSuccessfulRecognitionTime === 0) {
+              // First time or no previous successful recognition, use server time
+              actualRemainingTime = serverCooldownSeconds;
+              console.log('No previous successful recognition, using server time:', actualRemainingTime);
+            } else {
+              const timeSinceLastSuccessfulRecognition = Math.floor((currentTime - lastSuccessfulRecognitionTime) / 1000);
+              actualRemainingTime = Math.max(0, serverCooldownSeconds - timeSinceLastSuccessfulRecognition);
+              console.log('Time since last successful recognition:', timeSinceLastSuccessfulRecognition, 'seconds');
+            }
+            
+            console.log('Server cooldown:', serverCooldownSeconds, 'seconds');
+            console.log('Actual remaining time:', actualRemainingTime, 'seconds');
+            
+            // Show countdown timer with corrected time
+            if (actualRemainingTime > 0) {
+              showCountdownTimer(actualRemainingTime);
+            } else {
+              hideCountdownTimer();
+            }
+            
             // Change bounding box color to yellow for throttled user
             if (j.bbox && j.bbox.length === 4) {
               const [x1, y1, x2, y2] = j.bbox;
@@ -1267,8 +1462,13 @@ INDEX_HTML = """
             }
           } else if (j.gate && !j.gate.error) {
             // Auto-open gate if matched and not throttled
+            console.log('Gate opened successfully, hiding cooldown timer');
             updateDetectionDisplay(name, 'Gate opened successfully!', confidence);
             hideCountdownTimer(); // Hide timer if gate opened successfully
+            
+            // Record successful recognition time for cooldown calculation
+            lastSuccessfulRecognitionTime = Date.now();
+            console.log('Successful recognition recorded at:', new Date(lastSuccessfulRecognitionTime));
           }
         } else if (j.ok && !j.matched) {
           updateDetectionDisplay('Unknown person', 'Face detected but not recognized');
