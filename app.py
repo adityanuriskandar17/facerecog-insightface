@@ -747,7 +747,7 @@ INDEX_HTML = """
     body { 
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
       margin: 24px; 
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: white;
       min-height: 100vh;
     }
     .row { display: flex; gap: 24px; align-items: flex-start; }
