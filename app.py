@@ -1958,7 +1958,6 @@ RETAKE_HTML = """
           <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" />
           <div class="camera-placeholder" id="cameraPlaceholder">
             <i class="fas fa-camera"></i>
-            <p>Face captured</p>
           </div>
         </div>
         <div class="btn-group">
@@ -1970,20 +1969,8 @@ RETAKE_HTML = """
             <i class="fas fa-user-check"></i>
             Capture & Compare
           </button>
-          <button id="btnCapturePhoto" class="btn btn-capture" disabled>
-            <i class="fas fa-camera"></i>
-            Capture Photo
-          </button>
-          <button id="btnUpdatePhoto" class="btn btn-update" disabled>
-            <i class="fas fa-upload"></i>
-            Update to GymMaster
-          </button>
-          <button id="btnResetPhoto" class="btn btn-reset" disabled>
-            <i class="fas fa-redo"></i>
-            Reset Photo
-          </button>
           <button id="btnRegister" class="btn btn-register">
-            <i class="fas fa-check"></i>
+            <i class="fas fa-user-plus"></i>
             Register Face Recognition
           </button>
         </div>
@@ -1995,18 +1982,65 @@ RETAKE_HTML = """
   
   <!-- Modal for Face Registration -->
   <div id="registerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;">
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 12px; max-width: 600px; width: 90%;">
-      <h2>Daftarkan Face Recognition</h2>
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 12px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto;">
+      <h2 style="text-align: center; margin-bottom: 24px; color: #333;">Register Face Recognition</h2>
+      
+      <!-- Camera Section -->
       <div style="text-align: center; margin: 20px 0;">
-        <video id="registerVideo" autoplay playsinline muted style="width: 400px; height: 300px; background: #111; border-radius: 8px; transform: scaleX(-1);"></video>
-        <div style="margin: 16px 0;">
-          <button id="btnStartRegister" style="padding: 12px 24px; margin: 8px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer;">Mulai Kamera</button>
-          <button id="btnBurstCapture" disabled style="padding: 12px 24px; margin: 8px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer;">Burst Foto (5 detik)</button>
-          <button id="btnCloseRegister" style="padding: 12px 24px; margin: 8px; background: #f44336; color: white; border: none; border-radius: 8px; cursor: pointer;">Tutup</button>
+        <div style="position: relative; width: 100%; max-width: 500px; height: 300px; margin: 0 auto; background: #111; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+          <video id="registerVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 2; background: #000;"></video>
+          <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 3;" />
+          <div id="cameraPlaceholder" style="width: 100%; height: 100%; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d; position: absolute; top: 0; left: 0; border-radius: 12px;">
+            <i class="fas fa-camera" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+            <div style="font-size: 18px; font-weight: 500;">Camera Inactive</div>
+          </div>
         </div>
-        <div id="registerProgress" style="margin: 16px 0; font-size: 14px; color: #666;"></div>
-        <canvas id="registerCanvas" width="640" height="480" style="display: none;"></canvas>
       </div>
+      
+      <style>
+        @media (max-width: 768px) {
+          #registerVideo, #capturedImage {
+            object-fit: contain !important;
+          }
+        }
+        @media (max-width: 480px) {
+          #registerVideo, #capturedImage {
+            object-fit: contain !important;
+          }
+        }
+      </style>
+      
+      <!-- Control Buttons -->
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 20px 0;">
+        <button id="btnStartRegister" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-play"></i>
+          Start Camera
+        </button>
+        <button id="btnCapturePhoto" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-camera"></i>
+          Capture Photo
+        </button>
+        <button id="btnUpdatePhoto" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-upload"></i>
+          Update to GymMaster
+        </button>
+        <button id="btnResetPhoto" disabled style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-redo"></i>
+          Reset Photo
+        </button>
+        <button id="btnBurstCapture" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-bolt"></i>
+          Burst Capture (5s)
+        </button>
+        <button id="btnCloseRegister" style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-times"></i>
+          Close
+        </button>
+      </div>
+      
+      <!-- Progress and Status -->
+      <div id="registerProgress" style="margin: 16px 0; font-size: 14px; color: #666; text-align: center; min-height: 20px;"></div>
+      <canvas id="registerCanvas" width="640" height="480" style="display: none;"></canvas>
     </div>
   </div>
   
@@ -2410,29 +2444,227 @@ RETAKE_HTML = """
 
     // Face Registration Modal Controls
     document.getElementById('btnRegister').onclick = () => {
+      console.log('Opening register modal...');
       document.getElementById('registerModal').style.display = 'block';
+      
+      // Debug: Check if elements exist
+      const video = document.getElementById('registerVideo');
+      const placeholder = document.getElementById('cameraPlaceholder');
+      console.log('Video element:', video);
+      console.log('Placeholder element:', placeholder);
+      
+      // Reset modal state
+      if (video) {
+        video.style.display = 'none';
+        video.srcObject = null;
+      }
+      if (placeholder) {
+        placeholder.style.display = 'flex';
+      }
+      
+      // Reset button states
+      document.getElementById('btnCapturePhoto').disabled = true;
+      document.getElementById('btnUpdatePhoto').disabled = true;
+      document.getElementById('btnResetPhoto').disabled = true;
+      document.getElementById('btnBurstCapture').disabled = true;
     };
 
     document.getElementById('btnCloseRegister').onclick = () => {
-      document.getElementById('registerModal').style.display = 'none';
       if (registerStream) {
-        registerStream.getTracks().forEach(t => t.stop());
+        registerStream.getTracks().forEach(track => track.stop());
         registerStream = null;
       }
       if (burstInterval) {
         clearInterval(burstInterval);
         burstInterval = null;
       }
+      
+      // Reset modal state
+      const registerVideo = document.getElementById('registerVideo');
+      const capturedImage = document.getElementById('capturedImage');
+      const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+      
+      registerVideo.style.display = 'none';
+      capturedImage.style.display = 'none';
+      cameraPlaceholder.style.display = 'flex';
+      
+      // Reset button states
+      document.getElementById('btnCapturePhoto').disabled = true;
+      document.getElementById('btnUpdatePhoto').disabled = true;
+      document.getElementById('btnResetPhoto').disabled = true;
+      document.getElementById('btnBurstCapture').disabled = true;
+      
+      document.getElementById('registerProgress').textContent = '';
+      document.getElementById('registerModal').style.display = 'none';
     };
 
     document.getElementById('btnStartRegister').onclick = async () => {
       try {
-        registerStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-        document.getElementById('registerVideo').srcObject = registerStream;
+        console.log('Starting camera...');
+        document.getElementById('registerProgress').textContent = 'Starting camera...';
+        
+        // Stop any existing stream first
+        if (registerStream) {
+          registerStream.getTracks().forEach(track => track.stop());
+          registerStream = null;
+        }
+        
+        // Request camera with simple constraints
+        registerStream = await navigator.mediaDevices.getUserMedia({ 
+          video: true
+        });
+        
+        console.log('Camera stream obtained:', registerStream);
+        
+        const registerVideo = document.getElementById('registerVideo');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        
+        console.log('Video element:', registerVideo);
+        console.log('Placeholder element:', cameraPlaceholder);
+        
+        // Set video source
+        registerVideo.srcObject = registerStream;
+        
+        // Add event listeners for video events
+        registerVideo.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+          registerVideo.style.display = 'block';
+          registerVideo.style.visibility = 'visible';
+          registerVideo.style.opacity = '1';
+          cameraPlaceholder.style.display = 'none';
+        };
+        
+        registerVideo.oncanplay = () => {
+          console.log('Video can play');
+          registerVideo.style.display = 'block';
+          registerVideo.style.visibility = 'visible';
+          registerVideo.style.opacity = '1';
+          cameraPlaceholder.style.display = 'none';
+        };
+        
+        // Force show video immediately
+        registerVideo.style.display = 'block';
+        registerVideo.style.visibility = 'visible';
+        registerVideo.style.opacity = '1';
+        cameraPlaceholder.style.display = 'none';
+        
+        console.log('Video display style:', registerVideo.style.display);
+        console.log('Placeholder display style:', cameraPlaceholder.style.display);
+        
+        // Force play video
+        registerVideo.play().then(() => {
+          console.log('Video playing successfully');
+          document.getElementById('registerProgress').textContent = 'Camera ready. You can now capture photos.';
+        }).catch(e => {
+          console.error('Video play error:', e);
+          document.getElementById('registerProgress').textContent = 'Video play error: ' + e.message;
+        });
+        
+        // Fallback: Force display after 1 second
+        setTimeout(() => {
+          if (registerVideo.style.display === 'none' || cameraPlaceholder.style.display !== 'none') {
+            console.log('Fallback: Forcing video display');
+            registerVideo.style.display = 'block';
+            registerVideo.style.visibility = 'visible';
+            registerVideo.style.opacity = '1';
+            cameraPlaceholder.style.display = 'none';
+          }
+        }, 1000);
+        
+        document.getElementById('btnCapturePhoto').disabled = false;
         document.getElementById('btnBurstCapture').disabled = false;
-        document.getElementById('registerProgress').textContent = 'Kamera siap. Klik "Burst Foto" untuk mulai.';
+        
       } catch (e) {
-        document.getElementById('registerProgress').textContent = 'Error: ' + e.message;
+        console.error('Camera error:', e);
+        document.getElementById('registerProgress').textContent = 'Camera error: ' + e.message;
+      }
+    };
+
+    // Capture Photo button in modal
+    document.getElementById('btnCapturePhoto').onclick = async () => {
+      const registerVideo = document.getElementById('registerVideo');
+      const capturedImage = document.getElementById('capturedImage');
+      const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+      
+      if (!registerStream) {
+        document.getElementById('registerProgress').textContent = 'Please start camera first';
+        return;
+      }
+      
+      try {
+        const registerCanvas = document.getElementById('registerCanvas');
+        const ctx = registerCanvas.getContext('2d');
+        ctx.drawImage(registerVideo, 0, 0, registerCanvas.width, registerCanvas.height);
+        const dataUrl = registerCanvas.toDataURL('image/jpeg', 0.9);
+        
+        // Show captured image
+        capturedImage.src = dataUrl;
+        capturedImage.style.display = 'block';
+        registerVideo.style.display = 'none';
+        
+        // Ensure image loads properly
+        capturedImage.onload = () => {
+          console.log('Captured image loaded successfully');
+        };
+        
+        // Update button states
+        document.getElementById('btnCapturePhoto').disabled = true;
+        document.getElementById('btnUpdatePhoto').disabled = false;
+        document.getElementById('btnResetPhoto').disabled = false;
+        
+        document.getElementById('registerProgress').textContent = 'Photo captured! Review and click "Update to GymMaster" if satisfied.';
+      } catch (e) {
+        document.getElementById('registerProgress').textContent = 'Capture error: ' + e.message;
+      }
+    };
+
+    // Reset Photo button in modal
+    document.getElementById('btnResetPhoto').onclick = () => {
+      const registerVideo = document.getElementById('registerVideo');
+      const capturedImage = document.getElementById('capturedImage');
+      
+      // Reset to camera view
+      registerVideo.style.display = 'block';
+      capturedImage.style.display = 'none';
+      
+      // Update button states
+      document.getElementById('btnCapturePhoto').disabled = false;
+      document.getElementById('btnUpdatePhoto').disabled = true;
+      document.getElementById('btnResetPhoto').disabled = true;
+      
+      document.getElementById('registerProgress').textContent = 'Photo reset. You can now capture a new photo.';
+    };
+
+    // Update Photo button in modal
+    document.getElementById('btnUpdatePhoto').onclick = async () => {
+      const capturedImage = document.getElementById('capturedImage');
+      
+      if (!capturedImage.src || capturedImage.style.display === 'none') {
+        document.getElementById('registerProgress').textContent = 'Please capture a photo first';
+        return;
+      }
+      
+      try {
+        const dataUrl = capturedImage.src;
+        
+        document.getElementById('registerProgress').textContent = 'Updating profile photo...';
+        
+        const r = await fetch('/api/update_profile_photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_b64: dataUrl.split(',')[1] })
+        });
+        
+        const j = await r.json();
+        
+        if (j.ok) {
+          document.getElementById('registerProgress').textContent = 'Profile photo updated successfully!';
+          document.getElementById('btnUpdatePhoto').disabled = true;
+        } else {
+          document.getElementById('registerProgress').textContent = 'Update failed: ' + (j.error || 'Unknown error');
+        }
+      } catch (e) {
+        document.getElementById('registerProgress').textContent = 'Update error: ' + e.message;
       }
     };
 
@@ -2446,13 +2678,13 @@ RETAKE_HTML = """
       let capturedFrames = [];
       let countdown = 5;
       
-      progress.textContent = `Burst foto dimulai dalam ${countdown} detik...`;
+      progress.textContent = `Burst capture starting in ${countdown} seconds...`;
       document.getElementById('btnBurstCapture').disabled = true;
       
       // Countdown
       const countdownInterval = setInterval(() => {
         countdown--;
-        progress.textContent = `Burst foto dimulai dalam ${countdown} detik...`;
+        progress.textContent = `Burst capture starting in ${countdown} seconds...`;
         if (countdown <= 0) {
           clearInterval(countdownInterval);
           startBurstCapture();
@@ -2460,30 +2692,31 @@ RETAKE_HTML = """
       }, 1000);
       
       function startBurstCapture() {
-        progress.textContent = 'Mengambil foto... (5 detik)';
+        progress.textContent = 'Capturing photos... (5 seconds)';
         
         burstInterval = setInterval(() => {
           const ctx = registerCanvas.getContext('2d');
           ctx.drawImage(registerVideo, 0, 0, registerCanvas.width, registerCanvas.height);
           const dataUrl = registerCanvas.toDataURL('image/jpeg', 0.9);
           capturedFrames.push(dataUrl);
-          progress.textContent = `Foto ${capturedFrames.length} diambil...`;
+          progress.textContent = `Photo ${capturedFrames.length} captured...`;
         }, 200); // Take photo every 200ms
         
         setTimeout(async () => {
           clearInterval(burstInterval);
           burstInterval = null;
-          progress.textContent = 'Mengirim foto untuk encoding...';
+          progress.textContent = 'Sending photos for face encoding...';
           
           // Send frames to server for encoding
           const r = await fetch('/api/register_face', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ frames: capturedFrames })
-      });
-      const j = await r.json();
+          });
+          const j = await r.json();
           
           if (j.ok) {
-            progress.textContent = 'Face recognition berhasil didaftarkan!';
+            progress.textContent = 'Face recognition registered successfully!';
             document.getElementById('btnBurstCapture').disabled = false;
           } else {
             progress.textContent = 'Error: ' + j.error;
