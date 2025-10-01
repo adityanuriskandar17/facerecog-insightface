@@ -61,12 +61,12 @@ REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
 
 GYM_API_KEY = os.getenv("GYM_API_KEY", "")
-GYM_BASE_URL = os.getenv("GYM_BASE_URL", "")
-GYM_LOGIN_URL = os.getenv("GYM_LOGIN_URL", "")
-GYM_PROFILE_URL = os.getenv("GYM_PROFILE_URL", "")
+GYM_BASE_URL = os.getenv("GYM_BASE_URL", "https://ftl.gymmasteronline.com")
+GYM_LOGIN_URL = os.getenv("GYM_LOGIN_URL", "https://ftl.gymmasteronline.com/portal/api/v1/login")
+GYM_PROFILE_URL = os.getenv("GYM_PROFILE_URL", "https://ftl.gymmasteronline.com/portal/api/v1/member/profile")
 # For profile update, we need to use a different endpoint or method
 # Based on the env, the profile URL is for GET, we need to find the correct UPDATE endpoint
-GYM_GATE_URL = os.getenv("GYM_GATE_URL", "")
+GYM_GATE_URL = os.getenv("GYM_GATE_URL", "https://ftl.gymmasteronline.com/portal/api/v2/member/kiosk/checkin")
 CHECKIN_ENABLED = os.getenv("CHECKIN_ENABLED", "True").lower() == "true"
 
 # InsightFace model (ArcFace) setup
