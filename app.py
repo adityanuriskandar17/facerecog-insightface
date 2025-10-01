@@ -1897,6 +1897,21 @@ RETAKE_HTML = """
       cursor: not-allowed;
     }
     
+    .btn-capture.loading {
+      opacity: 0.7;
+      cursor: not-allowed;
+      position: relative;
+    }
+    
+    .btn-capture.loading .fa-spinner {
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
     .btn-update {
       background: #28a745;
       color: white;
@@ -2231,11 +2246,17 @@ RETAKE_HTML = """
     document.getElementById('btnSnap').onclick = async () => {
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
+      const btnSnap = document.getElementById('btnSnap');
       
       if (!video.srcObject) {
         setOut('Please start camera first');
         return;
       }
+      
+      // Add loading state
+      btnSnap.disabled = true;
+      btnSnap.classList.add('loading');
+      btnSnap.innerHTML = '<i class="fas fa-spinner"></i> Validasi...';
       
       try {
         setOut('Capturing photo...');
@@ -2313,6 +2334,11 @@ RETAKE_HTML = """
           confirmButtonText: 'OK',
           confirmButtonColor: '#f44336'
         });
+      } finally {
+        // Reset button state
+        btnSnap.disabled = false;
+        btnSnap.classList.remove('loading');
+        btnSnap.innerHTML = '<i class="fas fa-user-check"></i> Validasi';
       }
     };
 
