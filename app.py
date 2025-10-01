@@ -568,7 +568,7 @@ LOGIN_HTML = """
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
             margin: 0; 
             padding: 20px; 
-            background: #f5f5f5;
+            background: white;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -586,22 +586,40 @@ LOGIN_HTML = """
             text-align: center;
             margin-bottom: 30px;
         }
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: #333;
+            border-radius: 12px;
+            margin: 0 auto 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: url('https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/59/86/27/598627f5-2f2a-a6a4-52b6-937cbff0ada5/AppIcon-0-0-1x_U007emarketing-0-7-0-0-85-220.png/1200x630wa.png');
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
         .login-header h1 {
             color: #333;
             margin-bottom: 10px;
+            font-size: 24px;
+            font-weight: 600;
         }
         .login-header p {
             color: #666;
             margin: 0;
+            font-size: 14px;
         }
         .form-group {
             margin-bottom: 20px;
         }
         .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             color: #333;
             font-weight: 500;
+            font-size: 14px;
         }
         .form-group input {
             width: 100%;
@@ -622,11 +640,15 @@ LOGIN_HTML = """
             background: #007bff;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             font-size: 16px;
             font-weight: 500;
             cursor: pointer;
             transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         .login-btn:hover {
             background: #0056b3;
@@ -636,44 +658,59 @@ LOGIN_HTML = """
             cursor: not-allowed;
         }
         .back-btn {
-            display: inline-block;
+            display: block;
+            width: 100%;
             margin-top: 20px;
-            padding: 10px 20px;
-            background: #6c757d;
             color: white;
             text-decoration: none;
-            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background: #343a40;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(52, 58, 64, 0.2);
             text-align: center;
-            transition: background-color 0.2s;
+            box-sizing: border-box;
         }
         .back-btn:hover {
-            background: #545b62;
+            background: #23272b;
+            box-shadow: 0 4px 8px rgba(52, 58, 64, 0.3);
+            transform: translateY(-1px);
         }
         .error-message {
             color: #dc3545;
-            font-size: 14px;
-            margin-top: 10px;
+            margin-top: 15px;
             text-align: center;
+            padding: 10px;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
         }
         .success-message {
             color: #28a745;
-            font-size: 14px;
-            margin-top: 10px;
+            margin-top: 15px;
             text-align: center;
+            padding: 10px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 6px;
         }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="login-header">
-            <h1>FTL Face Gate</h1>
+            <div class="logo"></div>
+            <h1>FTL Face Registration</h1>
             <p>Login to Register Face</p>
         </div>
         
         <form id="loginForm">
             <div class="form-group">
                 <label for="email">Email</label>
-                <input type="email" id="email" name="email" required>
+                <input type="email" id="email" name="email" placeholder="your.email@example.com" required>
             </div>
             
             <div class="form-group">
@@ -681,12 +718,18 @@ LOGIN_HTML = """
                 <input type="password" id="password" name="password" required>
             </div>
             
-            <button type="submit" class="login-btn" id="loginBtn">Login</button>
+            <button type="submit" class="login-btn" id="loginBtn">
+                <span>→</span>
+                <span>Login</span>
+            </button>
         </form>
         
         <div id="message"></div>
         
-        <a href="/" class="back-btn">← Back to Face Recognition</a>
+        <a href="/" class="back-btn">
+            <span>←</span>
+            <span>Back to Face Recognition</span>
+        </a>
     </div>
 
     <script>
@@ -699,7 +742,7 @@ LOGIN_HTML = """
             const messageDiv = document.getElementById('message');
             
             loginBtn.disabled = true;
-            loginBtn.textContent = 'Logging in...';
+            loginBtn.innerHTML = '<span>→</span><span>Logging in...</span>';
             messageDiv.innerHTML = '';
             
             try {
@@ -728,7 +771,7 @@ LOGIN_HTML = """
                 messageDiv.innerHTML = '<div class="error-message">Login error: ' + error.message + '</div>';
             } finally {
                 loginBtn.disabled = false;
-                loginBtn.textContent = 'Login';
+                loginBtn.innerHTML = '<span>→</span><span>Login</span>';
             }
         });
     </script>
@@ -1951,7 +1994,7 @@ RETAKE_HTML = """
       <div class="card">
         <div class="card-header">
           <i class="fas fa-user-check"></i>
-      <h3>Capture & Compare</h3>
+      <h3>Validasi Member</h3>
         </div>
         <div class="camera-container" id="cameraContainer">
           <video id="video" autoplay playsinline muted style="display: none; transform: scaleX(-1);"></video>
@@ -1967,7 +2010,7 @@ RETAKE_HTML = """
           </button>
           <button id="btnSnap" class="btn btn-capture" disabled>
             <i class="fas fa-user-check"></i>
-            Capture & Compare
+            Validasi
           </button>
           <button id="btnRegister" class="btn btn-register">
             <i class="fas fa-user-plus"></i>
@@ -2014,27 +2057,21 @@ RETAKE_HTML = """
       <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 20px 0;">
         <button id="btnStartRegister" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-play"></i>
-          Start Camera
         </button>
         <button id="btnCapturePhoto" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-camera"></i>
-          Capture Photo
         </button>
         <button id="btnUpdatePhoto" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-upload"></i>
-          Update to GymMaster
         </button>
         <button id="btnResetPhoto" disabled style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-redo"></i>
-          Reset Photo
         </button>
         <button id="btnBurstCapture" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-bolt"></i>
-          Burst Capture (5s)
         </button>
         <button id="btnCloseRegister" style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-times"></i>
-          Close
         </button>
       </div>
       
