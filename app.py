@@ -588,9 +588,10 @@ app.secret_key = SECRET_KEY
 LOGIN_HTML = """
 <!DOCTYPE html>
 <html>
-<head>
-    <title>FTL Face Gate - Login</title>
-    <style>
+    <head>
+        <title>FTL Face Gate - Login</title>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <style>
         body { 
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
             margin: 0; 
@@ -660,6 +661,42 @@ LOGIN_HTML = """
             outline: none;
             border-color: #007bff;
             box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+        .password-input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .password-input-container input {
+            width: 100%;
+            padding: 12px 45px 12px 12px; /* Added right padding for the icon */
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .password-toggle-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            font-size: 16px;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+        .password-toggle-btn:hover {
+            color: #007bff;
+        }
+        .password-toggle-btn:focus {
+            outline: none;
+            color: #007bff;
         }
         .login-btn {
             width: 100%;
@@ -742,7 +779,12 @@ LOGIN_HTML = """
             
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required>
+                <div class="password-input-container">
+                    <input type="password" id="password" name="password" required>
+                    <button type="button" id="togglePassword" class="password-toggle-btn">
+                        <i class="fas fa-eye" id="passwordIcon"></i>
+                    </button>
+                </div>
             </div>
             
             <button type="submit" class="login-btn" id="loginBtn">
@@ -755,6 +797,22 @@ LOGIN_HTML = """
     </div>
 
     <script>
+        // Password visibility toggle
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const passwordIcon = document.getElementById('passwordIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                passwordIcon.classList.remove('fa-eye');
+                passwordIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                passwordIcon.classList.remove('fa-eye-slash');
+                passwordIcon.classList.add('fa-eye');
+            }
+        });
+
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
