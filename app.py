@@ -1202,31 +1202,71 @@ INDEX_HTML = """
       updateProgressLine(completedSteps);
     }
     
+    
     function updateStepStatus(stepNumber, isCompleted) {
       const stepElement = document.querySelector(`[data-step="${stepNumber}"]`);
+      if (!stepElement) {
+        console.warn(`Step element not found for step ${stepNumber}`);
+        return;
+      }
+      
       const circle = stepElement.querySelector('.step-circle');
+      if (!circle) {
+        console.warn(`Circle element not found for step ${stepNumber}`);
+        return;
+      }
+      
       const checkIcon = circle.querySelector('.fas.fa-check');
       const stepNumberSpan = circle.querySelector('.step-number');
       
       if (isCompleted) {
-        circle.style.background = '#28a745';
-        circle.style.borderColor = '#28a745';
-        checkIcon.style.display = 'block';
-        stepNumberSpan.style.display = 'none';
+        // FTL GYM hero colors for completed steps
+        circle.style.background = 'linear-gradient(135deg, #4ca7e5 0%, #0072bc 50%, #0037cf 100%)';
+        circle.style.borderColor = '#0037cf';
+        circle.style.boxShadow = '0 6px 16px rgba(0, 55, 207, 0.4)';
+        circle.style.color = 'white';
+        
+        if (checkIcon) checkIcon.style.display = 'block';
+        if (stepNumberSpan) stepNumberSpan.style.display = 'none';
+        
+        // Update text color to match FTL GYM colors
+        const stepText = stepElement.querySelector('div:last-child');
+        if (stepText) {
+          stepText.style.color = '#0037cf';
+          stepText.style.fontWeight = '600';
+        }
       } else {
-        circle.style.background = '#333';
-        circle.style.borderColor = '#666';
-        checkIcon.style.display = 'none';
-        stepNumberSpan.style.display = 'block';
+        circle.style.background = '#f8f9fa';
+        circle.style.borderColor = '#e9ecef';
+        circle.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+        circle.style.color = '#6c757d';
+        
+        if (checkIcon) checkIcon.style.display = 'none';
+        if (stepNumberSpan) stepNumberSpan.style.display = 'block';
+        circle.style.animation = 'none';
+        
+        // Reset text color
+        const stepText = stepElement.querySelector('div:last-child');
+        if (stepText) {
+          stepText.style.color = '#6c757d';
+          stepText.style.fontWeight = '500';
+        }
       }
     }
     
     function updateProgressLine(completedSteps) {
       const progressLine = document.getElementById('progressLine');
+      if (!progressLine) {
+        console.warn('Progress line element not found');
+        return;
+      }
+      
       const totalSteps = 3;
       const progressPercentage = (completedSteps / totalSteps) * 100;
       
       progressLine.style.width = progressPercentage + '%';
+      progressLine.style.background = 'linear-gradient(90deg, #4ca7e5 0%, #0072bc 50%, #0037cf 100%)';
+      progressLine.style.boxShadow = '0 4px 12px rgba(0, 55, 207, 0.4)';
     }
     
     function drawFaceTracking(x, y, width, height, color = '#00FF00', label = '') {
@@ -2827,6 +2867,13 @@ RETAKE_HTML = """
     
     // Progress Roadmap Functions for Profile Page
     function updateProgressRoadmap() {
+      // Check if roadmap elements exist
+      const roadmapContainer = document.querySelector('.roadmap-container');
+      if (!roadmapContainer) {
+        console.warn('Roadmap container not found');
+        return;
+      }
+      
       let completedSteps = 0;
       
       // Check if validation is completed (Step 1: Validasi)
@@ -2862,9 +2909,17 @@ RETAKE_HTML = """
     
     function updateStepStatus(stepNumber, isCompleted) {
       const stepElement = document.querySelector(`[data-step="${stepNumber}"]`);
-      if (!stepElement) return;
+      if (!stepElement) {
+        console.warn(`Step element not found for step ${stepNumber}`);
+        return;
+      }
       
       const circle = stepElement.querySelector('.step-circle');
+      if (!circle) {
+        console.warn(`Circle element not found for step ${stepNumber}`);
+        return;
+      }
+      
       const checkIcon = circle.querySelector('.fas.fa-check');
       const stepNumberSpan = circle.querySelector('.step-number');
       
@@ -2874,8 +2929,9 @@ RETAKE_HTML = """
         circle.style.borderColor = '#0037cf';
         circle.style.boxShadow = '0 6px 16px rgba(0, 55, 207, 0.4)';
         circle.style.color = 'white';
-        checkIcon.style.display = 'block';
-        stepNumberSpan.style.display = 'none';
+        
+        if (checkIcon) checkIcon.style.display = 'block';
+        if (stepNumberSpan) stepNumberSpan.style.display = 'none';
         
         // Update text color to match FTL GYM colors
         const stepText = stepElement.querySelector('div:last-child');
@@ -2888,8 +2944,9 @@ RETAKE_HTML = """
         circle.style.borderColor = '#e9ecef';
         circle.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
         circle.style.color = '#6c757d';
-        checkIcon.style.display = 'none';
-        stepNumberSpan.style.display = 'block';
+        
+        if (checkIcon) checkIcon.style.display = 'none';
+        if (stepNumberSpan) stepNumberSpan.style.display = 'block';
         circle.style.animation = 'none';
         
         // Reset text color
