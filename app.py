@@ -2438,6 +2438,22 @@ RETAKE_HTML = """
       cursor: pointer !important;
     }
     
+    /* Sequential button styles for register */
+    .register-sequential {
+      transition: all 0.3s ease;
+    }
+    
+    .register-sequential:disabled {
+      opacity: 0.5 !important;
+      cursor: not-allowed !important;
+      background-color: #6c757d !important;
+    }
+    
+    .register-sequential:not(:disabled) {
+      opacity: 1 !important;
+      cursor: pointer !important;
+    }
+    
     .btn {
       padding: 12px 20px;
       border: none;
@@ -2765,37 +2781,37 @@ RETAKE_HTML = """
       <!-- Control Buttons -->
       <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 20px 0;">
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <button id="btnStartRegister" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <button id="btnStartRegister" class="register-sequential" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-play"></i>
           </button>
           <span style="font-size: 12px; color: #666; font-weight: 500;">1</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <button id="btnBurstCapture" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <button id="btnBurstCapture" class="register-sequential" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-bolt"></i>
           </button>
           <span style="font-size: 12px; color: #666; font-weight: 500;">2</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <button id="btnCapturePhoto" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <button id="btnCapturePhoto" class="register-sequential" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-camera"></i>
           </button>
           <span style="font-size: 12px; color: #666; font-weight: 500;">3</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <button id="btnUpdatePhoto" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <button id="btnUpdatePhoto" class="register-sequential" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-upload"></i>
           </button>
           <span style="font-size: 12px; color: #666; font-weight: 500;">4</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <button id="btnResetPhoto" disabled style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <button id="btnResetPhoto" style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-redo"></i>
           </button>
           <span style="font-size: 12px; color: #666; font-weight: 500;">5</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <button id="btnCloseRegister" style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <button id="btnCloseRegister" class="register-sequential" style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-times"></i>
           </button>
           <span style="font-size: 12px; color: #666; font-weight: 500;">6</span>
@@ -2892,6 +2908,61 @@ RETAKE_HTML = """
       currentValidationStep = 1;
       updateValidationButtonStates();
       console.log('Reset to validation step 1');
+    }
+    
+    // Sequential register button state management
+    let currentRegisterStep = 1;
+    const maxRegisterSteps = 6;
+    
+    function updateRegisterButtonStates() {
+      const buttons = [
+        'btnStartRegister',      // Step 1
+        'btnBurstCapture',       // Step 2  
+        'btnCapturePhoto',      // Step 3
+        'btnUpdatePhoto',        // Step 4
+        'btnResetPhoto',         // Step 5 (Reset - always available)
+        'btnCloseRegister'       // Step 6
+      ];
+      
+      buttons.forEach((btnId, index) => {
+        const button = document.getElementById(btnId);
+        if (button) {
+          const stepNumber = index + 1;
+          
+          // Button 5 (Reset) is always available
+          if (stepNumber === 5) {
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+            return;
+          }
+          
+          // Other buttons follow sequential logic
+          if (stepNumber <= currentRegisterStep) {
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+          } else {
+            button.disabled = true;
+            button.style.opacity = '0.5';
+            button.style.cursor = 'not-allowed';
+          }
+        }
+      });
+    }
+    
+    function nextRegisterStep() {
+      if (currentRegisterStep < maxRegisterSteps) {
+        currentRegisterStep++;
+        updateRegisterButtonStates();
+        console.log(`Advanced to register step ${currentRegisterStep}`);
+      }
+    }
+    
+    function resetRegisterSteps() {
+      currentRegisterStep = 1;
+      updateRegisterButtonStates();
+      console.log('Reset to register step 1');
     }
 
     // Auto-load profile when page loads
@@ -3459,6 +3530,9 @@ RETAKE_HTML = """
       
       document.getElementById('registerModal').style.display = 'block';
       
+      // Initialize register button states when modal opens
+      updateRegisterButtonStates();
+      
       // Debug: Check if elements exist
       const video = document.getElementById('registerVideo');
       const placeholder = document.getElementById('cameraPlaceholder');
@@ -3482,6 +3556,11 @@ RETAKE_HTML = """
     };
 
     document.getElementById('btnCloseRegister').onclick = () => {
+      if (currentRegisterStep !== 6) {
+        console.log('Button 6 can only be clicked when current step is 6');
+        return;
+      }
+      
       if (registerStream) {
         registerStream.getTracks().forEach(track => track.stop());
         registerStream = null;
@@ -3511,9 +3590,17 @@ RETAKE_HTML = """
       
       document.getElementById('registerProgress').textContent = '';
       document.getElementById('registerModal').style.display = 'none';
+      
+      // Reset register steps when closing modal
+      resetRegisterSteps();
     };
 
     document.getElementById('btnStartRegister').onclick = async () => {
+      if (currentRegisterStep !== 1) {
+        console.log('Button 1 can only be clicked when current step is 1');
+        return;
+      }
+      
       try {
         console.log('Starting camera...');
         document.getElementById('registerProgress').textContent = 'Starting camera...';
@@ -3596,14 +3683,46 @@ RETAKE_HTML = """
         document.getElementById('btnCapturePhoto').disabled = false;
         document.getElementById('btnBurstCapture').disabled = false;
         
+        // Move to next step after successful camera start
+        nextRegisterStep();
+        
       } catch (e) {
         console.error('Camera error:', e);
         document.getElementById('registerProgress').textContent = 'Camera error: ' + e.message;
       }
     };
 
-    // Capture Photo button in modal
+    // Burst Capture button (Step 2)
+    document.getElementById('btnBurstCapture').onclick = async () => {
+      if (currentRegisterStep !== 2) {
+        console.log('Button 2 can only be clicked when current step is 2');
+        return;
+      }
+      
+      try {
+        console.log('Starting burst capture...');
+        document.getElementById('registerProgress').textContent = 'Capturing multiple photos...';
+        
+        // Start burst capture logic here
+        // For now, just simulate the process
+        setTimeout(() => {
+          document.getElementById('registerProgress').textContent = 'Burst capture completed!';
+          nextRegisterStep(); // Move to step 3
+        }, 2000);
+        
+      } catch (e) {
+        console.error('Burst capture error:', e);
+        document.getElementById('registerProgress').textContent = 'Burst capture error: ' + e.message;
+      }
+    };
+
+    // Capture Photo button in modal (Step 3)
     document.getElementById('btnCapturePhoto').onclick = async () => {
+      if (currentRegisterStep !== 3) {
+        console.log('Button 3 can only be clicked when current step is 3');
+        return;
+      }
+      
       const registerVideo = document.getElementById('registerVideo');
       const registerCapturedImage = document.getElementById('registerCapturedImage');
       const cameraPlaceholder = document.getElementById('cameraPlaceholder');
@@ -3635,6 +3754,9 @@ RETAKE_HTML = """
         document.getElementById('btnResetPhoto').disabled = false;
         
         document.getElementById('registerProgress').textContent = 'Photo captured! Review and click "Update to GymMaster" if satisfied.';
+        
+        // Move to next step after successful photo capture
+        nextRegisterStep();
       } catch (e) {
         document.getElementById('registerProgress').textContent = 'Capture error: ' + e.message;
       }
@@ -3657,8 +3779,13 @@ RETAKE_HTML = """
       document.getElementById('registerProgress').textContent = 'Photo reset. You can now capture a new photo.';
     };
 
-    // Update Photo button in modal
+    // Update Photo button in modal (Step 4)
     document.getElementById('btnUpdatePhoto').onclick = async () => {
+      if (currentRegisterStep !== 4) {
+        console.log('Button 4 can only be clicked when current step is 4');
+        return;
+      }
+      
       const registerCapturedImage = document.getElementById('registerCapturedImage');
       
       if (!registerCapturedImage.src || registerCapturedImage.style.display === 'none') {
@@ -3748,6 +3875,9 @@ RETAKE_HTML = """
             // Mark face recognition as completed and update roadmap
             sessionStorage.setItem('face_registered', 'true');
             updateProgressRoadmap();
+            
+            // Move to next step after successful photo update
+            nextRegisterStep();
           } else {
             progress.textContent = 'Error: ' + j.error;
             document.getElementById('btnBurstCapture').disabled = false;
