@@ -2422,6 +2422,22 @@ RETAKE_HTML = """
       gap: 12px;
     }
     
+    /* Sequential button styles for validation */
+    .validation-sequential {
+      transition: all 0.3s ease;
+    }
+    
+    .validation-sequential:disabled {
+      opacity: 0.5 !important;
+      cursor: not-allowed !important;
+      background-color: #6c757d !important;
+    }
+    
+    .validation-sequential:not(:disabled) {
+      opacity: 1 !important;
+      cursor: pointer !important;
+    }
+    
     .btn {
       padding: 12px 20px;
       border: none;
@@ -2697,15 +2713,15 @@ RETAKE_HTML = """
           </div>
         </div>
         <div class="btn-group">
-          <button id="btnStart" class="btn btn-start">
+          <button id="btnStart" class="btn btn-start validation-sequential" data-step="1">
             <b>1.</b>
             Start Camera
           </button>
-          <button id="btnSnap" class="btn btn-capture" disabled>
+          <button id="btnSnap" class="btn btn-capture validation-sequential" disabled data-step="2">
             <b>2.</b>
             Validasi
           </button>
-          <button id="btnRegister" class="btn btn-register">
+          <button id="btnRegister" class="btn btn-register validation-sequential" disabled data-step="3">
             <b>3.</b>
             Register Face Recognition
           </button>
@@ -2834,6 +2850,48 @@ RETAKE_HTML = """
       if (btnStart) btnStart.disabled = false;
       if (btnSnap) btnSnap.disabled = true;
       if (btnCapturePhoto) btnCapturePhoto.disabled = true;
+    }
+
+    // Sequential validation button state management
+    let currentValidationStep = 1;
+    const maxValidationSteps = 3;
+    
+    function updateValidationButtonStates() {
+      const buttons = [
+        'btnStart',      // Step 1
+        'btnSnap',       // Step 2  
+        'btnRegister'    // Step 3
+      ];
+      
+      buttons.forEach((btnId, index) => {
+        const button = document.getElementById(btnId);
+        if (button) {
+          const stepNumber = index + 1;
+          if (stepNumber <= currentValidationStep) {
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+          } else {
+            button.disabled = true;
+            button.style.opacity = '0.5';
+            button.style.cursor = 'not-allowed';
+          }
+        }
+      });
+    }
+    
+    function nextValidationStep() {
+      if (currentValidationStep < maxValidationSteps) {
+        currentValidationStep++;
+        updateValidationButtonStates();
+        console.log(`Advanced to validation step ${currentValidationStep}`);
+      }
+    }
+    
+    function resetValidationSteps() {
+      currentValidationStep = 1;
+      updateValidationButtonStates();
+      console.log('Reset to validation step 1');
     }
 
     // Auto-load profile when page loads
@@ -3028,6 +3086,9 @@ RETAKE_HTML = """
     
     // Initialize progress roadmap when page loads
     updateProgressRoadmap();
+    
+    // Initialize validation button states
+    updateValidationButtonStates();
 
     // Logout function
     async function logout() {
@@ -3057,6 +3118,11 @@ RETAKE_HTML = """
 
     // Add event handler for Start button on retake page
     document.getElementById('btnStart').onclick = async () => {
+      if (currentValidationStep !== 1) {
+        console.log('Button 1 can only be clicked when current step is 1');
+        return;
+      }
+      
       try {
         setOut('Starting camera...');
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -3087,6 +3153,9 @@ RETAKE_HTML = """
         document.getElementById('btnSnap').disabled = false;
         document.getElementById('btnCapturePhoto').disabled = false;
         setOut('Camera started. Click "Capture Photo" to take a photo.');
+        
+        // Move to next step after successful camera start
+        nextValidationStep();
       } catch (e) {
         setOut('Camera error: ' + e.message);
       }
@@ -3094,6 +3163,11 @@ RETAKE_HTML = """
 
     // Add event handler for Capture & Compare button
     document.getElementById('btnSnap').onclick = async () => {
+      if (currentValidationStep !== 2) {
+        console.log('Button 2 can only be clicked when current step is 2');
+        return;
+      }
+      
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
       const btnSnap = document.getElementById('btnSnap');
@@ -3194,6 +3268,9 @@ RETAKE_HTML = """
         btnSnap.disabled = false;
         btnSnap.classList.remove('loading');
         btnSnap.innerHTML = '<b>2. </b>Validasi';
+        
+        // Move to next step after successful validation
+        nextValidationStep();
       }
     };
 
@@ -3370,6 +3447,11 @@ RETAKE_HTML = """
 
     // Face Registration Modal Controls
     document.getElementById('btnRegister').onclick = () => {
+      if (currentValidationStep !== 3) {
+        console.log('Button 3 can only be clicked when current step is 3');
+        return;
+      }
+      
       console.log('Opening register modal...');
       
       // Stop validation camera when opening register modal
