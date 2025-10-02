@@ -1146,6 +1146,80 @@ INDEX_HTML = """
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
     }
     
+    // Progress Roadmap Functions
+    function updateProgressRoadmap() {
+      let completedSteps = 0;
+      
+      // Check if user is logged in (Step 1: Validasi)
+      const isLoggedIn = sessionStorage.getItem('gym_token') || localStorage.getItem('gym_token');
+      if (isLoggedIn) {
+        completedSteps = 1;
+        updateStepStatus(1, true);
+      } else {
+        updateStepStatus(1, false);
+      }
+      
+      // Check if face recognition is registered (Step 2: Face Recognition)
+      // This would be checked via API call to see if user has face data
+      // For now, we'll assume it's completed if user is logged in and has done face recognition
+      if (completedSteps >= 1) {
+        // Simulate face recognition completion - in real app, check via API
+        const hasFaceData = sessionStorage.getItem('face_registered') || false;
+        if (hasFaceData) {
+          completedSteps = 2;
+          updateStepStatus(2, true);
+        } else {
+          updateStepStatus(2, false);
+        }
+      } else {
+        updateStepStatus(2, false);
+      }
+      
+      // Check if photo is uploaded to GymMaster (Step 3: Upload Foto)
+      if (completedSteps >= 2) {
+        // Simulate photo upload completion - in real app, check via API
+        const hasPhotoUploaded = sessionStorage.getItem('photo_uploaded') || false;
+        if (hasPhotoUploaded) {
+          completedSteps = 3;
+          updateStepStatus(3, true);
+        } else {
+          updateStepStatus(3, false);
+        }
+      } else {
+        updateStepStatus(3, false);
+      }
+      
+      // Update progress line
+      updateProgressLine(completedSteps);
+    }
+    
+    function updateStepStatus(stepNumber, isCompleted) {
+      const stepElement = document.querySelector(`[data-step="${stepNumber}"]`);
+      const circle = stepElement.querySelector('.step-circle');
+      const checkIcon = circle.querySelector('.fas.fa-check');
+      const stepNumberSpan = circle.querySelector('.step-number');
+      
+      if (isCompleted) {
+        circle.style.background = '#28a745';
+        circle.style.borderColor = '#28a745';
+        checkIcon.style.display = 'block';
+        stepNumberSpan.style.display = 'none';
+      } else {
+        circle.style.background = '#333';
+        circle.style.borderColor = '#666';
+        checkIcon.style.display = 'none';
+        stepNumberSpan.style.display = 'block';
+      }
+    }
+    
+    function updateProgressLine(completedSteps) {
+      const progressLine = document.getElementById('progressLine');
+      const totalSteps = 3;
+      const progressPercentage = (completedSteps / totalSteps) * 100;
+      
+      progressLine.style.width = progressPercentage + '%';
+    }
+    
     function drawFaceTracking(x, y, width, height, color = '#00FF00', label = '') {
       if (!overlay) return;
       
@@ -1745,6 +1819,10 @@ INDEX_HTML = """
           const name = j.candidate.email || `Member ${j.candidate.gym_member_id}`;
           const confidence = j.best_score;
           
+          // Mark face recognition as completed
+          sessionStorage.setItem('face_registered', 'true');
+          updateProgressRoadmap();
+          
           // Immediately show the name and draw bounding box
           updateDetectionDisplay(name, 'Face recognized', confidence);
           
@@ -1922,6 +2000,12 @@ INDEX_HTML = """
           forceSyncOverlay();
         }, 500);
       }, 100);
+    });
+    
+    // Initialize progress roadmap on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Initializing progress roadmap...');
+      updateProgressRoadmap();
     });
     
     function debugCamera() {
@@ -2317,6 +2401,19 @@ RETAKE_HTML = """
     canvas { display: none; }
     
     .hidden { display: none; }
+    
+    /* Pulse animation for completed steps */
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 20px rgba(0,123,255,0.6), 0 0 40px rgba(0,123,255,0.4);
+      }
+      50% {
+        box-shadow: 0 0 30px rgba(0,123,255,0.8), 0 0 60px rgba(0,123,255,0.6);
+      }
+      100% {
+        box-shadow: 0 0 20px rgba(0,123,255,0.6), 0 0 40px rgba(0,123,255,0.4);
+      }
+    }
   </style>
 </head>
 <body>
@@ -2324,6 +2421,43 @@ RETAKE_HTML = """
     <div class="header">
   <h1>Profile & Face Registration</h1>
       <p>Secure biometric authentication and identity verification system</p>
+    </div>
+    
+    <!-- Progress Roadmap -->
+    <div style="margin-bottom: 24px; padding: 20px; background: #1a1a1a; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; position: relative;">
+        <!-- Progress Line -->
+        <div style="position: absolute; top: 20px; left: 40px; right: 40px; height: 2px; background: #333; z-index: 1;"></div>
+        <div id="progressLine" style="position: absolute; top: 20px; left: 40px; height: 2px; background: #007bff; z-index: 2; transition: width 0.5s ease; width: 0%;"></div>
+        
+        <!-- Step 1: Validasi -->
+        <div class="roadmap-step" data-step="1" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative;">
+          <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: #333; border: 2px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
+            <i class="fas fa-check" style="display: none;"></i>
+            <span class="step-number">1</span>
+          </div>
+          <div style="color: white; margin-top: 8px; font-size: 12px; text-align: center; font-weight: 500;">Validasi</div>
+        </div>
+        
+        <!-- Step 2: Face Recognition -->
+        <div class="roadmap-step" data-step="2" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative;">
+          <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: #333; border: 2px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
+            <i class="fas fa-check" style="display: none;"></i>
+            <span class="step-number">2</span>
+          </div>
+          <div style="color: white; margin-top: 8px; font-size: 12px; text-align: center; font-weight: 500;">Face Recognition</div>
+        </div>
+        
+        <!-- Step 3: Upload Foto -->
+        <div class="roadmap-step" data-step="3" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative;">
+          <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: #333; border: 2px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
+            <i class="fas fa-check" style="display: none;"></i>
+            <span class="step-number">3</span>
+          </div>
+          <div style="color: white; margin-top: 8px; font-size: 12px; text-align: center; font-weight: 500;">Upload Foto</div>
+        </div>
+      </div>
     </div>
     
   <div class="row">
@@ -2547,6 +2681,86 @@ RETAKE_HTML = """
 
     // Load profile when page loads
     loadProfile();
+    
+    // Progress Roadmap Functions for Profile Page
+    function updateProgressRoadmap() {
+      let completedSteps = 0;
+      
+      // Check if validation is completed (Step 1: Validasi)
+      const isValidationCompleted = sessionStorage.getItem('validation_completed') === 'true';
+      if (isValidationCompleted) {
+        completedSteps = 1;
+        updateStepStatus(1, true);
+      } else {
+        updateStepStatus(1, false);
+      }
+      
+      // Check if face recognition is registered (Step 2: Face Recognition)
+      const hasFaceData = sessionStorage.getItem('face_registered') || false;
+      if (hasFaceData) {
+        completedSteps = 2;
+        updateStepStatus(2, true);
+      } else {
+        updateStepStatus(2, false);
+      }
+      
+      // Check if photo is uploaded to GymMaster (Step 3: Upload Foto)
+      const hasPhotoUploaded = sessionStorage.getItem('photo_uploaded') || false;
+      if (hasPhotoUploaded) {
+        completedSteps = 3;
+        updateStepStatus(3, true);
+      } else {
+        updateStepStatus(3, false);
+      }
+      
+      // Update progress line
+      updateProgressLine(completedSteps);
+    }
+    
+    function updateStepStatus(stepNumber, isCompleted) {
+      const stepElement = document.querySelector(`[data-step="${stepNumber}"]`);
+      if (!stepElement) return;
+      
+      const circle = stepElement.querySelector('.step-circle');
+      const checkIcon = circle.querySelector('.fas.fa-check');
+      const stepNumberSpan = circle.querySelector('.step-number');
+      
+      if (isCompleted) {
+        // Blue glow effect like in the image
+        circle.style.background = '#007bff';
+        circle.style.borderColor = '#007bff';
+        circle.style.boxShadow = '0 0 20px rgba(0,123,255,0.6), 0 0 40px rgba(0,123,255,0.4)';
+        circle.style.color = 'white';
+        checkIcon.style.display = 'block';
+        stepNumberSpan.style.display = 'none';
+        
+        // Add pulsing animation
+        circle.style.animation = 'pulse 2s infinite';
+      } else {
+        circle.style.background = '#333';
+        circle.style.borderColor = '#666';
+        circle.style.boxShadow = '0 0 0 0 rgba(0,123,255,0.4)';
+        circle.style.color = 'white';
+        checkIcon.style.display = 'none';
+        stepNumberSpan.style.display = 'block';
+        circle.style.animation = 'none';
+      }
+    }
+    
+    function updateProgressLine(completedSteps) {
+      const progressLine = document.getElementById('progressLine');
+      if (!progressLine) return;
+      
+      const totalSteps = 3;
+      const progressPercentage = (completedSteps / totalSteps) * 100;
+      
+      progressLine.style.width = progressPercentage + '%';
+      progressLine.style.background = '#007bff';
+      progressLine.style.boxShadow = '0 0 10px rgba(0,123,255,0.5)';
+    }
+    
+    // Initialize progress roadmap when page loads
+    updateProgressRoadmap();
 
     // Logout function
     async function logout() {
@@ -2643,6 +2857,11 @@ RETAKE_HTML = """
           const similarity = j.similarity;
           if (similarity > 0.6) {
             setOut(`Match! Similarity: ${similarity} (High confidence)`);
+            
+            // Mark validation as completed and update roadmap
+            sessionStorage.setItem('validation_completed', 'true');
+            updateProgressRoadmap();
+            
             // SweetAlert for successful match
             Swal.fire({
               title: '✅ Face Match!',
@@ -2818,6 +3037,10 @@ RETAKE_HTML = """
           setOut(j);
           
           if (j.ok) {
+            // Mark photo upload as completed
+            sessionStorage.setItem('photo_uploaded', 'true');
+            updateProgressRoadmap();
+            
             // Success notification
             Swal.fire({
               title: '✅ Success!',
@@ -2832,6 +3055,10 @@ RETAKE_HTML = """
             // Update User Profile section with success message
             const profileInfo = document.getElementById('profileInfo');
             const statusMessage = document.getElementById('statusMessage');
+            
+            // Mark photo upload as completed and update roadmap
+            sessionStorage.setItem('photo_uploaded', 'true');
+            updateProgressRoadmap();
             
             // Show success message in User Profile section
             statusMessage.innerHTML = '<i class="fas fa-check"></i><span>Foto telah di update ke gymmaster</span>';
@@ -3088,6 +3315,10 @@ RETAKE_HTML = """
         if (j.ok) {
           document.getElementById('registerProgress').textContent = 'Profile photo updated successfully!';
           document.getElementById('btnUpdatePhoto').disabled = true;
+          
+          // Mark photo upload as completed and update roadmap
+          sessionStorage.setItem('photo_uploaded', 'true');
+          updateProgressRoadmap();
         } else {
           document.getElementById('registerProgress').textContent = 'Update failed: ' + (j.error || 'Unknown error');
         }
@@ -3146,6 +3377,10 @@ RETAKE_HTML = """
           if (j.ok) {
             progress.textContent = 'Face recognition registered successfully!';
             document.getElementById('btnBurstCapture').disabled = false;
+            
+            // Mark face recognition as completed and update roadmap
+            sessionStorage.setItem('face_registered', 'true');
+            updateProgressRoadmap();
           } else {
             progress.textContent = 'Error: ' + j.error;
             document.getElementById('btnBurstCapture').disabled = false;
