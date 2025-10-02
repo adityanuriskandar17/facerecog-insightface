@@ -1089,9 +1089,9 @@ INDEX_HTML = """
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
         <div>
           <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700; color: #333;">FTL Face Gate</h1>
-          <div style="display: flex; align-items: center; gap: 8px;">
+          <div id="doorInfo" style="display: flex; align-items: center; gap: 8px; display: none;">
             <span style="color: #666; font-size: 14px;">Door ID:</span>
-            <span id="doorid" class="pill" style="background: #495057; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">19456</span>
+            <span id="doorid" class="pill" style="background: #495057; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">{{ doorid or '—' }}</span>
           </div>
         </div>
       </div>
@@ -1170,9 +1170,20 @@ INDEX_HTML = """
       </div>
     </div>
   <script>
-    const q = new URLSearchParams(location.search);
-    const doorid = q.get('doorid');
-    document.getElementById('doorid').textContent = doorid || '—';
+    // Get doorid from backend template (hidden from URL)
+    const doorid = '{{ doorid }}' || null;
+    
+    // Hide door info from UI
+    const doorInfo = document.getElementById('doorInfo');
+    if (doorInfo) {
+      doorInfo.style.display = 'none';
+    }
+    
+    // Update doorid display if needed (but keep hidden)
+    const dooridElement = document.getElementById('doorid');
+    if (dooridElement && doorid) {
+      dooridElement.textContent = doorid;
+    }
 
     const video = document.getElementById('video');
     const overlay = document.getElementById('overlay');
@@ -3668,10 +3679,278 @@ RETAKE_HTML = """
 """
 
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return render_template_string(INDEX_HTML)
+    doorid = None
+    
+    if request.method == "POST":
+        # Handle POST request with doorid in JSON body
+        data = request.get_json(force=True)
+        doorid = data.get("doorid") if data else None
+        
+        # If no JSON data, try form data
+        if not doorid:
+            doorid = request.form.get("doorid")
+        
+        # Store doorid in session
+        if doorid:
+            session['selected_doorid'] = doorid
+    
+    elif request.method == "GET":
+        # Handle GET request with doorid in query parameters
+        doorid = request.args.get("doorid")
+        
+        # Store doorid in session if provided
+        if doorid:
+            session['selected_doorid'] = doorid
+    
+    # Use doorid from session if no doorid in request
+    if not doorid:
+        doorid = session.get('selected_doorid')
+    
+    # Pass doorid to template (but don't show in URL)
+    return render_template_string(INDEX_HTML, doorid=doorid)
 
+
+@app.route("/api/access_gate", methods=["POST"])
+def api_access_gate():
+    """API endpoint untuk POST request dengan doorid"""
+    data = request.get_json(force=True)
+    doorid = data.get("doorid")
+    
+    if not doorid:
+        return jsonify({"ok": False, "error": "doorid is required"}), 400
+    
+    # Store doorid in session
+    session['selected_doorid'] = doorid
+    
+    # Return JSON response with redirect URL (no doorid in URL)
+    return jsonify({
+        "ok": True, 
+        "redirect_url": "/",  # Clean URL without parameters
+        "doorid": doorid
+    })
+
+@app.route("/pantooo")
+def door_select():
+    """Halaman untuk memilih doorid"""
+    return render_template_string("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FTL Face Gate - Select Door</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .door-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .door-btn {
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .door-btn:hover {
+            border-color: #007bff;
+            background: #f8f9fa;
+        }
+        .door-btn.selected {
+            border-color: #007bff;
+            background: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 style="text-align: center; margin-bottom: 30px; color: #333;">
+            <i class="fas fa-door-open"></i> Select Door
+        </h2>
+        
+        <form id="doorForm" method="POST" action="/api/access_gate">
+            <div class="form-group">
+                <label for="doorid">Door ID:</label>
+                <input type="number" id="doorid" name="doorid" placeholder="Enter Door ID" required>
+            </div>
+            
+            
+            
+            <button type="submit" class="btn">
+                <i class="fas fa-arrow-right"></i> Access Gate
+            </button>
+        </form>
+    </div>
+
+    <script>
+        // Load doors from API
+        async function loadDoors() {
+            try {
+                const response = await fetch('/api/doors');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    const doorList = document.getElementById('doorList');
+                    doorList.innerHTML = '';
+                    
+                    data.doors.forEach(door => {
+                        const doorBtn = document.createElement('div');
+                        doorBtn.className = 'door-btn';
+                        doorBtn.dataset.doorid = door.id;
+                        doorBtn.innerHTML = `
+                            <div style="font-weight: bold;">${door.id}</div>
+                            <div style="font-size: 12px; color: #666;">${door.name}</div>
+                            <div style="font-size: 10px; color: #999;">${door.location}</div>
+                            <div style="font-size: 10px; color: ${door.status === 'active' ? '#28a745' : '#dc3545'};">
+                                ${door.status === 'active' ? '✓ Active' : '⚠ Maintenance'}
+                            </div>
+                        `;
+                        
+                        if (door.status !== 'active') {
+                            doorBtn.style.opacity = '0.5';
+                            doorBtn.style.cursor = 'not-allowed';
+                        }
+                        
+                        doorList.appendChild(doorBtn);
+                    });
+                    
+                    // Add click handlers
+                    document.querySelectorAll('.door-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            if (this.style.opacity === '0.5') return; // Skip disabled doors
+                            
+                            // Remove selected class from all buttons
+                            document.querySelectorAll('.door-btn').forEach(b => b.classList.remove('selected'));
+                            
+                            // Add selected class to clicked button
+                            this.classList.add('selected');
+                            
+                            // Set the input value
+                            document.getElementById('doorid').value = this.dataset.doorid;
+                        });
+                    });
+                }
+            } catch (error) {
+                document.getElementById('doorList').innerHTML = `
+                    <div style="text-align: center; color: #dc3545; padding: 20px;">
+                        <i class="fas fa-exclamation-triangle"></i> Error loading doors
+                    </div>
+                `;
+            }
+        }
+        
+        // Load doors when page loads
+        loadDoors();
+
+        // Handle form submission
+        document.getElementById('doorForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const doorid = document.getElementById('doorid').value;
+            
+            try {
+                const response = await fetch('/api/access_gate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ doorid: parseInt(doorid) })
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    // Navigate to clean URL without parameters
+                    window.location.href = result.redirect_url;
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
+    """)
+
+@app.route("/api/doors")
+def api_doors():
+    """API endpoint untuk mendapatkan daftar door yang tersedia"""
+    # Simulasi data door dari database
+    doors = [
+        {"id": 19456, "name": "Main Entrance", "location": "Lobby", "status": "active"},
+        {"id": 19457, "name": "VIP Entrance", "location": "VIP Area", "status": "active"},
+        {"id": 19458, "name": "Staff Entrance", "location": "Back Office", "status": "active"},
+        {"id": 19459, "name": "Emergency Exit", "location": "Emergency", "status": "maintenance"},
+        {"id": 19460, "name": "Parking Gate", "location": "Parking", "status": "active"},
+        {"id": 19461, "name": "Service Gate", "location": "Service Area", "status": "active"}
+    ]
+    
+    return jsonify({
+        "ok": True,
+        "doors": doors
+    })
+
+@app.route("/api/clear_doorid", methods=["POST"])
+def api_clear_doorid():
+    """API endpoint untuk clear doorid dari session"""
+    session.pop('selected_doorid', None)
+    return jsonify({"ok": True, "message": "Door ID cleared"})
 
 @app.route("/login")
 def login():
