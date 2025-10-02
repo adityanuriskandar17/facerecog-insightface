@@ -752,11 +752,6 @@ LOGIN_HTML = """
         </form>
         
         <div id="message"></div>
-        
-        <a href="/" class="back-btn">
-            <span>←</span>
-            <span>Back to Face Recognition</span>
-        </a>
     </div>
 
     <script>
@@ -1076,14 +1071,6 @@ INDEX_HTML = """
         <button id="btnStop" disabled style="padding: 12px 20px; border: none; border-radius: 8px; background: #dc3545; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(220,53,69,0.3);">
           <i class="fas fa-stop" style="font-size: 14px;"></i>
           <span>Stop Camera</span>
-        </button>
-        <button id="btnRetake" onclick="location.href='/login'" style="padding: 12px 20px; border: none; border-radius: 8px; background: #28a745; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(40,167,69,0.3);">
-          <i class="fas fa-user-plus" style="font-size: 14px;"></i>
-          <span>Register Face</span>
-        </button>
-        <button id="btnDebug" onclick="debugCamera()" style="padding: 12px 20px; border: none; border-radius: 8px; background: #ffc107; color: #212529; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(255,193,7,0.3);">
-          <i class="fas fa-cog" style="font-size: 14px;"></i>
-          <span>Debug Camera</span>
         </button>
         <button id="btnToggleOverlay" onclick="toggleOverlay()" style="padding: 12px 20px; border: none; border-radius: 8px; background: #20c997; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(32,201,151,0.3);">
           <i class="fas fa-eye" style="font-size: 14px;"></i>
