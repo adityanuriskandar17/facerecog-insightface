@@ -845,6 +845,15 @@ INDEX_HTML = """
     .err { color: #c31; }
     .pill { padding: 2px 8px; border: 1px solid #999; border-radius: 999px; font-size: 12px; }
     .card { border: 1px solid #eee; padding: 16px; border-radius: 12px; background: white; }
+    .card-stepper { 
+      border: 1px solid #e9ecef; 
+      padding: 24px; 
+      border-radius: 12px; 
+      background: white; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+      width: 100%; 
+      margin-bottom: 24px;
+    }
     .muted { color: #777; }
     .field { display: inline-flex; gap: 8px; align-items: center; }
     .stack { display: grid; gap: 12px; }
@@ -2434,48 +2443,109 @@ RETAKE_HTML = """
         box-shadow: 0 0 20px rgba(0,123,255,0.6), 0 0 40px rgba(0,123,255,0.4);
       }
     }
+    
+    /* Responsive roadmap */
+    @media (max-width: 768px) {
+      .roadmap-container {
+        padding: 0 10px !important;
+        min-height: 70px !important;
+      }
+      
+      .progress-line-bg {
+        left: 10px !important;
+        right: 10px !important;
+        height: 2px !important;
+      }
+      
+      .progress-line {
+        left: 10px !important;
+        height: 2px !important;
+      }
+      
+      .step-circle {
+        width: 35px !important;
+        height: 35px !important;
+        border-width: 2px !important;
+        font-size: 14px !important;
+      }
+      
+      .step-label {
+        font-size: 10px !important;
+        margin-top: 6px !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .roadmap-container {
+        padding: 0 5px !important;
+        min-height: 60px !important;
+      }
+      
+      .progress-line-bg {
+        left: 5px !important;
+        right: 5px !important;
+        height: 1px !important;
+      }
+      
+      .progress-line {
+        left: 5px !important;
+        height: 1px !important;
+      }
+      
+      .step-circle {
+        width: 30px !important;
+        height: 30px !important;
+        border-width: 1px !important;
+        font-size: 12px !important;
+      }
+      
+      .step-label {
+        font-size: 9px !important;
+        margin-top: 4px !important;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
   <h1>Profile & Face Registration</h1>
-      <p>Secure biometric authentication and identity verification system</p>
+      <p>Secure biometric authentication and identity verification system By FTL Horizon Developer</p>
     </div>
     
     <!-- Progress Roadmap -->
-    <div style="margin-bottom: 24px; padding: 24px; background: #1a1a1a; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-      <h3 style="color: white; margin: 0 0 24px 0; text-align: center; font-size: 18px; font-weight: 600;">Setup Progress</h3>
-      <div style="display: flex; justify-content: space-between; align-items: center; position: relative; padding: 0 20px;">
+    <div class="card-stepper">
+      <h3 style="color: #333; margin: 0 0 24px 0; text-align: center; font-size: 18px; font-weight: 600;">Validation Steps</h3>
+      <div class="roadmap-container" style="display: flex; justify-content: space-between; align-items: center; position: relative; padding: 0 40px; min-height: 80px; width: 100%;">
         <!-- Progress Line -->
-        <div style="position: absolute; top: 20px; left: 20px; right: 20px; height: 3px; background: #333; z-index: 1; border-radius: 2px;"></div>
-        <div id="progressLine" style="position: absolute; top: 20px; left: 20px; height: 3px; background: #007bff; z-index: 2; transition: width 0.5s ease; width: 0%; border-radius: 2px; box-shadow: 0 0 10px rgba(0,123,255,0.5);"></div>
+        <div class="progress-line-bg" style="position: absolute; top: 25px; left: 40px; right: 40px; height: 3px; background: #e9ecef; z-index: 1; border-radius: 2px;"></div>
+        <div id="progressLine" class="progress-line" style="position: absolute; top: 25px; left: 40px; height: 3px; background: #007bff; z-index: 2; transition: width 0.5s ease; width: 0%; border-radius: 2px;"></div>
         
         <!-- Step 1: Validasi -->
-        <div class="roadmap-step" data-step="1" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative; flex: 1;">
-          <div class="step-circle" style="width: 44px; height: 44px; border-radius: 50%; background: #333; border: 3px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
-            <i class="fas fa-check" style="display: none; font-size: 16px;"></i>
+        <div class="roadmap-step" data-step="1" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative; flex: 1; min-width: 0;">
+          <div class="step-circle" style="width: clamp(40px, 8vw, 60px); height: clamp(40px, 8vw, 60px); border-radius: 50%; background: #f8f9fa; border: 3px solid #e9ecef; display: flex; align-items: center; justify-content: center; color: #6c757d; font-weight: bold; font-size: clamp(16px, 3vw, 24px); transition: all 0.3s ease; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <i class="fas fa-check" style="display: none; font-size: clamp(14px, 2.5vw, 20px);"></i>
             <span class="step-number">1</span>
           </div>
-          <div style="color: white; margin-top: 12px; font-size: 13px; text-align: center; font-weight: 500; line-height: 1.2;">Validasi</div>
+          <div class="step-label" style="color: #6c757d; margin-top: clamp(8px, 2vw, 16px); font-size: clamp(11px, 2vw, 14px); text-align: center; font-weight: 500; line-height: 1.2; word-break: break-word;">Validasi</div>
         </div>
         
         <!-- Step 2: Face Recognition -->
-        <div class="roadmap-step" data-step="2" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative; flex: 1;">
-          <div class="step-circle" style="width: 44px; height: 44px; border-radius: 50%; background: #333; border: 3px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
-            <i class="fas fa-check" style="display: none; font-size: 16px;"></i>
+        <div class="roadmap-step" data-step="2" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative; flex: 1; min-width: 0;">
+          <div class="step-circle" style="width: clamp(40px, 8vw, 60px); height: clamp(40px, 8vw, 60px); border-radius: 50%; background: #f8f9fa; border: 3px solid #e9ecef; display: flex; align-items: center; justify-content: center; color: #6c757d; font-weight: bold; font-size: clamp(16px, 3vw, 24px); transition: all 0.3s ease; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <i class="fas fa-check" style="display: none; font-size: clamp(14px, 2.5vw, 20px);"></i>
             <span class="step-number">2</span>
           </div>
-          <div style="color: white; margin-top: 12px; font-size: 13px; text-align: center; font-weight: 500; line-height: 1.2;">Face Recognition</div>
+          <div class="step-label" style="color: #6c757d; margin-top: clamp(8px, 2vw, 16px); font-size: clamp(11px, 2vw, 14px); text-align: center; font-weight: 500; line-height: 1.2; word-break: break-word;">Face Recognition</div>
         </div>
         
         <!-- Step 3: Upload Foto -->
-        <div class="roadmap-step" data-step="3" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative; flex: 1;">
-          <div class="step-circle" style="width: 44px; height: 44px; border-radius: 50%; background: #333; border: 3px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
-            <i class="fas fa-check" style="display: none; font-size: 16px;"></i>
+        <div class="roadmap-step" data-step="3" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative; flex: 1; min-width: 0;">
+          <div class="step-circle" style="width: clamp(40px, 8vw, 60px); height: clamp(40px, 8vw, 60px); border-radius: 50%; background: #f8f9fa; border: 3px solid #e9ecef; display: flex; align-items: center; justify-content: center; color: #6c757d; font-weight: bold; font-size: clamp(16px, 3vw, 24px); transition: all 0.3s ease; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <i class="fas fa-check" style="display: none; font-size: clamp(14px, 2.5vw, 20px);"></i>
             <span class="step-number">3</span>
           </div>
-          <div style="color: white; margin-top: 12px; font-size: 13px; text-align: center; font-weight: 500; line-height: 1.2;">Upload Foto</div>
+          <div class="step-label" style="color: #6c757d; margin-top: clamp(8px, 2vw, 16px); font-size: clamp(11px, 2vw, 14px); text-align: center; font-weight: 500; line-height: 1.2; word-break: break-word;">Upload Foto</div>
         </div>
       </div>
     </div>
@@ -2532,15 +2602,15 @@ RETAKE_HTML = """
         </div>
         <div class="btn-group">
           <button id="btnStart" class="btn btn-start">
-            <i class="fas fa-play"></i>
+            <b>1.</b>
             Start Camera
           </button>
           <button id="btnSnap" class="btn btn-capture" disabled>
-            <i class="fas fa-user-check"></i>
+            <b>2.</b>
             Validasi
           </button>
           <button id="btnRegister" class="btn btn-register">
-            <i class="fas fa-user-plus"></i>
+            <b>3.</b>
             Register Face Recognition
           </button>
         </div>
@@ -2781,24 +2851,35 @@ RETAKE_HTML = """
       const stepNumberSpan = circle.querySelector('.step-number');
       
       if (isCompleted) {
-        // Blue glow effect like in the image
+        // Clean blue styling that matches the theme
         circle.style.background = '#007bff';
         circle.style.borderColor = '#007bff';
-        circle.style.boxShadow = '0 0 20px rgba(0,123,255,0.6), 0 0 40px rgba(0,123,255,0.4)';
+        circle.style.boxShadow = '0 4px 12px rgba(0,123,255,0.4)';
         circle.style.color = 'white';
         checkIcon.style.display = 'block';
         stepNumberSpan.style.display = 'none';
         
-        // Add pulsing animation
-        circle.style.animation = 'pulse 2s infinite';
+        // Update text color to match
+        const stepText = stepElement.querySelector('div:last-child');
+        if (stepText) {
+          stepText.style.color = '#007bff';
+          stepText.style.fontWeight = '600';
+        }
       } else {
-        circle.style.background = '#333';
-        circle.style.borderColor = '#666';
-        circle.style.boxShadow = '0 0 0 0 rgba(0,123,255,0.4)';
-        circle.style.color = 'white';
+        circle.style.background = '#f8f9fa';
+        circle.style.borderColor = '#e9ecef';
+        circle.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+        circle.style.color = '#6c757d';
         checkIcon.style.display = 'none';
         stepNumberSpan.style.display = 'block';
         circle.style.animation = 'none';
+        
+        // Reset text color
+        const stepText = stepElement.querySelector('div:last-child');
+        if (stepText) {
+          stepText.style.color = '#6c757d';
+          stepText.style.fontWeight = '500';
+        }
       }
     }
     
@@ -2811,7 +2892,7 @@ RETAKE_HTML = """
       
       progressLine.style.width = progressPercentage + '%';
       progressLine.style.background = '#007bff';
-      progressLine.style.boxShadow = '0 0 10px rgba(0,123,255,0.5)';
+      progressLine.style.boxShadow = '0 2px 6px rgba(0,123,255,0.4)';
     }
     
     // Initialize progress roadmap when page loads
