@@ -2652,24 +2652,42 @@ RETAKE_HTML = """
       
       <!-- Control Buttons -->
       <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 20px 0;">
-        <button id="btnStartRegister" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-play"></i>
-        </button>
-        <button id="btnBurstCapture" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-bolt"></i>
-        </button>
-        <button id="btnCapturePhoto" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-camera"></i>
-        </button>
-        <button id="btnUpdatePhoto" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-upload"></i>
-        </button>
-        <button id="btnResetPhoto" disabled style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-redo"></i>
-        </button>
-        <button id="btnCloseRegister" style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-times"></i>
-        </button>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <button id="btnStartRegister" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-play"></i>
+          </button>
+          <span style="font-size: 12px; color: #666; font-weight: 500;">1</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <button id="btnBurstCapture" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-bolt"></i>
+          </button>
+          <span style="font-size: 12px; color: #666; font-weight: 500;">2</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <button id="btnCapturePhoto" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-camera"></i>
+          </button>
+          <span style="font-size: 12px; color: #666; font-weight: 500;">3</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <button id="btnUpdatePhoto" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-upload"></i>
+          </button>
+          <span style="font-size: 12px; color: #666; font-weight: 500;">4</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <button id="btnResetPhoto" disabled style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-redo"></i>
+          </button>
+          <span style="font-size: 12px; color: #666; font-weight: 500;">5</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <button id="btnCloseRegister" style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-times"></i>
+          </button>
+          <span style="font-size: 12px; color: #666; font-weight: 500;">6</span>
+        </div>
       </div>
       
       <!-- Progress and Status -->
