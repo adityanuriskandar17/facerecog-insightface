@@ -1442,43 +1442,97 @@ INDEX_HTML = """
         remainingCooldown = 0;
       }
 
-      function toggleFullscreen() {
+      async function toggleFullscreen() {
         const cameraContainer = document.getElementById('cameraContainer');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         
-        if (!isFullscreen) {
-          // Enter fullscreen
-          cameraContainer.classList.add('fullscreen');
-          fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit';
-          
-          // Add exit button with mobile-optimized text
-          const exitBtn = document.createElement('button');
-          exitBtn.id = 'fullscreenExitBtn';
-          exitBtn.className = 'fullscreen-exit';
-          
-          // Use shorter text for mobile and high resolution screens
-          const isMobile = window.innerWidth <= 768;
-          const isHighResMobile = window.innerHeight > 2000 && (window.innerHeight / window.innerWidth) > 2;
-          const shouldUseShortText = isMobile || isHighResMobile;
-          
-          exitBtn.innerHTML = shouldUseShortText ? 
-            '<i class="fas fa-times"></i> Exit' : 
-            '<i class="fas fa-times"></i> Exit Fullscreen';
+        try {
+          if (!document.fullscreenElement) {
+            // Enter fullscreen using browser API (like F11)
+            if (cameraContainer.requestFullscreen) {
+              await cameraContainer.requestFullscreen();
+            } else if (cameraContainer.webkitRequestFullscreen) {
+              await cameraContainer.webkitRequestFullscreen();
+            } else if (cameraContainer.mozRequestFullScreen) {
+              await cameraContainer.mozRequestFullScreen();
+            } else if (cameraContainer.msRequestFullscreen) {
+              await cameraContainer.msRequestFullscreen();
+            }
             
-          exitBtn.onclick = toggleFullscreen;
-          cameraContainer.appendChild(exitBtn);
+            // Add CSS classes for styling
+            cameraContainer.classList.add('fullscreen');
+            fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit';
+            
+            // Add exit button
+            const exitBtn = document.createElement('button');
+            exitBtn.id = 'fullscreenExitBtn';
+            exitBtn.className = 'fullscreen-exit';
+            exitBtn.innerHTML = '<i class="fas fa-times"></i> Exit';
+            exitBtn.onclick = toggleFullscreen;
+            cameraContainer.appendChild(exitBtn);
+            
+            isFullscreen = true;
+            console.log('Entered browser fullscreen mode (like F11)');
+          } else {
+            // Exit fullscreen
+            if (document.exitFullscreen) {
+              await document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+              await document.webkitExitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+              await document.mozCancelFullScreen();
+            } else if (document.msExitFullscreen) {
+              await document.msExitFullscreen();
+            }
+            
+            // Remove CSS classes
+            cameraContainer.classList.remove('fullscreen');
+            fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
+            
+            // Remove exit button
+            const exitBtn = document.getElementById('fullscreenExitBtn');
+            if (exitBtn) {
+              exitBtn.remove();
+            }
+            
+            isFullscreen = false;
+            console.log('Exited browser fullscreen mode');
+          }
           
-          // Sync overlay after entering fullscreen
+          // Sync overlay after fullscreen change
           setTimeout(() => {
             if (overlay && video) {
               syncOverlayWithVideo();
             }
           }, 100);
           
-          isFullscreen = true;
-          console.log('Entered fullscreen mode');
-        } else {
-          // Exit fullscreen
+        } catch (error) {
+          console.error('Fullscreen error:', error);
+          // Fallback to CSS fullscreen if browser API fails
+          if (!isFullscreen) {
+            cameraContainer.classList.add('fullscreen');
+            isFullscreen = true;
+            console.log('Fallback to CSS fullscreen');
+          } else {
+            cameraContainer.classList.remove('fullscreen');
+            isFullscreen = false;
+            console.log('Fallback exit CSS fullscreen');
+          }
+        }
+      }
+
+      function handleFullscreenChange() {
+        // Handle browser fullscreen API changes
+        const isCurrentlyFullscreen = !!(document.fullscreenElement || 
+                                        document.webkitFullscreenElement || 
+                                        document.mozFullScreenElement || 
+                                        document.msFullscreenElement);
+        
+        if (!isCurrentlyFullscreen && isFullscreen) {
+          // User exited fullscreen via browser controls (ESC key, etc.)
+          const cameraContainer = document.getElementById('cameraContainer');
+          const fullscreenBtn = document.getElementById('fullscreenBtn');
+          
           cameraContainer.classList.remove('fullscreen');
           fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
           
@@ -1488,22 +1542,15 @@ INDEX_HTML = """
             exitBtn.remove();
           }
           
-          // Sync overlay after exiting fullscreen
+          isFullscreen = false;
+          console.log('Exited fullscreen via browser controls (ESC, etc.)');
+          
+          // Sync overlay
           setTimeout(() => {
             if (overlay && video) {
               syncOverlayWithVideo();
             }
           }, 100);
-          
-          isFullscreen = false;
-          console.log('Exited fullscreen mode');
-        }
-      }
-
-      function handleFullscreenChange() {
-        // Handle browser fullscreen API
-        if (!document.fullscreenElement && isFullscreen) {
-          toggleFullscreen();
         }
       }
 
@@ -1837,6 +1884,14 @@ INDEX_HTML = """
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     document.addEventListener('mozfullscreenchange', handleFullscreenChange);
     document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    
+    // Add keyboard shortcut for F11 (like browser fullscreen)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    });
     
     // Handle window resize for mobile responsiveness
     window.addEventListener('resize', () => {
