@@ -2750,7 +2750,12 @@ RETAKE_HTML = """
   
   <!-- Modal for Face Registration -->
   <div id="registerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;">
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 12px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto;">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 12px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; position: relative;">
+      <!-- Close Button di Pojok Kanan Atas -->
+      <button id="btnCloseRegister" style="position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; background: #dc3545; color: white; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 10; box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);">
+        <i class="fas fa-times"></i>
+      </button>
+      
       <h2 style="text-align: center; margin-bottom: 24px; color: #333;">Register Face Recognition</h2>
       
       <!-- Camera Section -->
@@ -2809,12 +2814,6 @@ RETAKE_HTML = """
             <i class="fas fa-redo"></i>
           </button>
           <span style="font-size: 12px; color: #666; font-weight: 500;">5</span>
-        </div>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <button id="btnCloseRegister" class="register-sequential" style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-times"></i>
-          </button>
-          <span style="font-size: 12px; color: #666; font-weight: 500;">6</span>
         </div>
       </div>
       
@@ -2920,8 +2919,8 @@ RETAKE_HTML = """
         'btnBurstCapture',       // Step 2  
         'btnCapturePhoto',      // Step 3
         'btnUpdatePhoto',        // Step 4
-        'btnResetPhoto',         // Step 5 (Reset - always available)
-        'btnCloseRegister'       // Step 6
+        'btnResetPhoto'          // Step 5 (Reset - always available)
+        // btnCloseRegister tidak termasuk dalam sequential karena ada di pojok kanan atas
       ];
       
       buttons.forEach((btnId, index) => {
@@ -3556,10 +3555,7 @@ RETAKE_HTML = """
     };
 
     document.getElementById('btnCloseRegister').onclick = () => {
-      if (currentRegisterStep !== 6) {
-        console.log('Button 6 can only be clicked when current step is 6');
-        return;
-      }
+      // Button Close tidak mengikuti sequential logic karena ada di pojok kanan atas
       
       if (registerStream) {
         registerStream.getTracks().forEach(track => track.stop());
