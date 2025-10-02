@@ -588,10 +588,10 @@ app.secret_key = SECRET_KEY
 LOGIN_HTML = """
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>FTL Face Gate - Login</title>
+<head>
+    <title>FTL Face Gate - Login</title>
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-        <style>
+    <style>
         body { 
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
             margin: 0; 
@@ -780,7 +780,7 @@ LOGIN_HTML = """
             <div class="form-group">
                 <label for="password">Password</label>
                 <div class="password-input-container">
-                    <input type="password" id="password" name="password" required>
+                <input type="password" id="password" name="password" required>
                     <button type="button" id="togglePassword" class="password-toggle-btn">
                         <i class="fas fa-eye" id="passwordIcon"></i>
                     </button>
@@ -1639,13 +1639,13 @@ INDEX_HTML = """
             }
             
             // Add CSS classes for styling
-            cameraContainer.classList.add('fullscreen');
-            fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit';
-            
+          cameraContainer.classList.add('fullscreen');
+          fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit';
+          
             // Add exit button
-            const exitBtn = document.createElement('button');
-            exitBtn.id = 'fullscreenExitBtn';
-            exitBtn.className = 'fullscreen-exit';
+          const exitBtn = document.createElement('button');
+          exitBtn.id = 'fullscreenExitBtn';
+          exitBtn.className = 'fullscreen-exit';
             exitBtn.innerHTML = '<i class="fas fa-times"></i> Exit';
             exitBtn.onclick = toggleFullscreen;
             cameraContainer.appendChild(exitBtn);
@@ -1690,9 +1690,9 @@ INDEX_HTML = """
           // Fallback to CSS fullscreen if browser API fails
           if (!isFullscreen) {
             cameraContainer.classList.add('fullscreen');
-            isFullscreen = true;
+          isFullscreen = true;
             console.log('Fallback to CSS fullscreen');
-          } else {
+        } else {
             cameraContainer.classList.remove('fullscreen');
             isFullscreen = false;
             console.log('Fallback exit CSS fullscreen');
@@ -2789,9 +2789,9 @@ RETAKE_HTML = """
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <span style="font-size: 16px; color: #333; font-weight: bold;">1</span>
           <button id="btnStartRegister" class="register-sequential" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-play"></i>
+          <i class="fas fa-play"></i>
             <span>Start Camera</span>
-          </button>
+        </button>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <span style="font-size: 16px; color: #333; font-weight: bold;">2</span>
@@ -2803,23 +2803,23 @@ RETAKE_HTML = """
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <span style="font-size: 16px; color: #333; font-weight: bold;">3</span>
           <button id="btnCapturePhoto" class="register-sequential" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-camera"></i>
+          <i class="fas fa-camera"></i>
             <span>Capture Photo</span>
-          </button>
+        </button>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <span style="font-size: 16px; color: #333; font-weight: bold;">4</span>
           <button id="btnUpdatePhoto" class="register-sequential" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-upload"></i>
+          <i class="fas fa-upload"></i>
             <span>Update Photo</span>
-          </button>
+        </button>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <span style="font-size: 16px; color: #333; font-weight: bold;">5</span>
           <button id="btnResetPhoto" style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-redo"></i>
+          <i class="fas fa-redo"></i>
             <span>Reset Photo</span>
-          </button>
+        </button>
         </div>
       </div>
       
@@ -2878,16 +2878,43 @@ RETAKE_HTML = """
     const maxValidationSteps = 3;
     
     function updateValidationButtonStates() {
+      console.log('updateValidationButtonStates called');
       const buttons = [
         'btnStart',      // Step 1
-        'btnSnap',       // Step 2  
+        'btnSnap',       // Step 2 (Validasi - bisa digunakan berulang kali)
         'btnRegister'    // Step 3
       ];
       
       buttons.forEach((btnId, index) => {
         const button = document.getElementById(btnId);
+        console.log(`Processing button ${btnId}:`, !!button);
         if (button) {
           const stepNumber = index + 1;
+          
+          // Button Validasi (Step 2) - skip sequential logic, handle separately
+          if (btnId === 'btnSnap') {
+            console.log('Processing btnSnap: Skipping sequential logic - handled separately');
+            // Don't change button state here, it's handled directly in camera start
+            return;
+          }
+          
+          // Button Register (Step 3) - hanya enabled setelah validasi berhasil
+          if (btnId === 'btnRegister') {
+            if (currentValidationStep >= 3) {
+              console.log('Processing btnRegister: Enabled after validation success');
+              button.disabled = false;
+              button.style.opacity = '1';
+              button.style.cursor = 'pointer';
+            } else {
+              console.log('Processing btnRegister: Disabled - validation not completed');
+              button.disabled = true;
+              button.style.opacity = '0.5';
+              button.style.cursor = 'not-allowed';
+            }
+            return;
+          }
+          
+          // Other buttons follow sequential logic
           if (stepNumber <= currentValidationStep) {
             button.disabled = false;
             button.style.opacity = '1';
@@ -3165,6 +3192,15 @@ RETAKE_HTML = """
     
     // Initialize validation button states
     updateValidationButtonStates();
+    
+    // Initialize Register button as disabled (will be enabled after validation)
+    const btnRegister = document.getElementById('btnRegister');
+    if (btnRegister) {
+      btnRegister.disabled = true;
+      btnRegister.style.opacity = '0.5';
+      btnRegister.style.cursor = 'not-allowed';
+      console.log('Button Register initialized as disabled');
+    }
 
     // Logout function
     async function logout() {
@@ -3226,12 +3262,16 @@ RETAKE_HTML = """
         }
         
         document.getElementById('btnStart').disabled = true;
-        document.getElementById('btnSnap').disabled = false;
-        document.getElementById('btnCapturePhoto').disabled = false;
-        setOut('Camera started. Click "Capture Photo" to take a photo.');
+        setOut('Camera started. Click "Validasi" to start face recognition.');
         
-        // Move to next step after successful camera start
-        nextValidationStep();
+        // Directly enable button Validasi after camera start
+        const btnSnap = document.getElementById('btnSnap');
+        if (btnSnap) {
+          btnSnap.disabled = false;
+          btnSnap.style.opacity = '1';
+          btnSnap.style.cursor = 'pointer';
+          console.log('Button Validasi directly enabled after camera start');
+        }
       } catch (e) {
         setOut('Camera error: ' + e.message);
       }
@@ -3239,10 +3279,7 @@ RETAKE_HTML = """
 
     // Add event handler for Capture & Compare button
     document.getElementById('btnSnap').onclick = async () => {
-      if (currentValidationStep !== 2) {
-        console.log('Button 2 can only be clicked when current step is 2');
-        return;
-      }
+      // Button Validasi bisa digunakan berulang kali, tidak mengikuti sequential logic
       
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
@@ -3286,6 +3323,10 @@ RETAKE_HTML = """
             // Mark validation as completed and update roadmap
             sessionStorage.setItem('validation_completed', 'true');
             updateProgressRoadmap();
+            
+            // Enable Register button after successful validation
+            currentValidationStep = 3;
+            updateValidationButtonStates();
             
             // SweetAlert for successful match
             Swal.fire({
@@ -3345,8 +3386,7 @@ RETAKE_HTML = """
         btnSnap.classList.remove('loading');
         btnSnap.innerHTML = '<b>2. </b>Validasi';
         
-        // Move to next step after successful validation
-        nextValidationStep();
+        // Button Validasi tidak maju ke step berikutnya, bisa digunakan berulang kali
       }
     };
 
@@ -3523,8 +3563,9 @@ RETAKE_HTML = """
 
     // Face Registration Modal Controls
     document.getElementById('btnRegister').onclick = () => {
-      if (currentValidationStep !== 3) {
-        console.log('Button 3 can only be clicked when current step is 3');
+      // Button Register hanya bisa diklik setelah validasi berhasil
+      if (currentValidationStep < 3) {
+        console.log('Button Register can only be clicked after successful validation');
         return;
       }
       
