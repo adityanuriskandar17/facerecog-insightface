@@ -2528,7 +2528,6 @@ RETAKE_HTML = """
           <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" />
           <div class="camera-placeholder" id="cameraPlaceholder">
             <i class="fas fa-camera"></i>
-            <p>Click "Start Camera" to begin</p>
           </div>
         </div>
         <div class="btn-group">
@@ -2618,6 +2617,40 @@ RETAKE_HTML = """
     function setOut(x){ out.textContent = typeof x==='string'? x : JSON.stringify(x,null,2); }
 
     let token=null; let stream=null; let registerStream=null; let burstInterval=null;
+    
+    // Function to stop validation camera
+    function stopValidationCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      
+      const video = document.getElementById('video');
+      const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+      const overlay = document.getElementById('overlay');
+      
+      if (video) {
+        video.style.display = 'none';
+        video.srcObject = null;
+      }
+      
+      if (cameraPlaceholder) {
+        cameraPlaceholder.style.display = 'flex';
+      }
+      
+      if (overlay) {
+        overlay.style.display = 'none';
+      }
+      
+      // Reset validation buttons
+      const btnStart = document.getElementById('btnStart');
+      const btnSnap = document.getElementById('btnSnap');
+      const btnCapturePhoto = document.getElementById('btnCapturePhoto');
+      
+      if (btnStart) btnStart.disabled = false;
+      if (btnSnap) btnSnap.disabled = true;
+      if (btnCapturePhoto) btnCapturePhoto.disabled = true;
+    }
 
     // Auto-load profile when page loads
     async function loadProfile() {
@@ -3126,6 +3159,10 @@ RETAKE_HTML = """
     // Face Registration Modal Controls
     document.getElementById('btnRegister').onclick = () => {
       console.log('Opening register modal...');
+      
+      // Stop validation camera when opening register modal
+      stopValidationCamera();
+      
       document.getElementById('registerModal').style.display = 'block';
       
       // Debug: Check if elements exist
@@ -3160,6 +3197,9 @@ RETAKE_HTML = """
         burstInterval = null;
       }
       
+      // Stop validation camera when closing register modal
+      stopValidationCamera();
+      
       // Reset modal state
       const registerVideo = document.getElementById('registerVideo');
       const registerCapturedImage = document.getElementById('registerCapturedImage');
@@ -3183,6 +3223,9 @@ RETAKE_HTML = """
       try {
         console.log('Starting camera...');
         document.getElementById('registerProgress').textContent = 'Starting camera...';
+        
+        // Stop validation camera if running
+        stopValidationCamera();
         
         // Stop any existing stream first
         if (registerStream) {
