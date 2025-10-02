@@ -2267,6 +2267,7 @@ RETAKE_HTML = """
       margin-bottom: 20px;
       position: relative;
       overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
     .camera-container video {
@@ -2274,21 +2275,40 @@ RETAKE_HTML = """
       height: 100%;
       object-fit: cover;
       border-radius: 12px;
+      position: relative;
+      z-index: 1;
     }
     
     .camera-placeholder {
       text-align: center;
+      z-index: 2;
+      position: relative;
     }
     
     .camera-placeholder i {
       font-size: 4rem;
       margin-bottom: 15px;
       opacity: 0.8;
+      color: white;
     }
     
     .camera-placeholder p {
       font-size: 1.1rem;
       font-weight: 500;
+      color: white;
+    }
+    
+    /* Overlay untuk kamera */
+    .camera-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      background: transparent;
+      border-radius: 12px;
     }
     
     .btn-group {
@@ -2424,38 +2444,38 @@ RETAKE_HTML = """
     </div>
     
     <!-- Progress Roadmap -->
-    <div style="margin-bottom: 24px; padding: 20px; background: #1a1a1a; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-      
-      <div style="display: flex; justify-content: space-between; align-items: center; position: relative;">
+    <div style="margin-bottom: 24px; padding: 24px; background: #1a1a1a; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+      <h3 style="color: white; margin: 0 0 24px 0; text-align: center; font-size: 18px; font-weight: 600;">Setup Progress</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; position: relative; padding: 0 20px;">
         <!-- Progress Line -->
-        <div style="position: absolute; top: 20px; left: 40px; right: 40px; height: 2px; background: #333; z-index: 1;"></div>
-        <div id="progressLine" style="position: absolute; top: 20px; left: 40px; height: 2px; background: #007bff; z-index: 2; transition: width 0.5s ease; width: 0%;"></div>
+        <div style="position: absolute; top: 20px; left: 20px; right: 20px; height: 3px; background: #333; z-index: 1; border-radius: 2px;"></div>
+        <div id="progressLine" style="position: absolute; top: 20px; left: 20px; height: 3px; background: #007bff; z-index: 2; transition: width 0.5s ease; width: 0%; border-radius: 2px; box-shadow: 0 0 10px rgba(0,123,255,0.5);"></div>
         
         <!-- Step 1: Validasi -->
-        <div class="roadmap-step" data-step="1" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative;">
-          <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: #333; border: 2px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
-            <i class="fas fa-check" style="display: none;"></i>
+        <div class="roadmap-step" data-step="1" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative; flex: 1;">
+          <div class="step-circle" style="width: 44px; height: 44px; border-radius: 50%; background: #333; border: 3px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
+            <i class="fas fa-check" style="display: none; font-size: 16px;"></i>
             <span class="step-number">1</span>
           </div>
-          <div style="color: white; margin-top: 8px; font-size: 12px; text-align: center; font-weight: 500;">Validasi</div>
+          <div style="color: white; margin-top: 12px; font-size: 13px; text-align: center; font-weight: 500; line-height: 1.2;">Validasi</div>
         </div>
         
         <!-- Step 2: Face Recognition -->
-        <div class="roadmap-step" data-step="2" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative;">
-          <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: #333; border: 2px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
-            <i class="fas fa-check" style="display: none;"></i>
+        <div class="roadmap-step" data-step="2" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative; flex: 1;">
+          <div class="step-circle" style="width: 44px; height: 44px; border-radius: 50%; background: #333; border: 3px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
+            <i class="fas fa-check" style="display: none; font-size: 16px;"></i>
             <span class="step-number">2</span>
           </div>
-          <div style="color: white; margin-top: 8px; font-size: 12px; text-align: center; font-weight: 500;">Face Recognition</div>
+          <div style="color: white; margin-top: 12px; font-size: 13px; text-align: center; font-weight: 500; line-height: 1.2;">Face Recognition</div>
         </div>
         
         <!-- Step 3: Upload Foto -->
-        <div class="roadmap-step" data-step="3" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative;">
-          <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: #333; border: 2px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
-            <i class="fas fa-check" style="display: none;"></i>
+        <div class="roadmap-step" data-step="3" style="display: flex; flex-direction: column; align-items: center; z-index: 3; position: relative; flex: 1;">
+          <div class="step-circle" style="width: 44px; height: 44px; border-radius: 50%; background: #333; border: 3px solid #666; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; transition: all 0.3s ease; box-shadow: 0 0 0 0 rgba(0,123,255,0.4);">
+            <i class="fas fa-check" style="display: none; font-size: 16px;"></i>
             <span class="step-number">3</span>
           </div>
-          <div style="color: white; margin-top: 8px; font-size: 12px; text-align: center; font-weight: 500;">Upload Foto</div>
+          <div style="color: white; margin-top: 12px; font-size: 13px; text-align: center; font-weight: 500; line-height: 1.2;">Upload Foto</div>
         </div>
       </div>
     </div>
@@ -2504,9 +2524,11 @@ RETAKE_HTML = """
         </div>
         <div class="camera-container" id="cameraContainer">
           <video id="video" autoplay playsinline muted style="display: none; transform: scaleX(-1);"></video>
+          <canvas id="overlay" class="camera-overlay" style="display: none;"></canvas>
           <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" />
           <div class="camera-placeholder" id="cameraPlaceholder">
             <i class="fas fa-camera"></i>
+            <p>Click "Start Camera" to begin</p>
           </div>
         </div>
         <div class="btn-group">
@@ -2803,10 +2825,18 @@ RETAKE_HTML = """
         const video = document.getElementById('video');
         const cameraContainer = document.getElementById('cameraContainer');
         const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const overlay = document.getElementById('overlay');
         
         video.srcObject = stream;
         video.style.display = 'block';
         cameraPlaceholder.style.display = 'none';
+        
+        // Setup overlay canvas
+        if (overlay) {
+          overlay.style.display = 'block';
+          overlay.width = cameraContainer.offsetWidth;
+          overlay.height = cameraContainer.offsetHeight;
+        }
         
         document.getElementById('btnStart').disabled = true;
         document.getElementById('btnSnap').disabled = false;
