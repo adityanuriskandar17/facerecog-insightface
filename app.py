@@ -2787,39 +2787,39 @@ RETAKE_HTML = """
       <!-- Control Buttons -->
       <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 20px 0;">
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <span style="font-size: 16px; color: #333; font-weight: bold;">1</span>
           <button id="btnStartRegister" class="register-sequential" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-play"></i>
             <span>Start Camera</span>
           </button>
-          <span style="font-size: 12px; color: #666; font-weight: 500;">1</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <span style="font-size: 16px; color: #333; font-weight: bold;">2</span>
           <button id="btnBurstCapture" class="register-sequential" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-bolt"></i>
             <span>Burst Capture</span>
           </button>
-          <span style="font-size: 12px; color: #666; font-weight: 500;">2</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <span style="font-size: 16px; color: #333; font-weight: bold;">3</span>
           <button id="btnCapturePhoto" class="register-sequential" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-camera"></i>
             <span>Capture Photo</span>
           </button>
-          <span style="font-size: 12px; color: #666; font-weight: 500;">3</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <span style="font-size: 16px; color: #333; font-weight: bold;">4</span>
           <button id="btnUpdatePhoto" class="register-sequential" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-upload"></i>
             <span>Update Photo</span>
           </button>
-          <span style="font-size: 12px; color: #666; font-weight: 500;">4</span>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <span style="font-size: 16px; color: #333; font-weight: bold;">5</span>
           <button id="btnResetPhoto" style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <i class="fas fa-redo"></i>
             <span>Reset Photo</span>
           </button>
-          <span style="font-size: 12px; color: #666; font-weight: 500;">5</span>
         </div>
       </div>
       
