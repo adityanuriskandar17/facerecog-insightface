@@ -2655,6 +2655,9 @@ RETAKE_HTML = """
         <button id="btnStartRegister" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-play"></i>
         </button>
+        <button id="btnBurstCapture" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-bolt"></i>
+        </button>
         <button id="btnCapturePhoto" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-camera"></i>
         </button>
@@ -2663,9 +2666,6 @@ RETAKE_HTML = """
         </button>
         <button id="btnResetPhoto" disabled style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-redo"></i>
-        </button>
-        <button id="btnBurstCapture" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-bolt"></i>
         </button>
         <button id="btnCloseRegister" style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-times"></i>
@@ -3062,7 +3062,7 @@ RETAKE_HTML = """
         // Reset button state
         btnSnap.disabled = false;
         btnSnap.classList.remove('loading');
-        btnSnap.innerHTML = '<i class="fas fa-user-check"></i> Validasi';
+        btnSnap.innerHTML = '<b>2. </b>Validasi';
       }
     };
 
