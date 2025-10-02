@@ -24,6 +24,7 @@ Open:
 """
 
 import base64
+from datetime import datetime
 import io
 import json
 import os
@@ -1086,13 +1087,11 @@ INDEX_HTML = """
 </head>
 <body>
     <div style="max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 32px;">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
-        <div>
-          <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700; color: #333;">FTL Face Gate</h1>
-          <div id="doorInfo" style="display: flex; align-items: center; gap: 8px; display: none;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700; color: #333;">FTL Face Recognition Gate</h1>
+        <div id="doorInfo" style="display: flex; align-items: center; gap: 8px; justify-content: center; display: none;">
             <span style="color: #666; font-size: 14px;">Door ID:</span>
-            <span id="doorid" class="pill" style="background: #495057; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">{{ doorid or '—' }}</span>
-          </div>
+          <span id="doorid" class="pill" style="background: #495057; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">{{ doorid or '—' }}</span>
         </div>
       </div>
       
@@ -1529,7 +1528,7 @@ INDEX_HTML = """
       
       popup.style.cssText = `
         position: fixed;
-        top: 50%;
+        top: 20%;
         left: 50%;
         transform: translate(-50%, -50%);
         background: ${backgroundColor};
@@ -1537,12 +1536,13 @@ INDEX_HTML = """
         padding: 20px 30px;
         border-radius: 12px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        z-index: 10000;
+        z-index: 9999;
         text-align: center;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         min-width: 300px;
         max-width: 400px;
         animation: popupSlideIn 0.3s ease-out;
+        pointer-events: none;
       `;
       
       popup.innerHTML = `
@@ -1578,7 +1578,7 @@ INDEX_HTML = """
       
       document.body.appendChild(popup);
       
-      // Auto remove after 3 seconds
+      // Auto remove after 2 seconds
       setTimeout(() => {
         if (popup && popup.parentNode) {
           popup.style.animation = 'popupSlideIn 0.3s ease-out reverse';
@@ -1588,7 +1588,7 @@ INDEX_HTML = """
             }
           }, 300);
         }
-      }, 3000);
+      }, 2000);
     }
 
     function updateDetectionDisplay(name, status, confidence = null, popupStyle = null) {
@@ -4313,6 +4313,86 @@ def api_clear_doorid():
     """API endpoint untuk clear doorid dari session"""
     session.pop('selected_doorid', None)
     return jsonify({"ok": True, "message": "Door ID cleared"})
+
+
+@app.route("/api/test_connection", methods=["GET"])
+def api_test_connection():
+    """API endpoint untuk test koneksi database"""
+    try:
+        # Test database connection
+        conn = mysql.connector.connect(**DB)
+        cursor = conn.cursor()
+        
+        # Test basic query
+        cursor.execute("SELECT 1 as test")
+        result = cursor.fetchone()
+        
+        # Test Redis connection
+        redis_conn = get_redis_conn()
+        redis_status = "Connected" if redis_conn else "Failed"
+        
+        # Test GymMaster API connection
+        gym_status = "Unknown"
+        try:
+            # Simple test to GymMaster API
+            test_url = f"{GYM_BASE_URL}/portal/api/v1/health"
+            response = requests.get(test_url, timeout=5)
+            gym_status = "Connected" if response.status_code == 200 else f"HTTP {response.status_code}"
+        except Exception as e:
+            gym_status = f"Failed: {str(e)}"
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "ok": True,
+            "message": "All connections successful",
+            "connections": {
+                "database": {
+                    "status": "Connected",
+                    "host": DB["host"],
+                    "port": DB["port"],
+                    "database": DB["database"],
+                    "test_query": "SELECT 1",
+                    "result": result[0] if result else None
+                },
+                "redis": {
+                    "status": redis_status,
+                    "host": REDIS_HOST,
+                    "port": REDIS_PORT,
+                    "database": REDIS_DB
+                },
+                "gymmaster_api": {
+                    "status": gym_status,
+                    "base_url": GYM_BASE_URL,
+                    "api_key": "***" + GYM_API_KEY[-4:] if GYM_API_KEY else "Not set"
+                }
+            },
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except mysql.connector.Error as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Database connection failed: {str(e)}",
+            "connections": {
+                "database": {
+                    "status": "Failed",
+                    "error": str(e),
+                    "host": DB["host"],
+                    "port": DB["port"],
+                    "database": DB["database"]
+                }
+            },
+            "timestamp": datetime.now().isoformat()
+        }), 500
+        
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Connection test failed: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }), 500
 
 @app.route("/login")
 def login():
