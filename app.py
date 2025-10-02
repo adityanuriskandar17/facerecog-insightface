@@ -1492,7 +1492,106 @@ INDEX_HTML = """
       btnStop.disabled = !running;
     }
 
-    function updateDetectionDisplay(name, status, confidence = null) {
+    function showPopup(name, status, popupStyle) {
+      // Remove existing popup if any
+      const existingPopup = document.getElementById('facePopup');
+      if (existingPopup) {
+        existingPopup.remove();
+      }
+      
+      // Create popup element
+      const popup = document.createElement('div');
+      popup.id = 'facePopup';
+      
+      // Set colors based on popup_style
+      let backgroundColor, textColor, icon;
+      switch(popupStyle.toUpperCase()) {
+        case 'GRANTED':
+          backgroundColor = '#4CAF50'; // Green
+          textColor = '#FFFFFF';
+          icon = 'fas fa-check-circle';
+          break;
+        case 'DENIED':
+          backgroundColor = '#F44336'; // Red
+          textColor = '#FFFFFF';
+          icon = 'fas fa-times-circle';
+          break;
+        case 'WARNING':
+          backgroundColor = '#FF9800'; // Orange
+          textColor = '#FFFFFF';
+          icon = 'fas fa-exclamation-triangle';
+          break;
+        default:
+          backgroundColor = '#2196F3'; // Blue (default)
+          textColor = '#FFFFFF';
+          icon = 'fas fa-info-circle';
+      }
+      
+      popup.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: ${backgroundColor};
+        color: ${textColor};
+        padding: 20px 30px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        z-index: 10000;
+        text-align: center;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        min-width: 300px;
+        max-width: 400px;
+        animation: popupSlideIn 0.3s ease-out;
+      `;
+      
+      popup.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 15px;">
+          <i class="${icon}"></i>
+        </div>
+        <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">
+          ${name || 'Unknown'}
+        </div>
+        <div style="font-size: 16px; opacity: 0.9;">
+          ${status}
+        </div>
+      `;
+      
+      // Add CSS animation
+      if (!document.getElementById('popupStyles')) {
+        const style = document.createElement('style');
+        style.id = 'popupStyles';
+        style.textContent = `
+          @keyframes popupSlideIn {
+            from {
+              opacity: 0;
+              transform: translate(-50%, -50%) scale(0.8);
+            }
+            to {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1);
+            }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      document.body.appendChild(popup);
+      
+      // Auto remove after 3 seconds
+      setTimeout(() => {
+        if (popup && popup.parentNode) {
+          popup.style.animation = 'popupSlideIn 0.3s ease-out reverse';
+          setTimeout(() => {
+            if (popup && popup.parentNode) {
+              popup.remove();
+            }
+          }, 300);
+        }
+      }, 3000);
+    }
+
+    function updateDetectionDisplay(name, status, confidence = null, popupStyle = null) {
       const detectionResult = document.getElementById('detectionResult');
       const statusIcon = detectionResult.querySelector('i');
       const statusCircle = detectionResult.querySelector('div');
@@ -1503,6 +1602,11 @@ INDEX_HTML = """
       const cameraStatusIconElement = cameraStatusIcon.querySelector('i');
       
       detectedName.textContent = name || 'No face detected';
+      
+      // Show popup based on popup_style
+      if (popupStyle) {
+        showPopup(name, status, popupStyle);
+      }
       detectionStatus.textContent = status;
       
       // Check if it's a success message (gate opened, recognized, etc.)
@@ -1958,7 +2062,8 @@ INDEX_HTML = """
           // Check if user is throttled
           if (j.gate && j.gate.throttled) {
             console.log('User is throttled, showing cooldown timer');
-            updateDetectionDisplay(name, 'User in cooldown period', confidence);
+            const popupStyle = j.gate.popup_style || 'WARNING';
+            updateDetectionDisplay(name, 'User in cooldown period', confidence, popupStyle);
             
             // Get exact remaining time from server
             const serverCooldownSeconds = j.gate.cooldown_remaining || 10;
@@ -2009,7 +2114,8 @@ INDEX_HTML = """
           } else if (j.gate && !j.gate.error) {
             // Auto-open gate if matched and not throttled
             console.log('Gate opened successfully, hiding cooldown timer');
-            updateDetectionDisplay(name, 'Gate opened successfully!', confidence);
+            const popupStyle = j.gate.popup_style || 'GRANTED';
+            updateDetectionDisplay(name, 'Gate opened successfully!', confidence, popupStyle);
             hideCountdownTimer(); // Hide timer if gate opened successfully
             
             // Record successful recognition time for cooldown calculation
@@ -2017,7 +2123,8 @@ INDEX_HTML = """
             console.log('Successful recognition recorded at:', new Date(lastSuccessfulRecognitionTime));
           }
         } else if (j.ok && !j.matched) {
-          updateDetectionDisplay('Unknown person', 'Face detected but not recognized');
+          const popupStyle = j.popup_style || 'DENIED';
+          updateDetectionDisplay('Unknown person', 'Face detected but not recognized', null, popupStyle);
           // Draw orange face tracking for unknown face
           if (j.bbox && j.bbox.length === 4) {
             const [x1, y1, x2, y2] = j.bbox;
