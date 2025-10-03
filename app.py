@@ -4362,22 +4362,22 @@ RETAKE_HTML = """
         registerVideo.style.display = 'block';
         registerCapturedImage.style.display = 'none';
         
-        // Update button states
-        document.getElementById('btnCapturePhoto').disabled = false;
-        document.getElementById('btnUpdatePhoto').disabled = true;
-        document.getElementById('btnResetPhoto').disabled = true;
+        // Reset to step 3 (Capture Photo step) so user can capture again
+        currentRegisterStep = 3;
+        updateRegisterButtonStates();
         
         document.getElementById('registerProgress').textContent = 'Photo reset. You can now capture a new photo.';
+        console.log('Reset to register step 3 - Capture Photo enabled');
       } else {
         // Reset main page camera view
         video.style.display = 'block';
         capturedImage.style.display = 'none';
         cameraPlaceholder.style.display = 'none';
         
-        // Update button states
+        // Update button states - Reset button should always be enabled
         document.getElementById('btnCapturePhoto').disabled = false;
         document.getElementById('btnUpdatePhoto').disabled = true;
-        document.getElementById('btnResetPhoto').disabled = true;
+        document.getElementById('btnResetPhoto').disabled = false; // Keep reset button enabled
         
         setOut('Photo reset. You can now capture a new photo.');
       }
