@@ -3610,6 +3610,7 @@ RETAKE_HTML = """
       const btnSnap = document.getElementById('btnSnap');
       const btnCapturePhoto = document.getElementById('btnCapturePhoto');
       
+      // Keep Start Camera button always enabled for restart functionality
       if (btnStart) btnStart.disabled = false;
       if (btnSnap) btnSnap.disabled = true;
       if (btnCapturePhoto) btnCapturePhoto.disabled = true;
@@ -3632,6 +3633,15 @@ RETAKE_HTML = """
         console.log(`Processing button ${btnId}:`, !!button);
         if (button) {
           const stepNumber = index + 1;
+          
+          // Button Start Camera (Step 1) - always enabled for restart functionality
+          if (btnId === 'btnStart') {
+            console.log('Processing btnStart: Always enabled for restart functionality');
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+            return;
+          }
           
           // Button Validasi (Step 2) - skip sequential logic, handle separately
           if (btnId === 'btnSnap') {
@@ -3980,16 +3990,10 @@ RETAKE_HTML = """
     
     // Add event handler for Start button on retake page
     document.getElementById('btnStart').onclick = async () => {
-      if (currentValidationStep !== 1) {
-        console.log('Button 1 can only be clicked when current step is 1');
-        return;
-      }
-      
       try {
         setOut('Starting camera...');
         await startCameraWithFacing('user'); // Start with front camera by default
         
-        document.getElementById('btnStart').disabled = true;
         setOut('Camera started. Click "Validasi" to start face recognition.');
         
         // Show camera switch buttons
@@ -4006,8 +4010,12 @@ RETAKE_HTML = """
           btnSnap.style.cursor = 'pointer';
           console.log('Button Validasi directly enabled after camera start');
         }
+        
+        // Keep Start Camera button enabled for restart functionality
+        console.log('Camera started successfully - Start button remains enabled for restart');
       } catch (e) {
         setOut('Camera error: ' + e.message);
+        console.error('Camera start error:', e);
       }
     };
     
@@ -4016,6 +4024,7 @@ RETAKE_HTML = """
       try {
         // Stop existing stream if any
         if (currentStream) {
+          console.log('Stopping existing camera stream...');
           currentStream.getTracks().forEach(track => track.stop());
           currentStream = null;
         }
@@ -4026,6 +4035,7 @@ RETAKE_HTML = """
         const overlay = document.getElementById('overlay');
         
         // Request camera with specific facing mode
+        console.log(`Requesting camera with facing mode: ${facingMode}`);
         currentStream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
             facingMode: { ideal: facingMode },
@@ -4049,7 +4059,7 @@ RETAKE_HTML = """
         currentCameraFacing = facingMode;
         updateCameraSwitchButtons();
         
-        console.log(`Camera started with facing mode: ${facingMode}`);
+        console.log(`Camera started successfully with facing mode: ${facingMode}`);
       } catch (e) {
         console.error('Camera error:', e);
         throw e;
