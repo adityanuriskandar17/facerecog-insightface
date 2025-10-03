@@ -3441,7 +3441,7 @@ RETAKE_HTML = """
         <div class="camera-container" id="cameraContainer">
           <video id="video" autoplay playsinline muted style="display: none; transform: scaleX(-1);"></video>
           <canvas id="overlay" class="camera-overlay" style="display: none;"></canvas>
-          <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px;" />
+          <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: contain; border-radius: 12px;" />
           <div class="camera-placeholder" id="cameraPlaceholder">
             <i class="fas fa-camera"></i>
           </div>
@@ -3472,7 +3472,7 @@ RETAKE_HTML = """
             <span>Kamera Belakang</span>
           </button>
         </div>
-        <canvas id="canvas" width="640" height="480"></canvas>
+        <canvas id="canvas" style="display: none;"></canvas>
         <pre id="out" style="display: none;"></pre>
       </div>
     </div>
@@ -3493,7 +3493,7 @@ RETAKE_HTML = """
       <div style="text-align: center; margin: 20px 0;">
         <div style="position: relative; width: 100%; max-width: 500px; height: 300px; margin: 0 auto; background: #111; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
           <video id="registerVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 2; background: #000;"></video>
-          <img id="registerCapturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 3; transform: scaleX(-1);" />
+          <img id="registerCapturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 3; transform: scaleX(-1);" />
           <div id="cameraPlaceholder" style="width: 100%; height: 100%; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d; position: absolute; top: 0; left: 0; border-radius: 12px;">
             <i class="fas fa-camera" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
             <div style="font-size: 18px; font-weight: 500;">Camera Inactive</div>
@@ -3555,7 +3555,7 @@ RETAKE_HTML = """
       
       <!-- Progress and Status -->
       <div id="registerProgress" style="margin: 16px 0; font-size: 14px; color: #666; text-align: center; min-height: 20px;"></div>
-      <canvas id="registerCanvas" width="640" height="480" style="display: none;"></canvas>
+      <canvas id="registerCanvas" style="display: none;"></canvas>
     </div>
   </div>
   
@@ -4139,10 +4139,15 @@ RETAKE_HTML = """
       try {
         setOut('Capturing photo...');
         
-        // Capture current frame
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
+        // Create canvas with proper dimensions matching video
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = video.videoWidth;
+        tempCanvas.height = video.videoHeight;
+        
+        // Capture current frame with correct aspect ratio
+        const ctx = tempCanvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+        const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
         
         setOut('Comparing with profile photo...');
         
@@ -4268,10 +4273,14 @@ RETAKE_HTML = """
         }
         
         try {
-          const registerCanvas = document.getElementById('registerCanvas');
-          const ctx = registerCanvas.getContext('2d');
-          ctx.drawImage(registerVideo, 0, 0, registerCanvas.width, registerCanvas.height);
-          const dataUrl = registerCanvas.toDataURL('image/jpeg', 0.9);
+          // Create canvas with proper dimensions matching video
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = registerVideo.videoWidth;
+          tempCanvas.height = registerVideo.videoHeight;
+          
+          const ctx = tempCanvas.getContext('2d');
+          ctx.drawImage(registerVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+          const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
           
           // Show captured image
           registerCapturedImage.src = dataUrl;
@@ -4306,10 +4315,15 @@ RETAKE_HTML = """
         try {
           setOut('Capturing photo...');
           
-          // Capture current frame
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
+          // Create canvas with proper dimensions matching video
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = video.videoWidth;
+          tempCanvas.height = video.videoHeight;
+          
+          // Capture current frame with correct aspect ratio
+          const ctx = tempCanvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+          const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
           
           // Show captured image
           capturedImage.src = dataUrl;
@@ -4756,9 +4770,14 @@ RETAKE_HTML = """
         progress.textContent = 'Capturing photos... (5 seconds)';
         
         burstInterval = setInterval(() => {
-          const ctx = registerCanvas.getContext('2d');
-          ctx.drawImage(registerVideo, 0, 0, registerCanvas.width, registerCanvas.height);
-          const dataUrl = registerCanvas.toDataURL('image/jpeg', 0.9);
+          // Create canvas with proper dimensions matching video
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = registerVideo.videoWidth;
+          tempCanvas.height = registerVideo.videoHeight;
+          
+          const ctx = tempCanvas.getContext('2d');
+          ctx.drawImage(registerVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+          const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
           capturedFrames.push(dataUrl);
           progress.textContent = `Photo ${capturedFrames.length} captured...`;
         }, 200); // Take photo every 200ms
