@@ -3460,6 +3460,18 @@ RETAKE_HTML = """
             Register Face Recognition
           </button>
         </div>
+        
+        <!-- Camera Switch Buttons -->
+        <div class="camera-switch-group" style="display: none; margin-top: 15px; gap: 10px; justify-content: center;">
+          <button id="btnSwitchToFront" class="btn btn-switch" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 14px;">
+            <i class="fas fa-user"></i>
+            <span>Kamera Depan</span>
+          </button>
+          <button id="btnSwitchToBack" class="btn btn-switch" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 14px;">
+            <i class="fas fa-camera"></i>
+            <span>Kamera Belakang</span>
+          </button>
+        </div>
         <canvas id="canvas" width="640" height="480"></canvas>
         <pre id="out" style="display: none;"></pre>
       </div>
@@ -3564,6 +3576,12 @@ RETAKE_HTML = """
         stream = null;
       }
       
+      // Stop current stream if exists
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+      
       const video = document.getElementById('video');
       const cameraPlaceholder = document.getElementById('cameraPlaceholder');
       const overlay = document.getElementById('overlay');
@@ -3579,6 +3597,12 @@ RETAKE_HTML = """
       
       if (overlay) {
         overlay.style.display = 'none';
+      }
+      
+      // Hide camera switch buttons
+      const switchGroup = document.querySelector('.camera-switch-group');
+      if (switchGroup) {
+        switchGroup.style.display = 'none';
       }
       
       // Reset validation buttons
@@ -3950,6 +3974,10 @@ RETAKE_HTML = """
       }
     }
 
+    // Camera switching variables
+    let currentCameraFacing = 'user'; // 'user' for front, 'environment' for back
+    let currentStream = null;
+    
     // Add event handler for Start button on retake page
     document.getElementById('btnStart').onclick = async () => {
       if (currentValidationStep !== 1) {
@@ -3959,32 +3987,16 @@ RETAKE_HTML = """
       
       try {
         setOut('Starting camera...');
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            width: { ideal: 640, max: 1280 },
-            height: { ideal: 480, max: 720 },
-            frameRate: { ideal: 15, max: 30 }
-          } 
-        });
-        
-        const video = document.getElementById('video');
-        const cameraContainer = document.getElementById('cameraContainer');
-        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
-        const overlay = document.getElementById('overlay');
-        
-        video.srcObject = stream;
-        video.style.display = 'block';
-        cameraPlaceholder.style.display = 'none';
-        
-        // Setup overlay canvas
-        if (overlay) {
-          overlay.style.display = 'block';
-          overlay.width = cameraContainer.offsetWidth;
-          overlay.height = cameraContainer.offsetHeight;
-        }
+        await startCameraWithFacing('user'); // Start with front camera by default
         
         document.getElementById('btnStart').disabled = true;
         setOut('Camera started. Click "Validasi" to start face recognition.');
+        
+        // Show camera switch buttons
+        const switchGroup = document.querySelector('.camera-switch-group');
+        if (switchGroup) {
+          switchGroup.style.display = 'flex';
+        }
         
         // Directly enable button Validasi after camera start
         const btnSnap = document.getElementById('btnSnap');
@@ -3996,6 +4008,103 @@ RETAKE_HTML = """
         }
       } catch (e) {
         setOut('Camera error: ' + e.message);
+      }
+    };
+    
+    // Camera switching functions
+    async function startCameraWithFacing(facingMode) {
+      try {
+        // Stop existing stream if any
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+          currentStream = null;
+        }
+        
+        const video = document.getElementById('video');
+        const cameraContainer = document.getElementById('cameraContainer');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const overlay = document.getElementById('overlay');
+        
+        // Request camera with specific facing mode
+        currentStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: { ideal: facingMode },
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 },
+            frameRate: { ideal: 15, max: 30 }
+          } 
+        });
+        
+        video.srcObject = currentStream;
+        video.style.display = 'block';
+        cameraPlaceholder.style.display = 'none';
+        
+        // Setup overlay canvas
+        if (overlay) {
+          overlay.style.display = 'block';
+          overlay.width = cameraContainer.offsetWidth;
+          overlay.height = cameraContainer.offsetHeight;
+        }
+        
+        currentCameraFacing = facingMode;
+        updateCameraSwitchButtons();
+        
+        console.log(`Camera started with facing mode: ${facingMode}`);
+      } catch (e) {
+        console.error('Camera error:', e);
+        throw e;
+      }
+    }
+    
+    function updateCameraSwitchButtons() {
+      const btnFront = document.getElementById('btnSwitchToFront');
+      const btnBack = document.getElementById('btnSwitchToBack');
+      
+      if (currentCameraFacing === 'user') {
+        // Currently using front camera
+        if (btnFront) {
+          btnFront.style.background = '#28a745';
+          btnFront.style.opacity = '1';
+        }
+        if (btnBack) {
+          btnBack.style.background = '#6c757d';
+          btnBack.style.opacity = '0.7';
+        }
+      } else {
+        // Currently using back camera
+        if (btnFront) {
+          btnFront.style.background = '#6c757d';
+          btnFront.style.opacity = '0.7';
+        }
+        if (btnBack) {
+          btnBack.style.background = '#28a745';
+          btnBack.style.opacity = '1';
+        }
+      }
+    }
+    
+    // Camera switch event handlers
+    document.getElementById('btnSwitchToFront').onclick = async () => {
+      if (currentCameraFacing === 'user') return; // Already using front camera
+      
+      try {
+        setOut('Switching to front camera...');
+        await startCameraWithFacing('user');
+        setOut('Switched to front camera');
+      } catch (e) {
+        setOut('Failed to switch to front camera: ' + e.message);
+      }
+    };
+    
+    document.getElementById('btnSwitchToBack').onclick = async () => {
+      if (currentCameraFacing === 'environment') return; // Already using back camera
+      
+      try {
+        setOut('Switching to back camera...');
+        await startCameraWithFacing('environment');
+        setOut('Switched to back camera');
+      } catch (e) {
+        setOut('Failed to switch to back camera: ' + e.message);
       }
     };
 
