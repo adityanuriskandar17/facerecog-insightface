@@ -5294,6 +5294,13 @@ def api_register_face():
                       (profile.get("firstname", ""), profile.get("surname", "")))
             existing = cur.fetchone()
             
+            # Ensure all results are consumed to avoid "Unread result found" error
+            try:
+                while cur.nextset():
+                    pass
+            except:
+                pass
+            
             if existing:
                 # Update existing record
                 cur.execute(
@@ -5308,6 +5315,13 @@ def api_register_face():
                     (profile.get("id", 0), profile.get("firstname", ""), profile.get("surname", ""), embedding_json)
                 )
                 print(f"DEBUG: Created new record for {user_name}")
+            
+            # Ensure all results are consumed to avoid "Unread result found" error
+            try:
+                while cur.nextset():
+                    pass
+            except:
+                pass
             
             conn.commit()
             cur.close()
