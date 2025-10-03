@@ -3352,19 +3352,12 @@ RETAKE_HTML = """
             return;
           }
           
-          // Button Register (Step 3) - hanya enabled setelah validasi berhasil
+          // Button Register (Step 3) - always enabled
           if (btnId === 'btnRegister') {
-            if (currentValidationStep >= 3) {
-              console.log('Processing btnRegister: Enabled after validation success');
-              button.disabled = false;
-              button.style.opacity = '1';
-              button.style.cursor = 'pointer';
-            } else {
-              console.log('Processing btnRegister: Disabled - validation not completed');
-              button.disabled = true;
-              button.style.opacity = '0.5';
-              button.style.cursor = 'not-allowed';
-            }
+            console.log('Processing btnRegister: Always enabled');
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
             return;
           }
           
@@ -3658,13 +3651,13 @@ RETAKE_HTML = """
     // Initialize validation button states
     updateValidationButtonStates();
     
-    // Initialize Register button as disabled (will be enabled after validation)
+    // Initialize Register button as enabled (can be clicked directly)
     const btnRegister = document.getElementById('btnRegister');
     if (btnRegister) {
-      btnRegister.disabled = true;
-      btnRegister.style.opacity = '0.5';
-      btnRegister.style.cursor = 'not-allowed';
-      console.log('Button Register initialized as disabled');
+      btnRegister.disabled = false;
+      btnRegister.style.opacity = '1';
+      btnRegister.style.cursor = 'pointer';
+      console.log('Button Register initialized as enabled');
     }
 
     // Logout function
@@ -4141,11 +4134,7 @@ RETAKE_HTML = """
 
     // Face Registration Modal Controls
     document.getElementById('btnRegister').onclick = () => {
-      // Button Register hanya bisa diklik setelah validasi berhasil
-      if (currentValidationStep < 3) {
-        console.log('Button Register can only be clicked after successful validation');
-        return;
-      }
+      // Button Register can be clicked directly without validation
       
       console.log('Opening register modal...');
       
