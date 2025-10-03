@@ -3458,7 +3458,7 @@ RETAKE_HTML = """
       
       try {
         if (loadingProfile) {
-        loadingProfile.textContent = 'Loading profile...';
+          loadingProfile.textContent = 'Loading profile...';
         }
         
         // Check if we have session data from login
@@ -3473,6 +3473,11 @@ RETAKE_HTML = """
         if (j.ok && j.profile) {
           token = j.token;
           const profile = j.profile;
+          
+          // Hide loading message and display profile info
+          if (loadingProfile) {
+            loadingProfile.style.display = 'none';
+          }
           
           // Display profile info with styled fields
           profileInfo.innerHTML = `
@@ -3520,15 +3525,21 @@ RETAKE_HTML = """
           }
         } else {
           if (profileInfo) {
-          profileInfo.innerHTML = '<div style="color: red;">Not logged in. Please go back to login page.</div>';
+            if (loadingProfile) {
+              loadingProfile.style.display = 'none';
+            }
+            profileInfo.innerHTML = '<div style="color: red;">Not logged in. Please go back to login page.</div>';
           }
         }
       } catch (e) {
+        if (loadingProfile) {
+          loadingProfile.style.display = 'none';
+        }
         if (profileInfo) {
-        profileInfo.innerHTML = '<div style="color: red;">Error loading profile: ' + e.message + '</div>';
+          profileInfo.innerHTML = '<div style="color: red;">Error loading profile: ' + e.message + '</div>';
         }
         if (typeof setLog === 'function') {
-        setLog('Error: ' + e.message);
+          setLog('Error: ' + e.message);
         }
       }
     }
@@ -3889,6 +3900,9 @@ RETAKE_HTML = """
           
           document.getElementById('registerProgress').textContent = 'Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.';
           
+          // Move to next step after successful photo capture
+          nextRegisterStep();
+          
         } catch (e) {
           document.getElementById('registerProgress').textContent = 'Capture error: ' + e.message;
         }
@@ -3979,34 +3993,69 @@ RETAKE_HTML = """
       }
     };
 
-    // Add event handler for Update Profile Photo button
+    // Unified event handler for Update Profile Photo button (both main page and register modal)
     document.getElementById('btnUpdatePhoto').onclick = async () => {
+      // Check if we're in register modal by looking for registerCapturedImage
+      const registerCapturedImage = document.getElementById('registerCapturedImage');
       const capturedImage = document.getElementById('capturedImage');
       
-      if (!capturedImage.src || capturedImage.style.display === 'none') {
-        setOut('Please capture a photo first');
+      let targetImage, isRegisterModal = false;
+      
+      // Determine context and target image
+      if (registerCapturedImage && registerCapturedImage.src && registerCapturedImage.style.display !== 'none') {
+        // We're in register modal
+        targetImage = registerCapturedImage;
+        isRegisterModal = true;
+        
+        // Check if we're in the correct step for register modal
+        console.log('Current register step:', currentRegisterStep);
+        if (currentRegisterStep !== 4) {
+          console.log('Button 4 can only be clicked when current step is 4, but current step is:', currentRegisterStep);
+          return;
+        }
+      } else if (capturedImage && capturedImage.src && capturedImage.style.display !== 'none') {
+        // We're in main page
+        targetImage = capturedImage;
+        isRegisterModal = false;
+      } else {
+        // No captured image available
+        if (isRegisterModal) {
+          document.getElementById('registerProgress').textContent = 'Please capture a photo first';
+        } else {
+          setOut('Please capture a photo first');
+        }
         return;
       }
       
       try {
         // Use the captured image data
-        const dataUrl = capturedImage.src;
+        const dataUrl = targetImage.src;
         
-        // Show confirmation dialog
-        const result = await Swal.fire({
-          title: '⚠️ Update Profile Photo?',
-          text: 'Are you sure you want to update your profile photo in GymMaster? This action cannot be undone.',
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonColor: '#28a745',
-          cancelButtonColor: '#dc3545',
-          confirmButtonText: 'Yes, Update Photo',
-          cancelButtonText: 'Cancel',
-          reverseButtons: true
-        });
+        // Show confirmation dialog only for main page
+        if (!isRegisterModal) {
+          const result = await Swal.fire({
+            title: '⚠️ Update Profile Photo?',
+            text: 'Are you sure you want to update your profile photo in GymMaster? This action cannot be undone.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#dc3545',
+            confirmButtonText: 'Yes, Update Photo',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true
+          });
+          
+          if (!result.isConfirmed) {
+            return;
+          }
+        }
         
-        if (result.isConfirmed) {
+        // Update progress message based on context
+        if (isRegisterModal) {
+          document.getElementById('registerProgress').textContent = 'Updating profile photo...';
+        } else {
           setOut('Updating profile photo...');
+        }
           
           // Send to update API
           const r = await fetch('/api/update_profile_photo', {
@@ -4016,62 +4065,77 @@ RETAKE_HTML = """
           });
           
           const j = await r.json();
-          setOut(j);
           
           if (j.ok) {
             // Mark photo upload as completed
             sessionStorage.setItem('photo_uploaded', 'true');
             updateProgressRoadmap();
             
-            // Success notification
-            Swal.fire({
-              title: '✅ Success!',
-              text: 'Profile photo updated successfully in GymMaster',
-              icon: 'success',
-              confirmButtonText: 'OK',
-              confirmButtonColor: '#28a745',
-              timer: 3000,
-              timerProgressBar: true
-            });
-            
-            // Update User Profile section with success message
-            const profileInfo = document.getElementById('profileInfo');
-            const statusMessage = document.getElementById('statusMessage');
-            
-            // Mark photo upload as completed and update roadmap
-            sessionStorage.setItem('photo_uploaded', 'true');
-            updateProgressRoadmap();
-            
-            // Show success message in User Profile section
-            statusMessage.innerHTML = '<i class="fas fa-check"></i><span>Foto telah di update ke gymmaster</span>';
-            statusMessage.classList.remove('hidden');
-            statusMessage.style.background = '#d4edda';
-            statusMessage.style.color = '#155724';
-            
-            // Reload profile to show updated photo
-            setTimeout(() => {
-              loadProfile();
-            }, 1000);
+            if (isRegisterModal) {
+              // Success for register modal
+              document.getElementById('registerProgress').textContent = 'Profile photo updated successfully!';
+              document.getElementById('btnUpdatePhoto').disabled = true;
+            } else {
+              // Success for main page
+              setOut('Profile photo updated successfully!');
+              
+              // Success notification
+              Swal.fire({
+                title: '✅ Success!',
+                text: 'Profile photo updated successfully in GymMaster',
+                icon: 'success',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#28a745',
+                timer: 3000,
+                timerProgressBar: true
+              });
+              
+              // Update User Profile section with success message
+              const profileInfo = document.getElementById('profileInfo');
+              const statusMessage = document.getElementById('statusMessage');
+              
+              // Show success message in User Profile section
+              statusMessage.innerHTML = '<i class="fas fa-check"></i><span>Foto telah di update ke gymmaster</span>';
+              statusMessage.classList.remove('hidden');
+              statusMessage.style.background = '#d4edda';
+              statusMessage.style.color = '#155724';
+              
+              // Reload profile to show updated photo
+              setTimeout(() => {
+                loadProfile();
+              }, 1000);
+            }
           } else {
-            // Error notification
-            Swal.fire({
-              title: '❌ Update Failed',
-              text: 'Failed to update profile photo: ' + (j.error || 'Unknown error'),
-              icon: 'error',
-              confirmButtonText: 'OK',
-              confirmButtonColor: '#dc3545'
-            });
+            // Error handling based on context
+            const errorMsg = 'Failed to update profile photo: ' + (j.error || 'Unknown error');
+            if (isRegisterModal) {
+              document.getElementById('registerProgress').textContent = errorMsg;
+            } else {
+              setOut(errorMsg);
+              Swal.fire({
+                title: '❌ Update Failed',
+                text: errorMsg,
+                icon: 'error',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#dc3545'
+              });
+            }
           }
-        }
       } catch (e) {
-        setOut('Update error: ' + e.message);
-        Swal.fire({
-          title: '❌ Error',
-          text: 'Failed to update profile photo: ' + e.message,
-          icon: 'error',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#dc3545'
-        });
+        // Error handling based on context
+        const errorMsg = 'Update error: ' + e.message;
+        if (isRegisterModal) {
+          document.getElementById('registerProgress').textContent = errorMsg;
+        } else {
+          setOut(errorMsg);
+          Swal.fire({
+            title: '❌ Error',
+            text: errorMsg,
+            icon: 'error',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#dc3545'
+          });
+        }
       }
     };
 
@@ -4277,47 +4341,7 @@ RETAKE_HTML = """
 
     // Reset Photo button in modal - handled by unified function above
 
-    // Update Photo button in modal (Step 4)
-    document.getElementById('btnUpdatePhoto').onclick = async () => {
-      if (currentRegisterStep !== 4) {
-        console.log('Button 4 can only be clicked when current step is 4');
-        return;
-      }
-      
-      const registerCapturedImage = document.getElementById('registerCapturedImage');
-      
-      if (!registerCapturedImage.src || registerCapturedImage.style.display === 'none') {
-        document.getElementById('registerProgress').textContent = 'Please capture a photo first';
-        return;
-      }
-      
-      try {
-        const dataUrl = registerCapturedImage.src;
-        
-        document.getElementById('registerProgress').textContent = 'Updating profile photo...';
-        
-        const r = await fetch('/api/update_profile_photo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image_b64: dataUrl.split(',')[1] })
-        });
-        
-        const j = await r.json();
-        
-        if (j.ok) {
-          document.getElementById('registerProgress').textContent = 'Profile photo updated successfully!';
-          document.getElementById('btnUpdatePhoto').disabled = true;
-          
-          // Mark photo upload as completed and update roadmap
-          sessionStorage.setItem('photo_uploaded', 'true');
-          updateProgressRoadmap();
-        } else {
-          document.getElementById('registerProgress').textContent = 'Update failed: ' + (j.error || 'Unknown error');
-        }
-      } catch (e) {
-        document.getElementById('registerProgress').textContent = 'Update error: ' + e.message;
-      }
-    };
+    // Update Photo button in modal - handled by unified function above
 
     document.getElementById('btnBurstCapture').onclick = async () => {
       if (!registerStream) return;
