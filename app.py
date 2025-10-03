@@ -965,6 +965,38 @@ INDEX_HTML = """
       margin: 0 !important;
     }
     
+    /* Ensure fullscreen button is positioned absolutely and not affected by flexbox */
+    .fullscreen #fullscreenBtn {
+      position: fixed !important;
+      top: 20px !important;
+      right: 20px !important;
+      z-index: 10001 !important;
+      background: #495057 !important;
+      color: white !important;
+      border: none !important;
+      padding: 12px 16px !important;
+      border-radius: 8px !important;
+      cursor: pointer !important;
+      font-size: 16px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      min-width: 48px !important;
+      height: 48px !important;
+    }
+    
+    /* Hide browser default fullscreen exit button */
+    .fullscreen::backdrop {
+      display: none !important;
+    }
+    
+    /* Hide any browser fullscreen UI elements */
+    .fullscreen *::-webkit-media-controls-fullscreen-button,
+    .fullscreen *::-webkit-media-controls-overlay-play-button,
+    .fullscreen *::-webkit-media-controls-panel {
+      display: none !important;
+    }
+    
     .fullscreen #video {
       width: 100vw !important;
       height: 100vh !important;
@@ -972,6 +1004,46 @@ INDEX_HTML = """
       min-height: 100vh !important;
       border-radius: 0 !important;
       object-fit: cover !important;
+    }
+    
+    /* Mobile fullscreen video - prevent excessive zoom */
+    @media (max-width: 768px) {
+      .fullscreen #video {
+        width: 100vw !important;
+        height: 100vh !important;
+        object-fit: contain !important;
+        object-position: center !important;
+      }
+      
+      /* Mobile fullscreen overlay positioning */
+      .fullscreen #overlay {
+        width: 100vw !important;
+        height: 100vh !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 15 !important;
+      }
+    }
+    
+    /* Tablet fullscreen video */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .fullscreen #video {
+        width: 100vw !important;
+        height: 100vh !important;
+        object-fit: contain !important;
+        object-position: center !important;
+      }
+      
+      /* Tablet fullscreen overlay positioning */
+      .fullscreen #overlay {
+        width: 100vw !important;
+        height: 100vh !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 15 !important;
+      }
     }
     
     .fullscreen #overlay {
@@ -988,10 +1060,12 @@ INDEX_HTML = """
     }
     
     .fullscreen #fullscreenBtn {
+      position: absolute !important;
       top: 20px !important;
       right: 20px !important;
       font-size: 16px !important;
       padding: 12px 16px !important;
+      z-index: 10001 !important;
     }
     
     .fullscreen .detection-info {
@@ -1006,6 +1080,54 @@ INDEX_HTML = """
       max-width: 90vw !important;
     }
     
+    /* Hide browser default fullscreen exit elements */
+    .fullscreen .fullscreen-exit-browser,
+    .fullscreen [data-fullscreen-exit],
+    .fullscreen .browser-fullscreen-exit,
+    .fullscreen [class*="fullscreen-exit"]:not(#fullscreenExitBtn),
+    .fullscreen [id*="fullscreen-exit"]:not(#fullscreenExitBtn) {
+      display: none !important;
+    }
+    
+    /* Hide browser fullscreen UI overlay */
+    .fullscreen::before,
+    .fullscreen::after {
+      display: none !important;
+    }
+    
+    /* Hide any browser-generated fullscreen UI */
+    .fullscreen *[class*="fullscreen-exit"],
+    .fullscreen *[id*="fullscreen-exit"]:not(#fullscreenExitBtn),
+    .fullscreen [data-fullscreen],
+    .fullscreen [data-exit-fullscreen] {
+      display: none !important;
+    }
+    
+    /* Ensure our custom exit button is always visible */
+    #fullscreenExitBtn {
+      display: flex !important;
+    }
+    
+    /* Fullscreen popup styles */
+    .fullscreen #facePopup {
+      position: fixed !important;
+      top: 20% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      z-index: 10002 !important;
+      background: #4CAF50 !important;
+      color: white !important;
+      padding: 20px 30px !important;
+      border-radius: 12px !important;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+      text-align: center !important;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+      min-width: 300px !important;
+      max-width: 400px !important;
+      animation: popupSlideIn 0.3s ease-out !important;
+      pointer-events: none !important;
+    }
+    
     /* Fullscreen Exit Button */
     .fullscreen-exit {
       position: absolute !important;
@@ -1014,14 +1136,21 @@ INDEX_HTML = """
       background: rgba(220, 53, 69, 0.9) !important;
       color: white !important;
       border: none !important;
-      padding: 12px 16px !important;
+      padding: 12px 20px !important;
       border-radius: 8px !important;
       cursor: pointer !important;
       font-size: 16px !important;
+      font-weight: 600 !important;
       z-index: 10000 !important;
-      min-width: 120px !important;
+      min-width: 140px !important;
+      height: 48px !important;
       text-align: center !important;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      transition: all 0.2s ease !important;
     }
     
     .fullscreen-exit:hover {
@@ -1031,43 +1160,70 @@ INDEX_HTML = """
     /* Mobile-specific fullscreen exit button */
     @media (max-width: 768px) {
       .fullscreen-exit {
-        top: 10px !important;
-        right: 10px !important;
-        padding: 8px 12px !important;
+        top: 15px !important;
+        right: 15px !important;
+        padding: 10px 16px !important;
         font-size: 14px !important;
-        min-width: 100px !important;
+        min-width: 120px !important;
+        height: 44px !important;
+        border-radius: 6px !important;
       }
       
       .fullscreen #fullscreenBtn {
-        top: 10px !important;
-        right: 120px !important;
+        position: fixed !important;
+        top: 15px !important;
+        right: 15px !important;
         font-size: 14px !important;
-        padding: 8px 12px !important;
+        padding: 10px 16px !important;
+        height: 44px !important;
+        border-radius: 6px !important;
+        z-index: 10001 !important;
+        background: #495057 !important;
+        color: white !important;
+        border: none !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 44px !important;
       }
     }
     
     /* High resolution mobile screens (1080x2436, iPhone X style) */
     @media (max-width: 414px) and (min-height: 800px) {
       .fullscreen-exit {
-        top: 15px !important;
-        right: 15px !important;
-        padding: 10px 14px !important;
+        top: 20px !important;
+        right: 20px !important;
+        padding: 12px 18px !important;
         font-size: 16px !important;
-        min-width: 110px !important;
+        min-width: 130px !important;
+        height: 48px !important;
         z-index: 10001 !important;
+        border-radius: 8px !important;
       }
       
       .fullscreen #fullscreenBtn {
-        top: 15px !important;
-        right: 140px !important;
+        position: fixed !important;
+        top: 20px !important;
+        right: 20px !important;
         font-size: 16px !important;
-        padding: 10px 14px !important;
+        padding: 12px 18px !important;
+        height: 48px !important;
+        border-radius: 8px !important;
         z-index: 10001 !important;
+        background: #495057 !important;
+        color: white !important;
+        border: none !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 48px !important;
       }
       
       .fullscreen #cameraStatus {
-        top: 15px !important;
-        left: 15px !important;
+        top: 20px !important;
+        left: 20px !important;
         font-size: 18px !important;
         padding: 12px 18px !important;
         z-index: 10001 !important;
@@ -1077,18 +1233,32 @@ INDEX_HTML = """
     /* Ultra-wide mobile screens */
     @media (min-width: 400px) and (max-width: 500px) and (min-height: 800px) {
       .fullscreen-exit {
-        top: 20px !important;
-        right: 20px !important;
-        padding: 12px 16px !important;
+        top: 25px !important;
+        right: 25px !important;
+        padding: 14px 20px !important;
         font-size: 18px !important;
-        min-width: 120px !important;
+        min-width: 140px !important;
+        height: 52px !important;
+        border-radius: 8px !important;
       }
       
       .fullscreen #fullscreenBtn {
-        top: 20px !important;
-        right: 150px !important;
+        position: fixed !important;
+        top: 25px !important;
+        right: 25px !important;
         font-size: 18px !important;
-        padding: 12px 16px !important;
+        padding: 14px 20px !important;
+        height: 52px !important;
+        border-radius: 8px !important;
+        z-index: 10001 !important;
+        background: #495057 !important;
+        color: white !important;
+        border: none !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 52px !important;
       }
     }
   </style>
@@ -1544,7 +1714,7 @@ INDEX_HTML = """
         padding: 20px 30px;
         border-radius: 12px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        z-index: 9999;
+        z-index: 10002;
         text-align: center;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         min-width: 300px;
@@ -1565,6 +1735,92 @@ INDEX_HTML = """
         </div>
       `;
       
+      // Add responsive styles for mobile
+      const mobileStyles = document.createElement('style');
+      mobileStyles.id = 'mobilePopupStyles';
+      mobileStyles.textContent = `
+        @media (max-width: 768px) {
+          #facePopup {
+            min-width: 280px !important;
+            max-width: 90vw !important;
+            padding: 16px 24px !important;
+            top: 15% !important;
+          }
+          #facePopup div:first-child {
+            font-size: 40px !important;
+            margin-bottom: 12px !important;
+          }
+          #facePopup div:nth-child(2) {
+            font-size: 20px !important;
+            margin-bottom: 8px !important;
+          }
+          #facePopup div:last-child {
+            font-size: 14px !important;
+          }
+        }
+        @media (max-width: 414px) {
+          #facePopup {
+            min-width: 260px !important;
+            padding: 14px 20px !important;
+            top: 10% !important;
+          }
+          #facePopup div:first-child {
+            font-size: 36px !important;
+          }
+          #facePopup div:nth-child(2) {
+            font-size: 18px !important;
+          }
+          #facePopup div:last-child {
+            font-size: 13px !important;
+          }
+        }
+        
+        /* Fullscreen popup responsive styles */
+        .fullscreen #facePopup {
+          z-index: 10002 !important;
+        }
+        
+        @media (max-width: 768px) {
+          .fullscreen #facePopup {
+            min-width: 280px !important;
+            max-width: 90vw !important;
+            padding: 16px 24px !important;
+            top: 15% !important;
+          }
+          .fullscreen #facePopup div:first-child {
+            font-size: 40px !important;
+            margin-bottom: 12px !important;
+          }
+          .fullscreen #facePopup div:nth-child(2) {
+            font-size: 20px !important;
+            margin-bottom: 8px !important;
+          }
+          .fullscreen #facePopup div:last-child {
+            font-size: 14px !important;
+          }
+        }
+        
+        @media (max-width: 414px) {
+          .fullscreen #facePopup {
+            min-width: 260px !important;
+            padding: 14px 20px !important;
+            top: 10% !important;
+          }
+          .fullscreen #facePopup div:first-child {
+            font-size: 36px !important;
+          }
+          .fullscreen #facePopup div:nth-child(2) {
+            font-size: 18px !important;
+          }
+          .fullscreen #facePopup div:last-child {
+            font-size: 13px !important;
+          }
+        }
+      `;
+      if (!document.getElementById('mobilePopupStyles')) {
+        document.head.appendChild(mobileStyles);
+      }
+      
       // Add CSS animation
       if (!document.getElementById('popupStyles')) {
         const style = document.createElement('style');
@@ -1584,7 +1840,19 @@ INDEX_HTML = """
         document.head.appendChild(style);
       }
       
-      document.body.appendChild(popup);
+      // Check if we're in fullscreen mode and append to the right container
+      const cameraContainer = document.getElementById('cameraContainer');
+      const isFullscreen = cameraContainer && cameraContainer.classList.contains('fullscreen');
+      
+      if (isFullscreen) {
+        // In fullscreen mode, append to cameraContainer to ensure it's visible
+        cameraContainer.appendChild(popup);
+        console.log('Popup added to fullscreen container');
+      } else {
+        // Normal mode, append to body
+        document.body.appendChild(popup);
+        console.log('Popup added to body');
+      }
       
       // Auto remove after 2 seconds
       setTimeout(() => {
@@ -1751,16 +2019,38 @@ INDEX_HTML = """
             }
             
             // Add CSS classes for styling
-          cameraContainer.classList.add('fullscreen');
-          fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit';
-          
+            cameraContainer.classList.add('fullscreen');
+            fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+            
             // Add exit button
-          const exitBtn = document.createElement('button');
-          exitBtn.id = 'fullscreenExitBtn';
-          exitBtn.className = 'fullscreen-exit';
-            exitBtn.innerHTML = '<i class="fas fa-times"></i> Exit';
-            exitBtn.onclick = toggleFullscreen;
-            cameraContainer.appendChild(exitBtn);
+            
+            
+            // Hide any browser-generated fullscreen UI elements
+            const cleanupBrowserUI = () => {
+              // Remove any browser-generated fullscreen exit buttons
+              const browserExitElements = document.querySelectorAll('[class*="fullscreen-exit"]:not(#fullscreenExitBtn), [id*="fullscreen-exit"]:not(#fullscreenExitBtn), [data-fullscreen], [data-exit-fullscreen]');
+              browserExitElements.forEach(el => {
+                if (el.id !== 'fullscreenExitBtn') {
+                  el.style.display = 'none';
+                  el.remove();
+                }
+              });
+              
+              // Remove any browser fullscreen overlays
+              const overlays = document.querySelectorAll('[class*="fullscreen-overlay"], [class*="browser-fullscreen"]');
+              overlays.forEach(el => el.remove());
+            };
+            
+            // Run cleanup immediately and periodically
+            cleanupBrowserUI();
+            setTimeout(cleanupBrowserUI, 100);
+            setTimeout(cleanupBrowserUI, 500);
+            
+            // Set up periodic cleanup while in fullscreen
+            const cleanupInterval = setInterval(cleanupBrowserUI, 1000);
+            
+            // Store interval ID for cleanup
+            window.fullscreenCleanupInterval = cleanupInterval;
             
             isFullscreen = true;
             console.log('Entered browser fullscreen mode (like F11)');
@@ -1778,12 +2068,18 @@ INDEX_HTML = """
             
             // Remove CSS classes
             cameraContainer.classList.remove('fullscreen');
-            fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
+            fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
             
             // Remove exit button
             const exitBtn = document.getElementById('fullscreenExitBtn');
             if (exitBtn) {
               exitBtn.remove();
+            }
+            
+            // Clear cleanup interval
+            if (window.fullscreenCleanupInterval) {
+              clearInterval(window.fullscreenCleanupInterval);
+              window.fullscreenCleanupInterval = null;
             }
             
             isFullscreen = false;
@@ -1802,9 +2098,9 @@ INDEX_HTML = """
           // Fallback to CSS fullscreen if browser API fails
           if (!isFullscreen) {
             cameraContainer.classList.add('fullscreen');
-          isFullscreen = true;
+            isFullscreen = true;
             console.log('Fallback to CSS fullscreen');
-        } else {
+          } else {
             cameraContainer.classList.remove('fullscreen');
             isFullscreen = false;
             console.log('Fallback exit CSS fullscreen');
@@ -1831,6 +2127,12 @@ INDEX_HTML = """
           const exitBtn = document.getElementById('fullscreenExitBtn');
           if (exitBtn) {
             exitBtn.remove();
+          }
+          
+          // Clear cleanup interval
+          if (window.fullscreenCleanupInterval) {
+            clearInterval(window.fullscreenCleanupInterval);
+            window.fullscreenCleanupInterval = null;
           }
           
           isFullscreen = false;
@@ -2048,7 +2350,32 @@ INDEX_HTML = """
             const [x1, y1, x2, y2] = j.bbox;
             console.log('Server bbox coordinates:', { x1, y1, x2, y2 });
             console.log('Calculated width/height:', { width: x2-x1, height: y2-y1 });
-            drawFaceTracking(x1, y1, x2-x1, y2-y1, '#4CAF50', name);
+            
+            // Apply mobile fullscreen offset to server coordinates
+            const isMobileServer = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                                 window.innerWidth <= 768 || 
+                                 ('ontouchstart' in window);
+            const isFullscreenServer = document.getElementById('cameraContainer').classList.contains('fullscreen');
+            
+            let adjustedY1 = y1;
+            let adjustedY2 = y2;
+            
+            if (isMobileServer) {
+              let mobileServerOffset = 0;
+              if (isFullscreenServer) {
+                // Mobile fullscreen - moderate offset
+                mobileServerOffset = video.videoHeight * 0.15; // 15% offset for mobile fullscreen
+              } else {
+                // Mobile normal - smaller offset
+                mobileServerOffset = video.videoHeight * 0.05; // 5% offset for mobile normal
+              }
+              
+              adjustedY1 = y1 + mobileServerOffset;
+              adjustedY2 = y2 + mobileServerOffset;
+              console.log('Applied mobile offset to server coordinates:', { originalY1: y1, adjustedY1, originalY2: y2, adjustedY2, isFullscreen: isFullscreenServer, offset: mobileServerOffset });
+            }
+            
+            drawFaceTracking(x1, adjustedY1, x2-x1, adjustedY2-adjustedY1, '#4CAF50', name);
           } else {
             // Use center-based fallback with device-specific positioning
             const centerX = video.videoWidth / 2;
@@ -2058,7 +2385,30 @@ INDEX_HTML = """
                                    window.innerWidth <= 768 || 
                                    ('ontouchstart' in window);
             
-            const fallbackYOffset = isMobileFallback ? (video.videoHeight * 0.1) : (video.videoHeight * 0.05);
+            // Check if in fullscreen mode for additional offset
+            const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
+            
+            // Special handling for mobile fullscreen - much larger offset
+            let fullscreenOffset = 0;
+            if (isFullscreen && isMobileFallback) {
+              // Mobile fullscreen needs smaller offset
+              fullscreenOffset = video.videoHeight * 0.10; // 10% of video height
+            } else if (isFullscreen) {
+              // Desktop fullscreen
+              fullscreenOffset = video.videoHeight * 0.15;
+            }
+            
+            // Different offset for mobile normal vs mobile fullscreen
+            let mobileBaseOffset = 0;
+            if (isMobileFallback && !isFullscreen) {
+              // Mobile normal mode - smaller offset
+              mobileBaseOffset = video.videoHeight * 0.05; // 5% for mobile normal
+            } else if (isMobileFallback && isFullscreen) {
+              // Mobile fullscreen - larger offset
+              mobileBaseOffset = video.videoHeight * 0.20; // 20% for mobile fullscreen
+            }
+            
+            const fallbackYOffset = isMobileFallback ? mobileBaseOffset + fullscreenOffset : (video.videoHeight * 0.05);
             const centerY = video.videoHeight / 2 + fallbackYOffset;
             
             // Use larger fallback size for better visibility on mobile
@@ -2106,14 +2456,61 @@ INDEX_HTML = """
             if (j.bbox && j.bbox.length === 4) {
               const [x1, y1, x2, y2] = j.bbox;
               console.log('Cooldown bbox coordinates:', { x1, y1, x2, y2 });
-              drawFaceTracking(x1, y1, x2-x1, y2-y1, '#FFC107', 'Cooldown');
+              
+              // Apply mobile fullscreen offset to server coordinates for cooldown
+              const isMobileCooldownServer = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                                           window.innerWidth <= 768 || 
+                                           ('ontouchstart' in window);
+              const isFullscreenCooldownServer = document.getElementById('cameraContainer').classList.contains('fullscreen');
+              
+              let adjustedCooldownY1 = y1;
+              let adjustedCooldownY2 = y2;
+              
+              if (isMobileCooldownServer) {
+                let mobileCooldownServerOffset = 0;
+                if (isFullscreenCooldownServer) {
+                  // Mobile fullscreen - moderate offset
+                  mobileCooldownServerOffset = video.videoHeight * 0.15; // 15% offset for mobile fullscreen
+                } else {
+                  // Mobile normal - smaller offset
+                  mobileCooldownServerOffset = video.videoHeight * 0.05; // 5% offset for mobile normal
+                }
+                
+                adjustedCooldownY1 = y1 + mobileCooldownServerOffset;
+                adjustedCooldownY2 = y2 + mobileCooldownServerOffset;
+                console.log('Applied mobile offset to cooldown server coordinates:', { originalY1: y1, adjustedY1: adjustedCooldownY1, originalY2: y2, adjustedY2: adjustedCooldownY2, isFullscreen: isFullscreenCooldownServer, offset: mobileCooldownServerOffset });
+              }
+              
+              drawFaceTracking(x1, adjustedCooldownY1, x2-x1, adjustedCooldownY2-adjustedCooldownY1, '#FFC107', 'Cooldown');
             } else {
               // Use center-based fallback for cooldown with device detection
               const centerX = video.videoWidth / 2;
               const isMobileCooldown = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
                                      window.innerWidth <= 768 || 
                                      ('ontouchstart' in window);
-              const cooldownYOffset = isMobileCooldown ? (video.videoHeight * 0.1) : (video.videoHeight * 0.05);
+              const isFullscreenCooldown = document.getElementById('cameraContainer').classList.contains('fullscreen');
+              
+              // Special handling for mobile fullscreen cooldown
+              let fullscreenCooldownOffset = 0;
+              if (isFullscreenCooldown && isMobileCooldown) {
+                // Mobile fullscreen needs smaller offset
+                fullscreenCooldownOffset = video.videoHeight * 0.10; // 10% of video height
+              } else if (isFullscreenCooldown) {
+                // Desktop fullscreen
+                fullscreenCooldownOffset = video.videoHeight * 0.15;
+              }
+              
+              // Different offset for mobile normal vs mobile fullscreen cooldown
+              let mobileCooldownBaseOffset = 0;
+              if (isMobileCooldown && !isFullscreenCooldown) {
+                // Mobile normal mode - smaller offset
+                mobileCooldownBaseOffset = video.videoHeight * 0.05; // 5% for mobile normal
+              } else if (isMobileCooldown && isFullscreenCooldown) {
+                // Mobile fullscreen - larger offset
+                mobileCooldownBaseOffset = video.videoHeight * 0.20; // 20% for mobile fullscreen
+              }
+              
+              const cooldownYOffset = isMobileCooldown ? mobileCooldownBaseOffset + fullscreenCooldownOffset : (video.videoHeight * 0.05);
               const centerY = video.videoHeight / 2 + cooldownYOffset;
               const fallbackSize = Math.min(video.videoWidth, video.videoHeight) * 0.4;
               console.log('Using cooldown fallback coordinates:', { centerX, centerY, fallbackSize, isMobileCooldown, cooldownYOffset });
@@ -2137,14 +2534,61 @@ INDEX_HTML = """
           if (j.bbox && j.bbox.length === 4) {
             const [x1, y1, x2, y2] = j.bbox;
             console.log('Unknown face bbox coordinates:', { x1, y1, x2, y2 });
-            drawFaceTracking(x1, y1, x2-x1, y2-y1, '#FF9800', 'Unknown');
+            
+            // Apply mobile fullscreen offset to server coordinates for unknown
+            const isMobileUnknownServer = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                                       window.innerWidth <= 768 || 
+                                       ('ontouchstart' in window);
+            const isFullscreenUnknownServer = document.getElementById('cameraContainer').classList.contains('fullscreen');
+            
+            let adjustedUnknownY1 = y1;
+            let adjustedUnknownY2 = y2;
+            
+            if (isMobileUnknownServer) {
+              let mobileUnknownServerOffset = 0;
+              if (isFullscreenUnknownServer) {
+                // Mobile fullscreen - moderate offset
+                mobileUnknownServerOffset = video.videoHeight * 0.15; // 15% offset for mobile fullscreen
+              } else {
+                // Mobile normal - smaller offset
+                mobileUnknownServerOffset = video.videoHeight * 0.05; // 5% offset for mobile normal
+              }
+              
+              adjustedUnknownY1 = y1 + mobileUnknownServerOffset;
+              adjustedUnknownY2 = y2 + mobileUnknownServerOffset;
+              console.log('Applied mobile offset to unknown server coordinates:', { originalY1: y1, adjustedY1: adjustedUnknownY1, originalY2: y2, adjustedY2: adjustedUnknownY2, isFullscreen: isFullscreenUnknownServer, offset: mobileUnknownServerOffset });
+            }
+            
+            drawFaceTracking(x1, adjustedUnknownY1, x2-x1, adjustedUnknownY2-adjustedUnknownY1, '#FF9800', 'Unknown');
           } else {
             // Use center-based fallback for unknown with device detection
             const centerX = video.videoWidth / 2;
             const isMobileUnknown = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
                                   window.innerWidth <= 768 || 
                                   ('ontouchstart' in window);
-            const unknownYOffset = isMobileUnknown ? (video.videoHeight * 0.1) : (video.videoHeight * 0.05);
+            const isFullscreenUnknown = document.getElementById('cameraContainer').classList.contains('fullscreen');
+            
+            // Special handling for mobile fullscreen unknown
+            let fullscreenUnknownOffset = 0;
+            if (isFullscreenUnknown && isMobileUnknown) {
+              // Mobile fullscreen needs smaller offset
+              fullscreenUnknownOffset = video.videoHeight * 0.10; // 10% of video height
+            } else if (isFullscreenUnknown) {
+              // Desktop fullscreen
+              fullscreenUnknownOffset = video.videoHeight * 0.15;
+            }
+            
+            // Different offset for mobile normal vs mobile fullscreen unknown
+            let mobileUnknownBaseOffset = 0;
+            if (isMobileUnknown && !isFullscreenUnknown) {
+              // Mobile normal mode - smaller offset
+              mobileUnknownBaseOffset = video.videoHeight * 0.05; // 5% for mobile normal
+            } else if (isMobileUnknown && isFullscreenUnknown) {
+              // Mobile fullscreen - larger offset
+              mobileUnknownBaseOffset = video.videoHeight * 0.05; // 20% for mobile fullscreen
+            }
+            
+            const unknownYOffset = isMobileUnknown ? mobileUnknownBaseOffset + fullscreenUnknownOffset : (video.videoHeight * 0.05);
             const centerY = video.videoHeight / 2 + unknownYOffset;
             const fallbackSize = Math.min(video.videoWidth, video.videoHeight) * 0.4;
             console.log('Using unknown fallback coordinates:', { centerX, centerY, fallbackSize, isMobileUnknown, unknownYOffset });
