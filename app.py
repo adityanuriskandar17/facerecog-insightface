@@ -3763,6 +3763,20 @@ RETAKE_HTML = """
         
         setOut('Comparing with profile photo...');
         
+        // Refresh profile data before comparison to avoid session conflicts
+        try {
+          const profileRefresh = await fetch('/api/get_profile', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const profileData = await profileRefresh.json();
+          if (!profileData.ok) {
+            console.log('Profile refresh failed, proceeding with comparison anyway');
+          }
+        } catch (e) {
+          console.log('Profile refresh error, proceeding with comparison anyway:', e);
+        }
+        
         // Send to compare API
         const r = await fetch('/api/compare_with_profile', {
           method: 'POST',
@@ -5012,17 +5026,26 @@ def api_logout():
 def api_compare_with_profile():
     token = session.get('gym_token')
     if not token:
+        print("DEBUG: No token found in session for compare_with_profile")
         return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
+
+    print(f"DEBUG: compare_with_profile called with token: {token[:20]}...")
 
     # Try to get profile from session first, then from API if needed
     profile = session.get('profile_data')
     if not profile:
+        print("DEBUG: No profile in session, fetching from API")
         profile = gym_get_profile(token)
         if profile:
             session['profile_data'] = profile  # Cache for future use
+            print("DEBUG: Profile fetched and cached in session")
+        else:
+            print("DEBUG: Failed to fetch profile from API")
     
     if not profile:
         return jsonify({"ok": False, "error": "Failed to fetch profile"})
+    
+    print(f"DEBUG: Profile data type: {type(profile)}, keys: {list(profile.keys()) if isinstance(profile, dict) else 'Not a dict'}")
 
     image_b64 = request.json.get("image_b64")
     bgr_live = b64_to_bgr(image_b64)
@@ -5035,15 +5058,32 @@ def api_compare_with_profile():
     
     profile_url = profile.get("memberphoto")
     if not profile_url:
+        print("DEBUG: No memberphoto in profile data")
         return jsonify({"ok": False, "error": "No profile photo on GymMaster"})
+    
+    print(f"DEBUG: Profile photo URL: {profile_url}")
 
     try:
+        print(f"DEBUG: Attempting to download profile photo from: {profile_url}")
         r = requests.get(profile_url, timeout=15)
         r.raise_for_status()
         im = np.frombuffer(r.content, np.uint8)
         bgr_prof = cv2.imdecode(im, cv2.IMREAD_COLOR)
-    except Exception:
-        return jsonify({"ok": False, "error": "Failed to download profile photo"})
+        
+        if bgr_prof is None:
+            print(f"DEBUG: Failed to decode profile photo image")
+            return jsonify({"ok": False, "error": "Failed to decode profile photo"})
+            
+        print(f"DEBUG: Successfully downloaded and decoded profile photo, shape: {bgr_prof.shape}")
+    except requests.exceptions.Timeout:
+        print(f"DEBUG: Timeout downloading profile photo from: {profile_url}")
+        return jsonify({"ok": False, "error": "Timeout downloading profile photo"})
+    except requests.exceptions.RequestException as e:
+        print(f"DEBUG: Request error downloading profile photo: {e}")
+        return jsonify({"ok": False, "error": f"Network error downloading profile photo: {str(e)}"})
+    except Exception as e:
+        print(f"DEBUG: Unexpected error downloading profile photo: {e}")
+        return jsonify({"ok": False, "error": f"Failed to download profile photo: {str(e)}"})
 
     emb_live = extract_embedding(bgr_live)
     emb_prof = extract_embedding(bgr_prof)
