@@ -3951,77 +3951,137 @@ RETAKE_HTML = """
 
     // Add event handler for Capture Photo button
     document.getElementById('btnCapturePhoto').onclick = async () => {
+      // Check if we're in register modal or main page
+      const registerVideo = document.getElementById('registerVideo');
+      const registerCapturedImage = document.getElementById('registerCapturedImage');
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
       const capturedImage = document.getElementById('capturedImage');
       const cameraPlaceholder = document.getElementById('cameraPlaceholder');
       
-      if (!video.srcObject) {
-        setOut('Please start camera first');
-        return;
-      }
-      
-      try {
-        setOut('Capturing photo...');
+      if (registerVideo && registerCapturedImage) {
+        // Handle register modal capture
+        if (currentRegisterStep !== 3) {
+          console.log('Button 3 can only be clicked when current step is 3');
+          return;
+        }
         
-        // Capture current frame
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
+        if (!registerStream) {
+          document.getElementById('registerProgress').textContent = 'Please start camera first';
+          return;
+        }
         
-        // Show captured image
-        capturedImage.src = dataUrl;
-        capturedImage.style.display = 'block';
-        video.style.display = 'none';
-        cameraPlaceholder.style.display = 'none';
+        try {
+          const registerCanvas = document.getElementById('registerCanvas');
+          const ctx = registerCanvas.getContext('2d');
+          ctx.drawImage(registerVideo, 0, 0, registerCanvas.width, registerCanvas.height);
+          const dataUrl = registerCanvas.toDataURL('image/jpeg', 0.9);
+          
+          // Show captured image
+          registerCapturedImage.src = dataUrl;
+          registerCapturedImage.style.display = 'block';
+          registerVideo.style.display = 'none';
+          
+          // Ensure image loads properly
+          registerCapturedImage.onload = () => {
+            console.log('Captured image loaded successfully');
+          };
+          
+          // Update button states
+          document.getElementById('btnCapturePhoto').disabled = true;
+          document.getElementById('btnUpdatePhoto').disabled = false;
+          document.getElementById('btnResetPhoto').disabled = false;
+          
+          document.getElementById('registerProgress').textContent = 'Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.';
+          
+        } catch (e) {
+          document.getElementById('registerProgress').textContent = 'Capture error: ' + e.message;
+        }
+      } else {
+        // Handle main page capture
+        if (!video.srcObject) {
+          setOut('Please start camera first');
+          return;
+        }
         
-        // Update button states
-        document.getElementById('btnCapturePhoto').disabled = true;
-        document.getElementById('btnUpdatePhoto').disabled = false;
-        document.getElementById('btnResetPhoto').disabled = false;
-        
-        setOut('Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.');
-        
-        // Show success notification
-        Swal.fire({
-          title: '📸 Photo Captured!',
-          text: 'Review your photo. If satisfied, click "Update to GymMaster" to upload.',
-          icon: 'success',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#28a745',
-          timer: 3000,
-          timerProgressBar: true
-        });
-        
-      } catch (e) {
-        setOut('Capture error: ' + e.message);
-        Swal.fire({
-          title: '❌ Error',
-          text: 'Failed to capture photo: ' + e.message,
-          icon: 'error',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#dc3545'
-        });
+        try {
+          setOut('Capturing photo...');
+          
+          // Capture current frame
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
+          
+          // Show captured image
+          capturedImage.src = dataUrl;
+          capturedImage.style.display = 'block';
+          video.style.display = 'none';
+          cameraPlaceholder.style.display = 'none';
+          
+          // Update button states
+          document.getElementById('btnCapturePhoto').disabled = true;
+          document.getElementById('btnUpdatePhoto').disabled = false;
+          document.getElementById('btnResetPhoto').disabled = false;
+          
+          setOut('Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.');
+          
+          // Show success notification
+          Swal.fire({
+            title: '📸 Photo Captured!',
+            text: 'Review your photo. If satisfied, click "Update to GymMaster" to upload.',
+            icon: 'success',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#28a745',
+            timer: 3000,
+            timerProgressBar: true
+          });
+          
+        } catch (e) {
+          setOut('Capture error: ' + e.message);
+          Swal.fire({
+            title: '❌ Error',
+            text: 'Failed to capture photo: ' + e.message,
+            icon: 'error',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#dc3545'
+          });
+        }
       }
     };
 
     // Add event handler for Reset Photo button
     document.getElementById('btnResetPhoto').onclick = () => {
+      // Check if we're in register modal or main page
+      const registerVideo = document.getElementById('registerVideo');
+      const registerCapturedImage = document.getElementById('registerCapturedImage');
       const video = document.getElementById('video');
       const capturedImage = document.getElementById('capturedImage');
       const cameraPlaceholder = document.getElementById('cameraPlaceholder');
       
-      // Reset to camera view
-      video.style.display = 'block';
-      capturedImage.style.display = 'none';
-      cameraPlaceholder.style.display = 'none';
-      
-      // Update button states
-      document.getElementById('btnCapturePhoto').disabled = false;
-      document.getElementById('btnUpdatePhoto').disabled = true;
-      document.getElementById('btnResetPhoto').disabled = true;
-      
-      setOut('Photo reset. You can now capture a new photo.');
+      if (registerVideo && registerCapturedImage) {
+        // Reset register modal camera view
+        registerVideo.style.display = 'block';
+        registerCapturedImage.style.display = 'none';
+        
+        // Update button states
+        document.getElementById('btnCapturePhoto').disabled = false;
+        document.getElementById('btnUpdatePhoto').disabled = true;
+        document.getElementById('btnResetPhoto').disabled = true;
+        
+        document.getElementById('registerProgress').textContent = 'Photo reset. You can now capture a new photo.';
+      } else {
+        // Reset main page camera view
+        video.style.display = 'block';
+        capturedImage.style.display = 'none';
+        cameraPlaceholder.style.display = 'none';
+        
+        // Update button states
+        document.getElementById('btnCapturePhoto').disabled = false;
+        document.getElementById('btnUpdatePhoto').disabled = true;
+        document.getElementById('btnResetPhoto').disabled = true;
+        
+        setOut('Photo reset. You can now capture a new photo.');
+      }
     };
 
     // Add event handler for Update Profile Photo button
@@ -4318,68 +4378,9 @@ RETAKE_HTML = """
       }
     };
 
-    // Capture Photo button in modal (Step 3)
-    document.getElementById('btnCapturePhoto').onclick = async () => {
-      if (currentRegisterStep !== 3) {
-        console.log('Button 3 can only be clicked when current step is 3');
-        return;
-      }
-      
-      const registerVideo = document.getElementById('registerVideo');
-      const registerCapturedImage = document.getElementById('registerCapturedImage');
-      const cameraPlaceholder = document.getElementById('cameraPlaceholder');
-      
-      if (!registerStream) {
-        document.getElementById('registerProgress').textContent = 'Please start camera first';
-        return;
-      }
-      
-      try {
-        const registerCanvas = document.getElementById('registerCanvas');
-        const ctx = registerCanvas.getContext('2d');
-        ctx.drawImage(registerVideo, 0, 0, registerCanvas.width, registerCanvas.height);
-        const dataUrl = registerCanvas.toDataURL('image/jpeg', 0.9);
-        
-        // Show captured image
-        registerCapturedImage.src = dataUrl;
-        registerCapturedImage.style.display = 'block';
-        registerVideo.style.display = 'none';
-        
-        // Ensure image loads properly
-        registerCapturedImage.onload = () => {
-          console.log('Captured image loaded successfully');
-        };
-        
-        // Update button states
-        document.getElementById('btnCapturePhoto').disabled = true;
-        document.getElementById('btnUpdatePhoto').disabled = false;
-        document.getElementById('btnResetPhoto').disabled = false;
-        
-        document.getElementById('registerProgress').textContent = 'Photo captured! Review and click "Update to GymMaster" if satisfied.';
-        
-        // Move to next step after successful photo capture
-        nextRegisterStep();
-      } catch (e) {
-        document.getElementById('registerProgress').textContent = 'Capture error: ' + e.message;
-      }
-    };
+    // Capture Photo button in modal - handled by unified function above
 
-    // Reset Photo button in modal
-    document.getElementById('btnResetPhoto').onclick = () => {
-      const registerVideo = document.getElementById('registerVideo');
-      const registerCapturedImage = document.getElementById('registerCapturedImage');
-      
-      // Reset to camera view
-      registerVideo.style.display = 'block';
-      registerCapturedImage.style.display = 'none';
-      
-      // Update button states
-      document.getElementById('btnCapturePhoto').disabled = false;
-      document.getElementById('btnUpdatePhoto').disabled = true;
-      document.getElementById('btnResetPhoto').disabled = true;
-      
-      document.getElementById('registerProgress').textContent = 'Photo reset. You can now capture a new photo.';
-    };
+    // Reset Photo button in modal - handled by unified function above
 
     // Update Photo button in modal (Step 4)
     document.getElementById('btnUpdatePhoto').onclick = async () => {
