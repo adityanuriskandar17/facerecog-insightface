@@ -1307,10 +1307,6 @@ INDEX_HTML = """
           <i class="fas fa-stop" style="font-size: 14px;"></i>
           <span>Stop Camera</span>
         </button>
-        <button id="btnToggleOverlay" onclick="toggleOverlay()" style="padding: 12px 20px; border: none; border-radius: 8px; background: #20c997; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(32,201,151,0.3);">
-          <i class="fas fa-eye" style="font-size: 14px;"></i>
-          <span>Show Overlay</span>
-        </button>
       </div>
       
       <!-- Status Cards -->
@@ -1382,7 +1378,6 @@ INDEX_HTML = """
       let remainingCooldown = 0; // Remaining cooldown time in seconds
       let isFullscreen = false; // Fullscreen state
       let lastSuccessfulRecognitionTime = 0; // Track when user was last successfully recognized
-      let lastBoundingBox = null; // Store last bounding box info for redraw
 
     function setLog(obj) {
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
@@ -1502,113 +1497,12 @@ INDEX_HTML = """
       progressLine.style.boxShadow = '0 4px 12px rgba(0, 55, 207, 0.4)';
     }
     
-    function drawFaceTracking(x, y, width, height, color = '#00FF00', label = '') {
-      if (!overlay) return;
-      
-      const ctx = overlay.getContext('2d');
-      const videoWidth = video.videoWidth || 640;
-      const videoHeight = video.videoHeight || 480;
-      
-      // Get actual display dimensions
-      const displayWidth = video.clientWidth;
-      const displayHeight = video.clientHeight;
-      
-      // Set canvas size to match video display size (responsive)
-      overlay.width = displayWidth;
-      overlay.height = displayHeight;
-      overlay.style.width = displayWidth + 'px';
-      overlay.style.height = displayHeight + 'px';
-      
-      // Clear canvas with transparent background
-      ctx.clearRect(0, 0, overlay.width, overlay.height);
-      
-      if (x && y && width && height) {
-        // Improved scaling for mobile devices
-        const scaleX = displayWidth / videoWidth;
-        const scaleY = displayHeight / videoHeight;
-        
-        // Use uniform scaling to maintain aspect ratio
-        const scale = Math.min(scaleX, scaleY);
-        
-        // Calculate face center with proper scaling
-        const faceCenterX = (x + width / 2) * scale;
-        const faceCenterY = (y + height / 2) * scale;
-        
-        // Mirror for mobile (video is mirrored) - but only X coordinate
-        const mirroredCenterX = displayWidth - faceCenterX;
-        
-        // Adjust Y position based on device type
-        const centerX = mirroredCenterX;
-        
-        // Detect if device is mobile
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                        window.innerWidth <= 768 || 
-                        ('ontouchstart' in window);
-        
-        // Different Y offset for mobile vs desktop
-        const yOffset = isMobile ? (height * scale * 1) : (height * scale * 0.1);
-        const centerY = faceCenterY + yOffset;
-        
-        // Draw only the face outline rectangle - no circles or crosshairs
-        
-        // 5. Face outline tracking
-        const faceWidth = width * scale;
-        const faceHeight = height * scale;
-        const faceX = displayWidth - (x + width) * scale;
-        const faceY = y * scale + yOffset; // Use same offset as centerY
-        
-        // Debug logging for mobile
-        console.log('Face tracking debug:', {
-          original: { x, y, width, height },
-          scaled: { faceX, faceY, faceWidth, faceHeight },
-          center: { centerX, centerY },
-          scale: scale,
-          videoSize: { videoWidth, videoHeight },
-          displaySize: { displayWidth, displayHeight },
-          device: { isMobile, yOffset, userAgent: navigator.userAgent.substring(0, 50) }
-        });
-        
-        // Draw face outline as solid rectangle
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
-        ctx.setLineDash([]); // Solid line
-        ctx.strokeRect(faceX, faceY, faceWidth, faceHeight);
-        
-        if (label) {
-          // Draw label above face
-          ctx.fillStyle = color;
-          ctx.font = 'bold 14px Arial';
-          
-          const textMetrics = ctx.measureText(label);
-          const textPadding = 4;
-          const labelX = centerX - textMetrics.width / 2;
-          const labelY = centerY - 50;
-          
-          // Background for text
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-          ctx.fillRect(labelX - textPadding, labelY - 16, 
-                      textMetrics.width + textPadding * 2, 20);
-          
-          ctx.fillStyle = color;
-          ctx.fillText(label, labelX, labelY - 2);
-        }
-        
-        // Store tracking info for redraw
-        lastBoundingBox = { x, y, width, height, color, label };
-        
-        console.log('Face tracking debug:', {
-          center: { x: centerX, y: centerY },
-          faceRect: { x: faceX, y: faceY, width: faceWidth, height: faceHeight },
-          displaySize: { displayWidth, displayHeight }
-        });
-      }
-    }
+    // Bounding box functionality removed
 
     function clearFaceIndicator() {
       if (!overlay) return;
       const ctx = overlay.getContext('2d');
       ctx.clearRect(0, 0, overlay.width, overlay.height);
-      lastBoundingBox = null; // Clear stored face indicator info
     }
 
     function syncOverlayWithVideo() {
@@ -1623,11 +1517,7 @@ INDEX_HTML = """
       overlay.style.width = displayWidth + 'px';
       overlay.style.height = displayHeight + 'px';
       
-      // Force redraw face tracking if one exists
-      if (lastBoundingBox) {
-        const { x, y, width, height, color, label } = lastBoundingBox;
-        drawFaceTracking(x, y, width, height, color, label);
-      }
+      // Bounding box removed
       
       console.log('Overlay synced with video:', displayWidth, 'x', displayHeight);
     }
@@ -1655,11 +1545,7 @@ INDEX_HTML = """
       const ctx = overlay.getContext('2d');
       ctx.clearRect(0, 0, overlay.width, overlay.height);
       
-      // Redraw face tracking if exists
-      if (lastBoundingBox) {
-        const { x, y, width, height, color, label } = lastBoundingBox;
-        drawFaceTracking(x, y, width, height, color, label);
-      }
+      // Bounding box removed
       
       console.log('Force sync completed:', displayWidth, 'x', displayHeight);
     }
@@ -2375,7 +2261,7 @@ INDEX_HTML = """
               console.log('Applied mobile offset to server coordinates:', { originalY1: y1, adjustedY1, originalY2: y2, adjustedY2, isFullscreen: isFullscreenServer, offset: mobileServerOffset });
             }
             
-            drawFaceTracking(x1, adjustedY1, x2-x1, adjustedY2-adjustedY1, '#4CAF50', name);
+            // Bounding box removed
           } else {
             // Use center-based fallback with device-specific positioning
             const centerX = video.videoWidth / 2;
@@ -2414,7 +2300,7 @@ INDEX_HTML = """
             // Use larger fallback size for better visibility on mobile
             const fallbackSize = Math.min(video.videoWidth, video.videoHeight) * 0.4;
             console.log('Using fallback coordinates:', { centerX, centerY, fallbackSize, isMobileFallback, fallbackYOffset });
-            drawFaceTracking(centerX - fallbackSize/2, centerY - fallbackSize/2, fallbackSize, fallbackSize, '#4CAF50', name);
+            // Bounding box removed
           }
           
           // Check if user is throttled
@@ -2481,7 +2367,7 @@ INDEX_HTML = """
                 console.log('Applied mobile offset to cooldown server coordinates:', { originalY1: y1, adjustedY1: adjustedCooldownY1, originalY2: y2, adjustedY2: adjustedCooldownY2, isFullscreen: isFullscreenCooldownServer, offset: mobileCooldownServerOffset });
               }
               
-              drawFaceTracking(x1, adjustedCooldownY1, x2-x1, adjustedCooldownY2-adjustedCooldownY1, '#FFC107', 'Cooldown');
+              // Bounding box removed
             } else {
               // Use center-based fallback for cooldown with device detection
               const centerX = video.videoWidth / 2;
@@ -2514,7 +2400,7 @@ INDEX_HTML = """
               const centerY = video.videoHeight / 2 + cooldownYOffset;
               const fallbackSize = Math.min(video.videoWidth, video.videoHeight) * 0.4;
               console.log('Using cooldown fallback coordinates:', { centerX, centerY, fallbackSize, isMobileCooldown, cooldownYOffset });
-              drawFaceTracking(centerX - fallbackSize/2, centerY - fallbackSize/2, fallbackSize, fallbackSize, '#FFC107', 'Cooldown');
+              // Bounding box removed
             }
           } else if (j.gate && !j.gate.error) {
             // Auto-open gate if matched and not throttled
@@ -2568,7 +2454,7 @@ INDEX_HTML = """
               console.log('Applied mobile offset to unknown server coordinates:', { originalY1: y1, adjustedY1: adjustedUnknownY1, originalY2: y2, adjustedY2: adjustedUnknownY2, isFullscreen: isFullscreenUnknownServer, offset: mobileUnknownServerOffset });
             }
             
-            drawFaceTracking(x1, adjustedUnknownY1, x2-x1, adjustedUnknownY2-adjustedUnknownY1, '#FF9800', 'Unknown');
+            // Bounding box removed
           } else {
             // Use center-based fallback for unknown with device detection
             const centerX = video.videoWidth / 2;
@@ -2601,7 +2487,7 @@ INDEX_HTML = """
             const centerY = video.videoHeight / 2 + unknownYOffset;
             const fallbackSize = Math.min(video.videoWidth, video.videoHeight) * 0.4;
             console.log('Using unknown fallback coordinates:', { centerX, centerY, fallbackSize, isMobileUnknown, unknownYOffset });
-            drawFaceTracking(centerX - fallbackSize/2, centerY - fallbackSize/2, fallbackSize, fallbackSize, '#FF9800', 'Unknown');
+            // Bounding box removed
           }
         } else {
           updateDetectionDisplay(null, j.error || 'No face detected');
