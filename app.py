@@ -2520,7 +2520,16 @@ INDEX_HTML = """
             // Auto-open gate if matched and not throttled
             console.log('Gate opened successfully, hiding cooldown timer');
             const popupStyle = j.gate.popup_style || 'GRANTED';
-            updateDetectionDisplay(name, 'Gate opened successfully!', confidence, popupStyle);
+            
+            // Display appropriate message based on popup_style
+            let gateMessage = 'Gate opened successfully!';
+            if (popupStyle === 'DENIED') {
+              gateMessage = 'Gate Failed Opened';
+            } else if (popupStyle === 'WARNING') {
+              gateMessage = 'Gate opened with warning';
+            }
+            
+            updateDetectionDisplay(name, gateMessage, confidence, popupStyle);
             hideCountdownTimer(); // Hide timer if gate opened successfully
             
             // Record successful recognition time for cooldown calculation
