@@ -93,13 +93,21 @@ TOP2_MARGIN = 0.06          # best must beat second best by this margin
 
 def load_insightface():
     global _face_rec_model, _face_det
-    with _insightface_lock:
-        if _face_rec_model is None:
-            from insightface.app import FaceAnalysis
-            _face_rec_model = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])  # arcface_r100 / scrfd
-            _face_rec_model.prepare(ctx_id=0, det_size=(640, 640))
-            _face_det = _face_rec_model  # detector is part of FaceAnalysis
-    return _face_rec_model, _face_det
+    try:
+        with _insightface_lock:
+            if _face_rec_model is None:
+                print("DEBUG: Loading InsightFace model...")
+                from insightface.app import FaceAnalysis
+                _face_rec_model = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])  # arcface_r100 / scrfd
+                _face_rec_model.prepare(ctx_id=0, det_size=(640, 640))
+                _face_det = _face_rec_model  # detector is part of FaceAnalysis
+                print("DEBUG: InsightFace model loaded successfully")
+        return _face_rec_model, _face_det
+    except Exception as e:
+        print(f"DEBUG: Error loading InsightFace model: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
 
 
 # -------------------- DB Helpers --------------------
@@ -4450,16 +4458,26 @@ def b64_to_bgr(image_b64: str) -> Optional[np.ndarray]:
 
 
 def extract_embedding(bgr: np.ndarray) -> Optional[np.ndarray]:
-    model, det = load_insightface()
-    faces = det.get(bgr)
-    if not faces:
+    try:
+        model, det = load_insightface()
+        if model is None or det is None:
+            print("DEBUG: InsightFace model not loaded")
+            return None
+            
+        faces = det.get(bgr)
+        if not faces:
+            return None
+        # Choose largest face
+        face = max(faces, key=lambda f: (f.bbox[2]-f.bbox[0])*(f.bbox[3]-f.bbox[1]))
+        emb = face.normed_embedding  # already L2-normalized 512-d
+        if emb is None:
+            return None
+        return np.asarray(emb, dtype=np.float32)
+    except Exception as e:
+        print(f"DEBUG: extract_embedding error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
-    # Choose largest face
-    face = max(faces, key=lambda f: (f.bbox[2]-f.bbox[0])*(f.bbox[3]-f.bbox[1]))
-    emb = face.normed_embedding  # already L2-normalized 512-d
-    if emb is None:
-        return None
-    return np.asarray(emb, dtype=np.float32)
 
 def extract_embedding_with_bbox(bgr: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[Tuple[int, int, int, int]]]:
     """Extract embedding and return bounding box coordinates"""
@@ -4863,103 +4881,117 @@ def api_update_profile_photo():
 
 @app.route("/api/register_face", methods=["POST"])
 def api_register_face():
-    token = session.get('gym_token')
-    if not token:
-        return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
-
-    # Get user email from session or profile
-    profile = session.get('profile_data')
-    if not profile:
-        profile = gym_get_profile(token)
-        if profile:
-            session['profile_data'] = profile
-    
-    if not profile or not isinstance(profile, dict):
-        return jsonify({"ok": False, "error": "Failed to get user profile"})
-    
-    user_email = profile.get("email")
-    user_name = profile.get("fullname", "Unknown User")
-    if not user_email:
-        return jsonify({"ok": False, "error": "No email found in profile"})
-
-    data = request.get_json(force=True)
-    frames = data.get("frames", [])
-    if not frames:
-        return jsonify({"ok": False, "error": "No frames provided"})
-
-    print(f"DEBUG: Registering face for {user_email} with {len(frames)} frames")
-
-    # Process all frames to extract embeddings
-    embeddings = []
-    for i, frame_b64 in enumerate(frames):
-        bgr = b64_to_bgr(frame_b64)
-        if bgr is not None:
-            emb = extract_embedding(bgr)
-            if emb is not None:
-                embeddings.append(emb)
-                print(f"DEBUG: Frame {i+1}: Face detected and embedding extracted")
-            else:
-                print(f"DEBUG: Frame {i+1}: No face detected")
-        else:
-            print(f"DEBUG: Frame {i+1}: Invalid image")
-
-    if not embeddings:
-        return jsonify({"ok": False, "error": "No faces detected in any frame"})
-
-    # Average all embeddings to create a single representative embedding
-    avg_embedding = np.mean(embeddings, axis=0)
-    # Normalize the averaged embedding
-    norm = np.linalg.norm(avg_embedding) + 1e-8
-    avg_embedding = avg_embedding / norm
-
-    print(f"DEBUG: Created average embedding from {len(embeddings)} faces")
-
-    # Save to database
     try:
-        conn = get_db_conn()
-        cur = conn.cursor()
+        token = session.get('gym_token')
+        if not token:
+            return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
+
+        # Get user email from session or profile
+        profile = session.get('profile_data')
+        if not profile:
+            profile = gym_get_profile(token)
+            if profile:
+                session['profile_data'] = profile
         
-        # Convert embedding to JSON string
-        embedding_json = json.dumps(avg_embedding.tolist())
+        if not profile or not isinstance(profile, dict):
+            return jsonify({"ok": False, "error": "Failed to get user profile"})
         
-        # Check if user already exists by email in profile data
-        # We need to find the member by email from GymMaster profile
-        cur.execute("SELECT id FROM member WHERE first_name = %s AND last_name = %s", 
-                   (profile.get("firstname", ""), profile.get("surname", "")))
-        existing = cur.fetchone()
+        user_email = profile.get("email")
+        user_name = profile.get("fullname", "Unknown User")
+        if not user_email:
+            return jsonify({"ok": False, "error": "No email found in profile"})
+
+        data = request.get_json(force=True)
+        frames = data.get("frames", [])
+        if not frames:
+            return jsonify({"ok": False, "error": "No frames provided"})
+
+        print(f"DEBUG: Registering face for {user_email} with {len(frames)} frames")
+
+        # Process all frames to extract embeddings
+        embeddings = []
+        for i, frame_b64 in enumerate(frames):
+            print(f"DEBUG: Processing frame {i+1}/{len(frames)}")
+            try:
+                bgr = b64_to_bgr(frame_b64)
+                if bgr is not None:
+                    print(f"DEBUG: Frame {i+1}: Image decoded successfully, shape: {bgr.shape}")
+                    emb = extract_embedding(bgr)
+                    if emb is not None:
+                        embeddings.append(emb)
+                        print(f"DEBUG: Frame {i+1}: Face detected and embedding extracted, shape: {emb.shape}")
+                    else:
+                        print(f"DEBUG: Frame {i+1}: No face detected")
+                else:
+                    print(f"DEBUG: Frame {i+1}: Invalid image")
+            except Exception as e:
+                print(f"DEBUG: Error processing frame {i+1}: {e}")
+                import traceback
+                traceback.print_exc()
+
+        if not embeddings:
+            return jsonify({"ok": False, "error": "No faces detected in any frame"})
+
+        # Average all embeddings to create a single representative embedding
+        avg_embedding = np.mean(embeddings, axis=0)
+        # Normalize the averaged embedding
+        norm = np.linalg.norm(avg_embedding) + 1e-8
+        avg_embedding = avg_embedding / norm
+
+        print(f"DEBUG: Created average embedding from {len(embeddings)} faces")
+
+        # Save to database
+        try:
+            conn = get_db_conn()
+            cur = conn.cursor()
+            
+            # Convert embedding to JSON string
+            embedding_json = json.dumps(avg_embedding.tolist())
+            
+            # Check if user already exists by email in profile data
+            # We need to find the member by email from GymMaster profile
+            cur.execute("SELECT id FROM member WHERE first_name = %s AND last_name = %s", 
+                      (profile.get("firstname", ""), profile.get("surname", "")))
+            existing = cur.fetchone()
+            
+            if existing:
+                # Update existing record
+                cur.execute(
+                    "UPDATE member SET enc = %s WHERE id = %s",
+                    (embedding_json, existing[0])
+                )
+                print(f"DEBUG: Updated existing record for {user_name} (ID: {existing[0]})")
+            else:
+                # Insert new record with member_id from profile
+                cur.execute(
+                    "INSERT INTO member (member_id, first_name, last_name, enc) VALUES (%s, %s, %s, %s)",
+                    (profile.get("id", 0), profile.get("firstname", ""), profile.get("surname", ""), embedding_json)
+                )
+                print(f"DEBUG: Created new record for {user_name}")
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            # Clear cache to force reload
+            invalidate_member_cache()
+            
+            return jsonify({
+                "ok": True, 
+                "message": f"Face recognition registered successfully for {user_email}",
+                "frames_processed": len(frames),
+                "faces_detected": len(embeddings)
+            })
         
-        if existing:
-            # Update existing record
-            cur.execute(
-                "UPDATE member SET enc = %s WHERE id = %s",
-                (embedding_json, existing[0])
-            )
-            print(f"DEBUG: Updated existing record for {user_name} (ID: {existing[0]})")
-        else:
-            # Insert new record with member_id from profile
-            cur.execute(
-                "INSERT INTO member (member_id, first_name, last_name, enc) VALUES (%s, %s, %s, %s)",
-                (profile.get("id", 0), profile.get("firstname", ""), profile.get("surname", ""), embedding_json)
-            )
-            print(f"DEBUG: Created new record for {user_name}")
-        
-        conn.commit()
-        cur.close()
-        conn.close()
-        
-        # Clear cache to force reload
-        invalidate_member_cache()
-        
-        return jsonify({
-            "ok": True, 
-            "message": f"Face recognition registered successfully for {user_email}",
-            "frames_processed": len(frames),
-            "faces_detected": len(embeddings)
-        })
+        except Exception as e:
+            print(f"DEBUG: Database error: {e}")
+            return jsonify({"ok": False, "error": f"Database error: {str(e)}"})
         
     except Exception as e:
-        print(f"DEBUG: Database error: {e}")
-        return jsonify({"ok": False, "error": f"Database error: {str(e)}"})
+        print(f"DEBUG: Unexpected error in register_face: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": f"Unexpected error: {str(e)}"}), 500
 
 
 # -------------------- Main --------------------
