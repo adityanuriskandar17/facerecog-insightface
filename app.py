@@ -4880,20 +4880,124 @@ RETAKE_HTML = """
       let capturedFrames = [];
       let countdown = 5;
       
+      // Create prominent countdown display
+      const countdownDisplay = document.createElement('div');
+      countdownDisplay.id = 'burstCountdown';
+      countdownDisplay.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #ff6b35, #f7931e);
+        color: white;
+        padding: 30px 40px;
+        border-radius: 20px;
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(255, 107, 53, 0.4);
+        z-index: 10000;
+        animation: pulse 1s infinite;
+        border: 3px solid #fff;
+      `;
+      
+      // Add pulse animation
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes pulse {
+          0% { transform: translate(-50%, -50%) scale(1); }
+          50% { transform: translate(-50%, -50%) scale(1.05); }
+          100% { transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes flash {
+          0%, 100% { background: linear-gradient(135deg, #ff6b35, #f7931e); }
+          50% { background: linear-gradient(135deg, #ff8c42, #ffa726); }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      countdownDisplay.innerHTML = `
+        <div style="font-size: 18px; margin-bottom: 10px;">🚀 BURST CAPTURE STARTING</div>
+        <div id="countdownNumber" style="font-size: 48px; font-weight: 900; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">${countdown}</div>
+        <div style="font-size: 16px; margin-top: 10px;">Get ready to capture 25 frames!</div>
+      `;
+      
+      document.body.appendChild(countdownDisplay);
+      
       progress.textContent = `Burst capture starting in ${countdown} seconds...`;
       document.getElementById('btnBurstCapture').disabled = true;
       
-      // Countdown
+      // Enhanced countdown with visual feedback
       const countdownInterval = setInterval(() => {
         countdown--;
+        const countdownNumber = document.getElementById('countdownNumber');
+        if (countdownNumber) {
+          countdownNumber.textContent = countdown;
+          // Flash effect for last 3 seconds
+          if (countdown <= 3) {
+            countdownDisplay.style.animation = 'flash 0.5s infinite';
+          }
+        }
         progress.textContent = `Burst capture starting in ${countdown} seconds...`;
         if (countdown <= 0) {
           clearInterval(countdownInterval);
+          document.body.removeChild(countdownDisplay);
           startBurstCapture();
         }
       }, 1000);
       
       function startBurstCapture() {
+        // Create prominent frame capture notification
+        const frameNotification = document.createElement('div');
+        frameNotification.id = 'frameCaptureNotification';
+        frameNotification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(135deg, #4CAF50, #45a049);
+          color: white;
+          padding: 20px 30px;
+          border-radius: 15px;
+          font-size: 20px;
+          font-weight: bold;
+          text-align: center;
+          box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
+          z-index: 10000;
+          animation: slideDown 0.5s ease-out;
+          border: 2px solid #fff;
+          min-width: 300px;
+        `;
+        
+        // Add slide animation
+        const frameStyle = document.createElement('style');
+        frameStyle.textContent = `
+          @keyframes slideDown {
+            from { transform: translateX(-50%) translateY(-100px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+          }
+          @keyframes framePulse {
+            0% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.02); }
+            100% { transform: translateX(-50%) scale(1); }
+          }
+        `;
+        document.head.appendChild(frameStyle);
+        
+        frameNotification.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+            <div style="font-size: 24px;">📸</div>
+            <div>
+              <div style="font-size: 16px; margin-bottom: 5px;">CAPTURING FRAMES</div>
+              <div id="frameCount" style="font-size: 28px; font-weight: 900;">0 / 25</div>
+            </div>
+            <div style="font-size: 24px;">📸</div>
+          </div>
+          <div style="margin-top: 10px; font-size: 14px; opacity: 0.9;">Please stay still and look at the camera</div>
+        `;
+        
+        document.body.appendChild(frameNotification);
+        
         progress.textContent = 'Capturing photos... (5 seconds)';
         
         burstInterval = setInterval(() => {
@@ -4906,12 +5010,59 @@ RETAKE_HTML = """
           ctx.drawImage(registerVideo, 0, 0, tempCanvas.width, tempCanvas.height);
           const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
           capturedFrames.push(dataUrl);
+          
+          // Update frame count with animation
+          const frameCount = document.getElementById('frameCount');
+          if (frameCount) {
+            frameCount.textContent = `${capturedFrames.length} / 25`;
+            frameNotification.style.animation = 'framePulse 0.3s ease-out';
+            setTimeout(() => {
+              frameNotification.style.animation = '';
+            }, 300);
+          }
+          
           progress.textContent = `Photo ${capturedFrames.length} captured...`;
         }, 200); // Take photo every 200ms
         
         setTimeout(async () => {
           clearInterval(burstInterval);
           burstInterval = null;
+          
+          // Remove frame notification
+          const frameNotification = document.getElementById('frameCaptureNotification');
+          if (frameNotification) {
+            document.body.removeChild(frameNotification);
+          }
+          
+          // Show completion notification
+          const completionNotification = document.createElement('div');
+          completionNotification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(33, 150, 243, 0.4);
+            z-index: 10000;
+            animation: slideDown 0.5s ease-out;
+            border: 2px solid #fff;
+            min-width: 300px;
+          `;
+          completionNotification.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+              <div style="font-size: 24px;">✅</div>
+              <div>CAPTURE COMPLETE! Processing ${capturedFrames.length} frames...</div>
+              <div style="font-size: 24px;">✅</div>
+            </div>
+          `;
+          document.body.appendChild(completionNotification);
+          
           progress.textContent = 'Sending photos for face encoding...';
           
           // Send frames to server for encoding
@@ -4921,6 +5072,11 @@ RETAKE_HTML = """
             body: JSON.stringify({ frames: capturedFrames })
           });
           const j = await r.json();
+          
+          // Remove completion notification
+          if (completionNotification) {
+            document.body.removeChild(completionNotification);
+          }
           
           if (j.ok) {
             progress.textContent = 'Face recognition registered successfully!';
