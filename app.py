@@ -3911,84 +3911,192 @@ RETAKE_HTML = """
   
   <!-- Modal for Face Registration -->
   <div id="registerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;">
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 12px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; position: relative;">
-      <!-- Close Button di Pojok Kanan Atas -->
-      <button id="btnCloseRegister" style="position: absolute; top: 16px; right: 16px; padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 14px; z-index: 10; box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);">
-        <i class="fas fa-times"></i>
-        <span>Close</span>
-      </button>
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1a2e; padding: 0; border-radius: 16px; max-width: 900px; width: 95%; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
       
-      <h2 style="text-align: center; margin-bottom: 24px; color: #333;">Register Face Recognition</h2>
+      <!-- Header with Blue Title and Red Close Button -->
+      <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 24px 32px; border-radius: 16px 16px 0 0; position: relative;">
+        <h2 style="text-align: center; margin: 0; color: #4a9eff; font-size: 28px; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Register Face Recognition</h2>
+        <button id="btnCloseRegister" style="position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; background: #dc3545; color: white; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; z-index: 10; box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4); transition: all 0.3s ease;">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
       
-      <!-- Camera Section -->
-      <div style="text-align: center; margin: 20px 0;">
-        <div style="position: relative; width: 100%; max-width: 500px; height: 300px; margin: 0 auto; background: #111; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-          <video id="registerVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 2; background: #000;"></video>
-          <img id="registerCapturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 3; transform: scaleX(-1);" />
-          <div id="cameraPlaceholder" style="width: 100%; height: 100%; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d; position: absolute; top: 0; left: 0; border-radius: 12px;">
-            <i class="fas fa-camera" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
-            <div style="font-size: 18px; font-weight: 500;">Camera Inactive</div>
+      <!-- Camera Section with Dark Theme -->
+      <div class="camera-section" style="padding: 32px; text-align: center;">
+        <div class="camera-container" style="position: relative; width: 100%; max-width: 600px; height: 400px; margin: 0 auto; background: #0f0f23; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.4); border: 2px solid #2a2a3e;">
+          <video id="registerVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; border-radius: 14px; position: absolute; top: 0; left: 0; z-index: 2; background: #000;"></video>
+          <img id="registerCapturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: contain; border-radius: 14px; position: absolute; top: 0; left: 0; z-index: 3; transform: scaleX(-1);" />
+          <div id="cameraPlaceholder" style="width: 100%; height: 100%; background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #8a8a9e; position: absolute; top: 0; left: 0; border-radius: 14px;">
+            <div style="width: 80px; height: 60px; background: #2a2a3e; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+              <i class="fas fa-camera" style="font-size: 32px; color: #6c757d;"></i>
+            </div>
+            <div style="font-size: 20px; font-weight: 500; color: #8a8a9e;">Camera Inactive</div>
           </div>
         </div>
       </div>
       
-      <style>
-        @media (max-width: 768px) {
-          #registerVideo, #registerCapturedImage {
-            object-fit: contain !important;
-          }
-        }
-        @media (max-width: 480px) {
-          #registerVideo, #registerCapturedImage {
-            object-fit: contain !important;
-          }
-        }
-      </style>
-      
-      <!-- Control Buttons -->
-      <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 20px 0;">
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="font-size: 16px; color: #333; font-weight: bold;">1</span>
-          <button id="btnStartRegister" class="register-sequential" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-play"></i>
-            <span>Start Camera</span>
-        </button>
+      <!-- Step Buttons with New Design -->
+      <div style="padding: 0 32px 24px 32px;">
+        <div class="step-buttons" style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin-bottom: 24px;">
+          <!-- Step 1: Start Camera -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <span style="font-size: 14px; color: #4a9eff; font-weight: 600; background: rgba(74, 158, 255, 0.1); padding: 4px 12px; border-radius: 12px;">Step 1</span>
+            <button id="btnStartRegister" class="register-sequential step-button" style="padding: 16px 24px; background: linear-gradient(135deg, #4a9eff 0%, #357abd 100%); color: white; border: none; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 500; box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3); transition: all 0.3s ease; min-width: 160px;">
+              <i class="fas fa-camera" style="font-size: 18px;"></i>
+              <span>Start Camera</span>
+            </button>
+          </div>
+          
+          <!-- Step 2: Burst Capture -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <span style="font-size: 14px; color: #8a8a9e; font-weight: 600; background: rgba(138, 138, 158, 0.1); padding: 4px 12px; border-radius: 12px;">Step 2</span>
+            <button id="btnBurstCapture" class="register-sequential step-button" disabled style="padding: 16px 24px; background: #2a2a3e; color: #8a8a9e; border: none; border-radius: 12px; cursor: not-allowed; display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 500; min-width: 160px; opacity: 0.6;">
+              <i class="fas fa-bolt" style="font-size: 18px;"></i>
+              <span>Burst Capture</span>
+            </button>
+          </div>
+          
+          <!-- Step 3: Capture Photo -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <span style="font-size: 14px; color: #8a8a9e; font-weight: 600; background: rgba(138, 138, 158, 0.1); padding: 4px 12px; border-radius: 12px;">Step 3</span>
+            <button id="btnCapturePhoto" class="register-sequential step-button" disabled style="padding: 16px 24px; background: #2a2a3e; color: #8a8a9e; border: none; border-radius: 12px; cursor: not-allowed; display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 500; min-width: 160px; opacity: 0.6;">
+              <i class="fas fa-camera" style="font-size: 18px;"></i>
+              <span>Capture Photo</span>
+            </button>
+          </div>
+          
+          <!-- Step 4: Update Photo -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <span style="font-size: 14px; color: #8a8a9e; font-weight: 600; background: rgba(138, 138, 158, 0.1); padding: 4px 12px; border-radius: 12px;">Step 4</span>
+            <button id="btnUpdatePhoto" class="register-sequential step-button" disabled style="padding: 16px 24px; background: #2a2a3e; color: #8a8a9e; border: none; border-radius: 12px; cursor: not-allowed; display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 500; min-width: 160px; opacity: 0.6;">
+              <i class="fas fa-upload" style="font-size: 18px;"></i>
+              <span>Update Photo</span>
+            </button>
+          </div>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="font-size: 16px; color: #333; font-weight: bold;">2</span>
-          <button id="btnBurstCapture" class="register-sequential" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-bolt"></i>
-            <span>Burst Capture</span>
+        
+        <!-- Reset Photo Button (Step 5) -->
+        <div style="display: flex; justify-content: center; margin-top: 16px;">
+          <button id="btnResetPhoto" class="reset-button" style="padding: 16px 32px; background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); color: white; border: none; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 500; box-shadow: 0 4px 12px rgba(32, 201, 151, 0.3); transition: all 0.3s ease;">
+            <i class="fas fa-redo" style="font-size: 18px;"></i>
+            <span>Reset Photo</span>
           </button>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="font-size: 16px; color: #333; font-weight: bold;">3</span>
-          <button id="btnCapturePhoto" class="register-sequential" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-camera"></i>
-            <span>Capture Photo</span>
-        </button>
-        </div>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="font-size: 16px; color: #333; font-weight: bold;">4</span>
-          <button id="btnUpdatePhoto" class="register-sequential" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-upload"></i>
-            <span>Update Photo</span>
-        </button>
-        </div>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="font-size: 16px; color: #333; font-weight: bold;">5</span>
-          <button id="btnResetPhoto" style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-redo"></i>
-            <span>Reset Photo</span>
-        </button>
+        
+        <!-- Instructional Text -->
+        <div class="instruction-text" style="text-align: center; margin-top: 24px; padding: 16px; background: rgba(74, 158, 255, 0.05); border-radius: 12px; border: 1px solid rgba(74, 158, 255, 0.1);">
+          <p style="margin: 0; color: #8a8a9e; font-size: 14px; line-height: 1.5;">Follow the steps above to register your face for secure access.</p>
         </div>
       </div>
       
       <!-- Progress and Status -->
-      <div id="registerProgress" style="margin: 16px 0; font-size: 14px; color: #666; text-align: center; min-height: 20px;"></div>
+      <div id="registerProgress" style="margin: 0 32px 24px 32px; font-size: 14px; color: #8a8a9e; text-align: center; min-height: 20px; padding: 12px; background: rgba(138, 138, 158, 0.05); border-radius: 8px;"></div>
       <canvas id="registerCanvas" style="display: none;"></canvas>
     </div>
   </div>
+  
+  <style>
+    /* Responsive styles for Face Registration Modal */
+    @media (max-width: 768px) {
+      #registerModal > div {
+        width: 98% !important;
+        max-width: 98% !important;
+        margin: 10px !important;
+        border-radius: 12px !important;
+      }
+      
+      #registerModal h2 {
+        font-size: 24px !important;
+        padding: 0 20px !important;
+      }
+      
+      #registerModal .camera-section {
+        padding: 20px !important;
+      }
+      
+      #registerModal .camera-container {
+        height: 300px !important;
+        max-width: 100% !important;
+      }
+      
+      #registerModal .step-buttons {
+        flex-direction: column !important;
+        gap: 12px !important;
+        padding: 0 20px !important;
+      }
+      
+      #registerModal .step-button {
+        width: 100% !important;
+        min-width: auto !important;
+        justify-content: center !important;
+      }
+      
+      #registerModal .reset-button {
+        width: 100% !important;
+        margin: 0 20px !important;
+      }
+      
+      #registerModal .instruction-text {
+        margin: 16px 20px !important;
+        padding: 12px !important;
+      }
+      
+      #registerModal #registerProgress {
+        margin: 0 20px 20px 20px !important;
+        padding: 10px !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      #registerModal > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 5px !important;
+        border-radius: 8px !important;
+      }
+      
+      #registerModal h2 {
+        font-size: 20px !important;
+        padding: 0 16px !important;
+      }
+      
+      #registerModal .camera-section {
+        padding: 16px !important;
+      }
+      
+      #registerModal .camera-container {
+        height: 250px !important;
+      }
+      
+      #registerModal .step-buttons {
+        padding: 0 16px !important;
+        gap: 10px !important;
+      }
+      
+      #registerModal .step-button {
+        padding: 12px 16px !important;
+        font-size: 14px !important;
+      }
+      
+      #registerModal .reset-button {
+        margin: 0 16px !important;
+        padding: 12px 24px !important;
+        font-size: 14px !important;
+      }
+      
+      #registerModal .instruction-text {
+        margin: 12px 16px !important;
+        padding: 10px !important;
+        font-size: 13px !important;
+      }
+      
+      #registerModal #registerProgress {
+        margin: 0 16px 16px 16px !important;
+        padding: 8px !important;
+        font-size: 12px !important;
+      }
+    }
+  </style>
   
   <script>
     const log = document.getElementById('log');
