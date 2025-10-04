@@ -2702,7 +2702,7 @@ INDEX_HTML = """
           const fullscreenBtn = document.getElementById('fullscreenBtn');
           
           cameraContainer.classList.remove('fullscreen');
-          fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
+          fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
           
           // Remove exit button
           const exitBtn = document.getElementById('fullscreenExitBtn');
