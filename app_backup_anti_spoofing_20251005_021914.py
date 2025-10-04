@@ -76,9 +76,6 @@ def startup_optimization():
 # Anti-Spoofing Protection
 from liveness_detection import SimpleLivenessDetector
 
-# Anti-Spoofing Protection
-from liveness_detection import SimpleLivenessDetector
-
 
 # Call startup optimization when module loads
 if __name__ == "__main__":
@@ -267,9 +264,6 @@ _insightface_lock = threading.Lock()
 # Cache refresh system - optimized for better performance
 _LAST_CACHE_REFRESH = 0  # Timestamp of last cache refresh
 _CACHE_REFRESH_INTERVAL = 3600  # 1 hour instead of 30 minutes  # 30 minutes - refresh cache every 30 minutes (increased from 5)
-
-# Anti-spoofing protection
-_liveness_detector = None
 
 # Redis cache keys
 REDIS_MEMBER_CACHE_KEY = "face_gate:member_encodings"
@@ -5398,13 +5392,6 @@ def extract_embedding_with_liveness(bgr: np.ndarray) -> Tuple[Optional[np.ndarra
     """
     Extract embedding dengan liveness detection untuk mencegah spoofing
     """
-    global _liveness_detector
-    
-    # Initialize liveness detector if not already done
-    if _liveness_detector is None:
-        from liveness_detection import SimpleLivenessDetector
-        _liveness_detector = SimpleLivenessDetector()
-    
     model, det = load_insightface()
     if model is None or det is None:
         return None, None, False, 0.0

@@ -73,12 +73,6 @@ def startup_optimization():
         print(f"   ✗ Redis test failed: {e}")
     
     print("DEBUG: Startup optimization completed!")
-# Anti-Spoofing Protection
-from liveness_detection import SimpleLivenessDetector
-
-# Anti-Spoofing Protection
-from liveness_detection import SimpleLivenessDetector
-
 
 # Call startup optimization when module loads
 if __name__ == "__main__":
@@ -267,9 +261,6 @@ _insightface_lock = threading.Lock()
 # Cache refresh system - optimized for better performance
 _LAST_CACHE_REFRESH = 0  # Timestamp of last cache refresh
 _CACHE_REFRESH_INTERVAL = 3600  # 1 hour instead of 30 minutes  # 30 minutes - refresh cache every 30 minutes (increased from 5)
-
-# Anti-spoofing protection
-_liveness_detector = None
 
 # Redis cache keys
 REDIS_MEMBER_CACHE_KEY = "face_gate:member_encodings"
@@ -5393,47 +5384,6 @@ def extract_embedding_with_bbox(bgr: np.ndarray) -> Tuple[Optional[np.ndarray], 
     return np.asarray(emb, dtype=np.float32), (x1, y1, x2, y2)
 
 
-
-def extract_embedding_with_liveness(bgr: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[Tuple[int, int, int, int]], bool, float]:
-    """
-    Extract embedding dengan liveness detection untuk mencegah spoofing
-    """
-    global _liveness_detector
-    
-    # Initialize liveness detector if not already done
-    if _liveness_detector is None:
-        from liveness_detection import SimpleLivenessDetector
-        _liveness_detector = SimpleLivenessDetector()
-    
-    model, det = load_insightface()
-    if model is None or det is None:
-        return None, None, False, 0.0
-    
-    faces = det.get(bgr)
-    if not faces:
-        return None, None, False, 0.0
-    
-    # Pilih wajah terbesar
-    face = max(faces, key=lambda f: (f.bbox[2]-f.bbox[0])*(f.bbox[3]-f.bbox[1]))
-    
-    # Convert bbox ke integer coordinates
-    bbox = face.bbox
-    x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
-    
-    # Liveness detection
-    is_live, confidence, message = _liveness_detector.detect_liveness(bgr, (x1, y1, x2, y2))
-    
-    if not is_live:
-        print(f"DEBUG: Liveness detection failed: {message}")
-        return None, None, False, confidence
-    
-    # Get embedding
-    emb = face.normed_embedding
-    if emb is None:
-        return None, None, False, 0.0
-    
-    return np.asarray(emb, dtype=np.float32), (x1, y1, x2, y2), True, confidence
-
 # -------------------- API Endpoints --------------------
 @app.route("/api/recognize_open_gate", methods=["POST"])
 def api_recognize_open_gate():
@@ -5450,18 +5400,9 @@ def api_recognize_open_gate():
     if bgr is None:
         return jsonify({"ok": False, "error": "Invalid image"}), 400
 
-    emb, bbox, is_live, liveness_confidence = extract_embedding_with_liveness(bgr)
+    emb, bbox = extract_embedding_with_bbox(bgr)
     if emb is None:
         return jsonify({"ok": False, "error": "No face found", "bbox": None}), 200
-
-    if not is_live:
-        return jsonify({
-            "ok": False, 
-            "error": "Liveness detection failed - possible spoofing attempt", 
-            "liveness_confidence": liveness_confidence,
-            "bbox": bbox,
-            "anti_spoofing": True
-        }), 200
 
     best, best_score, second = find_best_match(emb)
     if not best:
