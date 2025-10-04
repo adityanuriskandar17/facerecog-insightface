@@ -40,51 +40,6 @@ import redis
 import requests
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
-# ==================== STARTUP OPTIMIZATION ====================
-def startup_optimization():
-    """Preload components at startup for better performance"""
-    print("DEBUG: Starting performance optimization...")
-    
-    # Preload InsightFace model
-    try:
-        print("1. Preloading InsightFace model...")
-        load_insightface()
-        print("   ✓ Model preloaded")
-    except Exception as e:
-        print(f"   ✗ Model preload failed: {e}")
-    
-    # Preload member cache
-    try:
-        print("2. Preloading member cache...")
-        ensure_cache_loaded(force_refresh=True)
-        print(f"   ✓ Cache preloaded with {len(_MEMBER_CACHE)} members")
-    except Exception as e:
-        print(f"   ✗ Cache preload failed: {e}")
-    
-    # Test Redis connection
-    try:
-        print("3. Testing Redis connection...")
-        redis_conn = get_redis_conn()
-        if redis_conn:
-            print("   ✓ Redis connected")
-        else:
-            print("   ✗ Redis connection failed")
-    except Exception as e:
-        print(f"   ✗ Redis test failed: {e}")
-    
-    print("DEBUG: Startup optimization completed!")
-# Anti-Spoofing Protection
-from liveness_detection import SimpleLivenessDetector
-
-# Anti-Spoofing Protection
-from liveness_detection import SimpleLivenessDetector
-
-
-# Call startup optimization when module loads
-if __name__ == "__main__":
-    startup_optimization()
-# ================================================================
-
 
 # -------------------- Config & Globals --------------------
 load_dotenv()
@@ -143,8 +98,8 @@ def load_insightface():
             if _face_rec_model is None:
                 print("DEBUG: Loading InsightFace model...")
                 from insightface.app import FaceAnalysis
-                _face_rec_model = FaceAnalysis(name="buffalo_s", providers=["CPUExecutionProvider"])  # Smaller model for faster detection
-                _face_rec_model.prepare(ctx_id=0, det_size=(320, 320))  # Smaller detection size for speed
+                _face_rec_model = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])  # arcface_r100 / scrfd
+                _face_rec_model.prepare(ctx_id=0, det_size=(640, 640))
                 _face_det = _face_rec_model  # detector is part of FaceAnalysis
                 print("DEBUG: InsightFace model loaded successfully")
         return _face_rec_model, _face_det
@@ -172,11 +127,10 @@ def get_redis_conn():
             port=REDIS_PORT,
             db=REDIS_DB,
             password=REDIS_PASSWORD if REDIS_PASSWORD else None,
-            decode_responses=False,
-            max_connections=10,
-            retry_on_timeout=True,  # We'll handle binary data
+            decode_responses=False,  # We'll handle binary data
             socket_connect_timeout=2,  # Reduced timeout
-            socket_timeout=2  # Reduced timeout
+            socket_timeout=2,  # Reduced timeout
+            retry_on_timeout=False  # Disable retry for faster failure
         )
         # Test connection
         r.ping()
@@ -266,15 +220,12 @@ _insightface_lock = threading.Lock()
 
 # Cache refresh system - optimized for better performance
 _LAST_CACHE_REFRESH = 0  # Timestamp of last cache refresh
-_CACHE_REFRESH_INTERVAL = 3600  # 1 hour instead of 30 minutes  # 30 minutes - refresh cache every 30 minutes (increased from 5)
-
-# Anti-spoofing protection
-_liveness_detector = None
+_CACHE_REFRESH_INTERVAL = 1800  # 30 minutes - refresh cache every 30 minutes (increased from 5)
 
 # Redis cache keys
 REDIS_MEMBER_CACHE_KEY = "face_gate:member_encodings"
 REDIS_PROFILE_CACHE_KEY = "face_gate:profile:{}"  # {} will be replaced with member_id
-REDIS_CACHE_TTL = 7200  # 2 hours for better performance  # 1 hour cache TTL
+REDIS_CACHE_TTL = 3600  # 1 hour cache TTL
 
 
 def get_member_encodings_from_redis() -> Optional[List[MemberEnc]]:
@@ -5393,47 +5344,6 @@ def extract_embedding_with_bbox(bgr: np.ndarray) -> Tuple[Optional[np.ndarray], 
     return np.asarray(emb, dtype=np.float32), (x1, y1, x2, y2)
 
 
-
-def extract_embedding_with_liveness(bgr: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[Tuple[int, int, int, int]], bool, float]:
-    """
-    Extract embedding dengan liveness detection untuk mencegah spoofing
-    """
-    global _liveness_detector
-    
-    # Initialize liveness detector if not already done
-    if _liveness_detector is None:
-        from liveness_detection import SimpleLivenessDetector
-        _liveness_detector = SimpleLivenessDetector()
-    
-    model, det = load_insightface()
-    if model is None or det is None:
-        return None, None, False, 0.0
-    
-    faces = det.get(bgr)
-    if not faces:
-        return None, None, False, 0.0
-    
-    # Pilih wajah terbesar
-    face = max(faces, key=lambda f: (f.bbox[2]-f.bbox[0])*(f.bbox[3]-f.bbox[1]))
-    
-    # Convert bbox ke integer coordinates
-    bbox = face.bbox
-    x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
-    
-    # Liveness detection
-    is_live, confidence, message = _liveness_detector.detect_liveness(bgr, (x1, y1, x2, y2))
-    
-    if not is_live:
-        print(f"DEBUG: Liveness detection failed: {message}")
-        return None, None, False, confidence
-    
-    # Get embedding
-    emb = face.normed_embedding
-    if emb is None:
-        return None, None, False, 0.0
-    
-    return np.asarray(emb, dtype=np.float32), (x1, y1, x2, y2), True, confidence
-
 # -------------------- API Endpoints --------------------
 @app.route("/api/recognize_open_gate", methods=["POST"])
 def api_recognize_open_gate():
@@ -5450,18 +5360,9 @@ def api_recognize_open_gate():
     if bgr is None:
         return jsonify({"ok": False, "error": "Invalid image"}), 400
 
-    emb, bbox, is_live, liveness_confidence = extract_embedding_with_liveness(bgr)
+    emb, bbox = extract_embedding_with_bbox(bgr)
     if emb is None:
         return jsonify({"ok": False, "error": "No face found", "bbox": None}), 200
-
-    if not is_live:
-        return jsonify({
-            "ok": False, 
-            "error": "Liveness detection failed - possible spoofing attempt", 
-            "liveness_confidence": liveness_confidence,
-            "bbox": bbox,
-            "anti_spoofing": True
-        }), 200
 
     best, best_score, second = find_best_match(emb)
     if not best:
