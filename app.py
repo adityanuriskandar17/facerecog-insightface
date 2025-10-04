@@ -611,7 +611,7 @@ LOGIN_HTML = """
             margin: 0; 
             padding: 10px; 
             background: white;
-            min-height: 100vh;
+            min-height: auto;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -1146,7 +1146,7 @@ INDEX_HTML = """
       margin: 0; 
       padding: 20px;
       background: #f5f5f5;
-      min-height: 100vh;
+      min-height: auto;
     }
     .row { display: flex; gap: 24px; align-items: flex-start; }
     video, canvas, img { 
@@ -1156,6 +1156,11 @@ INDEX_HTML = """
       border-radius: 12px; 
       object-fit: cover; 
       max-width: 100%;
+    }
+    
+    /* Fix mirror effect for video */
+    video {
+      transform: scaleX(-1); /* Flip video horizontally to fix mirror effect */
     }
     button { 
       padding: 10px 16px; 
@@ -1220,7 +1225,7 @@ INDEX_HTML = """
       top: 0 !important;
       left: 0 !important;
       width: 100vw !important;
-      height: 100vh !important;
+      height: 70vh !important;
       z-index: 9999 !important;
       background: black !important;
       display: flex !important;
@@ -1268,52 +1273,77 @@ INDEX_HTML = """
       min-height: 100vh !important;
       border-radius: 0 !important;
       object-fit: cover !important;
+      transform: scaleX(-1) !important; /* Fix mirror effect in fullscreen */
     }
     
-    /* Mobile fullscreen video - prevent excessive zoom */
+    /* Mobile fullscreen video - force 16:9 aspect ratio */
     @media (max-width: 768px) {
       .fullscreen #video {
         width: 100vw !important;
-        height: 100vh !important;
-        object-fit: contain !important;
+        height: 56.25vw !important; /* 16:9 aspect ratio (9/16 = 0.5625) */
+        max-height: 100vh !important;
+        object-fit: cover !important;
         object-position: center !important;
+        transform: scaleX(-1) !important; /* Fix mirror effect in mobile fullscreen */
       }
       
-      /* Mobile fullscreen overlay positioning */
+      /* If video is taller than screen, center it vertically */
+      .fullscreen #video {
+        position: absolute !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) scaleX(-1) !important; /* Fix mirror effect in mobile fullscreen */
+      }
+      
+      /* Mobile fullscreen overlay positioning - match 16:9 video */
       .fullscreen #overlay {
         width: 100vw !important;
-        height: 100vh !important;
+        height: 56.25vw !important; /* Match video 16:9 aspect ratio */
+        max-height: 100vh !important;
         position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
         z-index: 15 !important;
       }
     }
     
-    /* Tablet fullscreen video */
+    /* Tablet fullscreen video - force 16:9 aspect ratio */
     @media (min-width: 769px) and (max-width: 1024px) {
       .fullscreen #video {
         width: 100vw !important;
-        height: 100vh !important;
-        object-fit: contain !important;
+        height: 56.25vw !important; /* 16:9 aspect ratio */
+        max-height: 100vh !important;
+        object-fit: cover !important;
         object-position: center !important;
+        position: absolute !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) scaleX(-1) !important; /* Fix mirror effect in tablet fullscreen */
       }
       
-      /* Tablet fullscreen overlay positioning */
+      /* Tablet fullscreen overlay positioning - match 16:9 video */
       .fullscreen #overlay {
         width: 100vw !important;
-        height: 100vh !important;
+        height: 56.25vw !important; /* Match video 16:9 aspect ratio */
+        max-height: 100vh !important;
         position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
         z-index: 15 !important;
       }
     }
     
     .fullscreen #overlay {
       width: 100vw !important;
-      height: 100vh !important;
+      height: 56.25vw !important; /* 16:9 aspect ratio */
+      max-height: 100vh !important;
       border-radius: 0 !important;
+      position: absolute !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
     }
     
     .fullscreen #cameraStatus {
@@ -1775,15 +1805,39 @@ INDEX_HTML = """
       const displayWidth = video.clientWidth;
       const displayHeight = video.clientHeight;
       
-      // Ensure overlay matches video display size exactly
-      overlay.width = displayWidth;
-      overlay.height = displayHeight;
-      overlay.style.width = displayWidth + 'px';
-      overlay.style.height = displayHeight + 'px';
+      // Check if we're in fullscreen mode
+      const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
       
-      // Bounding box removed
-      
-      console.log('Overlay synced with video:', displayWidth, 'x', displayHeight);
+      if (isFullscreen) {
+        // In fullscreen, use 16:9 aspect ratio
+        const aspectRatio = 9/16; // 16:9 aspect ratio
+        const maxWidth = window.innerWidth;
+        const maxHeight = window.innerHeight;
+        
+        let overlayWidth = maxWidth;
+        let overlayHeight = maxWidth * aspectRatio;
+        
+        // If height exceeds screen, adjust based on height
+        if (overlayHeight > maxHeight) {
+          overlayHeight = maxHeight;
+          overlayWidth = maxHeight / aspectRatio;
+        }
+        
+        overlay.width = overlayWidth;
+        overlay.height = overlayHeight;
+        overlay.style.width = overlayWidth + 'px';
+        overlay.style.height = overlayHeight + 'px';
+        
+        console.log('Fullscreen overlay synced with 16:9 ratio:', overlayWidth, 'x', overlayHeight);
+      } else {
+        // Normal mode - match video display size exactly
+        overlay.width = displayWidth;
+        overlay.height = displayHeight;
+        overlay.style.width = displayWidth + 'px';
+        overlay.style.height = displayHeight + 'px';
+        
+        console.log('Overlay synced with video:', displayWidth, 'x', displayHeight);
+      }
     }
     
     // Enhanced sync function for mobile
@@ -1799,19 +1853,43 @@ INDEX_HTML = """
       const displayWidth = video.clientWidth;
       const displayHeight = video.clientHeight;
       
-      // Force overlay dimensions
-      overlay.width = displayWidth;
-      overlay.height = displayHeight;
-      overlay.style.width = displayWidth + 'px';
-      overlay.style.height = displayHeight + 'px';
+      // Check if we're in fullscreen mode
+      const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
+      
+      if (isFullscreen) {
+        // In fullscreen, use 16:9 aspect ratio
+        const aspectRatio = 9/16; // 16:9 aspect ratio
+        const maxWidth = window.innerWidth;
+        const maxHeight = window.innerHeight;
+        
+        let overlayWidth = maxWidth;
+        let overlayHeight = maxWidth * aspectRatio;
+        
+        // If height exceeds screen, adjust based on height
+        if (overlayHeight > maxHeight) {
+          overlayHeight = maxHeight;
+          overlayWidth = maxHeight / aspectRatio;
+        }
+        
+        overlay.width = overlayWidth;
+        overlay.height = overlayHeight;
+        overlay.style.width = overlayWidth + 'px';
+        overlay.style.height = overlayHeight + 'px';
+        
+        console.log('Force sync completed with 16:9 ratio:', overlayWidth, 'x', overlayHeight);
+      } else {
+        // Normal mode - force overlay dimensions
+        overlay.width = displayWidth;
+        overlay.height = displayHeight;
+        overlay.style.width = displayWidth + 'px';
+        overlay.style.height = displayHeight + 'px';
+        
+        console.log('Force sync completed:', displayWidth, 'x', displayHeight);
+      }
       
       // Clear and redraw
       const ctx = overlay.getContext('2d');
       ctx.clearRect(0, 0, overlay.width, overlay.height);
-      
-      // Bounding box removed
-      
-      console.log('Force sync completed:', displayWidth, 'x', displayHeight);
     }
 
     function setButtons(running) {
@@ -2907,7 +2985,7 @@ RETAKE_HTML = """
     body { 
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
       background: #f8f9fa;
-      min-height: 100vh;
+      min-height: auto;
       padding: 20px;
     }
     
@@ -4885,7 +4963,7 @@ def door_select():
             margin: 0; 
             padding: 20px; 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            min-height: auto;
             display: flex;
             align-items: center;
             justify-content: center;
