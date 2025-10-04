@@ -1250,19 +1250,20 @@ INDEX_HTML = """
       transition: all 0.3s ease;
     }
     
-    .status-card:hover {
+    /* Status card hover effect - DISABLED */
+    /* .status-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 12px 30px rgba(0,0,0,0.2);
-    }
+    } */
     
-    /* Status card hover effects */
-    #detectionResult:hover {
+    /* Status card hover effects - DISABLED */
+    /* #detectionResult:hover {
       box-shadow: 0 12px 30px rgba(231, 76, 60, 0.4) !important;
     }
     
     #cameraStatusCard:hover {
       box-shadow: 0 12px 30px rgba(231, 76, 60, 0.4) !important;
-    }
+    } */
     
     /* Streaming status glow effect */
     #cameraStatus {
@@ -1342,8 +1343,8 @@ INDEX_HTML = """
       box-shadow: 0 8px 25px rgba(231, 76, 60, 0.6) !important;
     }
     
-    /* Status cards hover effect */
-    .main-container:hover #detectionResult {
+    /* Status cards hover effect - DISABLED */
+    /* .main-container:hover #detectionResult {
       background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
       box-shadow: 0 12px 30px rgba(231, 76, 60, 0.4) !important;
     }
@@ -1351,7 +1352,7 @@ INDEX_HTML = """
     .main-container:hover #cameraStatusCard {
       background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
       box-shadow: 0 12px 30px rgba(231, 76, 60, 0.4) !important;
-    }
+    } */
     
     /* Countdown timer hover effect */
     .main-container:hover #countdownTimer {
@@ -1374,39 +1375,40 @@ INDEX_HTML = """
       color: #d5dbdb !important;
     }
     
-    /* Status card icons hover effect */
-    .main-container:hover #detectionResult div:first-child {
+    /* Status card icons hover effect - DISABLED */
+    /* .main-container:hover #detectionResult div:first-child {
       background: rgba(255,255,255,0.3) !important;
     }
     
     .main-container:hover #cameraStatusCard div:first-child {
       background: rgba(255,255,255,0.3) !important;
-    }
+    } */
     
     .main-container:hover #countdownTimer div:first-child {
       background: rgba(255,255,255,0.3) !important;
     }
     
-    /* Status card text hover effect */
-    .main-container:hover #detectionResult div:last-child div:first-child {
+    /* Status card text hover effect - DISABLED */
+    /* .main-container:hover #detectionResult div:last-child div:first-child {
       color: #fff !important;
     }
     
     .main-container:hover #cameraStatusCard div:last-child div:first-child {
       color: #fff !important;
-    }
+    } */
     
     .main-container:hover #countdownTimer div:last-child div:first-child {
       color: #fff !important;
     }
     
-    .main-container:hover #detectionResult div:last-child div:last-child {
+    /* Status card subtitle hover effect - DISABLED */
+    /* .main-container:hover #detectionResult div:last-child div:last-child {
       color: rgba(255,255,255,0.9) !important;
     }
     
     .main-container:hover #cameraStatusCard div:last-child div:last-child {
       color: rgba(255,255,255,0.9) !important;
-    }
+    } */
     
     .main-container:hover #countdownTimer div:last-child div:first-child {
       color: #fff !important;
