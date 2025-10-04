@@ -1194,8 +1194,9 @@ INDEX_HTML = """
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
       margin: 0; 
       padding: 20px;
-      background: #f5f5f5;
-      min-height: auto;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: white;
     }
     .row { display: flex; gap: 24px; align-items: flex-start; }
     video, canvas, img { 
@@ -1205,6 +1206,246 @@ INDEX_HTML = """
       border-radius: 12px; 
       object-fit: cover; 
       max-width: 100%;
+    }
+    
+    /* Animations */
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.7; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    @keyframes glow {
+      0% { box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4); }
+      50% { box-shadow: 0 4px 20px rgba(39, 174, 96, 0.6), 0 0 30px rgba(39, 174, 96, 0.4); }
+      100% { box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4); }
+    }
+    
+    /* Button hover effects */
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    }
+    
+    /* Control button hover effects */
+    #btnStart:hover {
+      background: linear-gradient(135deg, #2980b9, #1f618d) !important;
+      box-shadow: 0 8px 25px rgba(52, 152, 219, 0.5) !important;
+    }
+    
+    #btnStop:hover {
+      background: linear-gradient(135deg, #c0392b, #a93226) !important;
+      box-shadow: 0 8px 25px rgba(231, 76, 60, 0.5) !important;
+    }
+    
+    /* Fullscreen button hover */
+    #fullscreenBtn:hover {
+      background: rgba(52, 73, 94, 1) !important;
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    
+    /* Status card animations */
+    .status-card {
+      transition: all 0.3s ease;
+    }
+    
+    .status-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+    }
+    
+    /* Status card hover effects */
+    #detectionResult:hover {
+      box-shadow: 0 12px 30px rgba(231, 76, 60, 0.4) !important;
+    }
+    
+    #cameraStatusCard:hover {
+      box-shadow: 0 12px 30px rgba(231, 76, 60, 0.4) !important;
+    }
+    
+    /* Streaming status glow effect */
+    #cameraStatus {
+      animation: glow 3s ease-in-out infinite;
+    }
+    
+    /* Info footer hover effect */
+    .info-footer:hover {
+      background: rgba(52, 73, 94, 0.5) !important;
+      border-color: #3498db !important;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(52, 152, 219, 0.2);
+    }
+    
+    /* Camera container hover effect */
+    #cameraContainer:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5) !important;
+    }
+    
+    /* Main container hover effect */
+    .main-container:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 25px 50px rgba(0,0,0,0.4) !important;
+    }
+    
+    /* Header hover effect */
+    .main-container:hover h1 {
+      color: #5dade2 !important;
+      text-shadow: 0 2px 8px rgba(52, 152, 219, 0.5) !important;
+    }
+    
+    .main-container:hover p {
+      color: #d5dbdb !important;
+    }
+    
+    .main-container:hover #doorid {
+      background: #5dade2 !important;
+      box-shadow: 0 4px 12px rgba(52, 152, 219, 0.5) !important;
+    }
+    
+    /* Camera placeholder hover effect */
+    #cameraContainer:hover #cameraPlaceholder {
+      color: #5dade2 !important;
+    }
+    
+    #cameraContainer:hover #cameraPlaceholder div:first-child {
+      border-color: #5dade2 !important;
+      box-shadow: 0 4px 20px rgba(52, 152, 219, 0.4) !important;
+    }
+    
+    #cameraContainer:hover #cameraPlaceholder div:first-child div {
+      border-color: #5dade2 !important;
+      box-shadow: 0 2px 12px rgba(52, 152, 219, 0.5) !important;
+    }
+    
+    /* Streaming status hover effect */
+    #cameraContainer:hover #cameraStatus {
+      background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+      box-shadow: 0 6px 20px rgba(39, 174, 96, 0.6) !important;
+    }
+    
+    /* Fullscreen button hover effect */
+    #cameraContainer:hover #fullscreenBtn {
+      background: rgba(52, 73, 94, 1) !important;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4) !important;
+    }
+    
+    /* Control buttons hover effect */
+    .main-container:hover #btnStart {
+      background: linear-gradient(135deg, #5dade2, #3498db) !important;
+      box-shadow: 0 8px 25px rgba(52, 152, 219, 0.6) !important;
+    }
+    
+    .main-container:hover #btnStop {
+      background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+      box-shadow: 0 8px 25px rgba(231, 76, 60, 0.6) !important;
+    }
+    
+    /* Status cards hover effect */
+    .main-container:hover #detectionResult {
+      background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+      box-shadow: 0 12px 30px rgba(231, 76, 60, 0.4) !important;
+    }
+    
+    .main-container:hover #cameraStatusCard {
+      background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+      box-shadow: 0 12px 30px rgba(231, 76, 60, 0.4) !important;
+    }
+    
+    /* Countdown timer hover effect */
+    .main-container:hover #countdownTimer {
+      background: linear-gradient(135deg, #f39c12, #e67e22) !important;
+      box-shadow: 0 12px 30px rgba(243, 156, 18, 0.4) !important;
+    }
+    
+    /* Info footer hover effect */
+    .main-container:hover .info-footer {
+      background: rgba(52, 73, 94, 0.5) !important;
+      border-color: #3498db !important;
+      box-shadow: 0 8px 25px rgba(52, 152, 219, 0.2) !important;
+    }
+    
+    .main-container:hover .info-footer i {
+      color: #5dade2 !important;
+    }
+    
+    .main-container:hover .info-footer {
+      color: #d5dbdb !important;
+    }
+    
+    /* Status card icons hover effect */
+    .main-container:hover #detectionResult div:first-child {
+      background: rgba(255,255,255,0.3) !important;
+    }
+    
+    .main-container:hover #cameraStatusCard div:first-child {
+      background: rgba(255,255,255,0.3) !important;
+    }
+    
+    .main-container:hover #countdownTimer div:first-child {
+      background: rgba(255,255,255,0.3) !important;
+    }
+    
+    /* Status card text hover effect */
+    .main-container:hover #detectionResult div:last-child div:first-child {
+      color: #fff !important;
+    }
+    
+    .main-container:hover #cameraStatusCard div:last-child div:first-child {
+      color: #fff !important;
+    }
+    
+    .main-container:hover #countdownTimer div:last-child div:first-child {
+      color: #fff !important;
+    }
+    
+    .main-container:hover #detectionResult div:last-child div:last-child {
+      color: rgba(255,255,255,0.9) !important;
+    }
+    
+    .main-container:hover #cameraStatusCard div:last-child div:last-child {
+      color: rgba(255,255,255,0.9) !important;
+    }
+    
+    .main-container:hover #countdownTimer div:last-child div:first-child {
+      color: #fff !important;
+    }
+    
+    .main-container:hover #countdownSeconds {
+      color: #fff !important;
+    }
+    
+    .main-container:hover #countdownTimer div:last-child div:last-child {
+      color: rgba(255,255,255,0.9) !important;
+    }
+    
+    .main-container:hover #countdownTimer div:last-child div:first-child {
+      color: #fff !important;
+    }
+    
+    .main-container:hover #countdownTimer div:last-child div:last-child {
+      color: rgba(255,255,255,0.9) !important;
+    }
+    
+    .main-container:hover #countdownTimer div:last-child div:first-child {
+      color: #fff !important;
+    }
+    
+    .main-container:hover #countdownTimer div:last-child div:last-child {
+      color: rgba(255,255,255,0.9) !important;
+    }
+    
+    .main-container:hover #countdownTimer div:last-child div:first-child {
+      color: #fff !important;
+    }
+    
+    .main-container:hover #countdownTimer div:last-child div:last-child {
+      color: rgba(255,255,255,0.9) !important;
+    }
+    
+    .main-container:hover #countdownTimer div:last-child div:first-child {
+      color: #fff !important;
     }
     
     /* Fix mirror effect for video */
@@ -1251,7 +1492,31 @@ INDEX_HTML = """
         height: 100%;
         object-fit: contain !important;
       }
-      button { padding: 10px 16px; font-size: 14px; }
+      button { padding: 12px 20px; font-size: 14px; }
+      
+      /* Mobile header adjustments */
+      h1 { font-size: 24px !important; }
+      p { font-size: 14px !important; }
+      
+      /* Mobile status cards */
+      .status-card {
+        padding: 16px !important;
+        gap: 12px !important;
+      }
+      
+      .status-card div:first-child {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 14px !important;
+      }
+      
+      .status-card div:last-child div:first-child {
+        font-size: 16px !important;
+      }
+      
+      .status-card div:last-child div:last-child {
+        font-size: 12px !important;
+      }
     }
     
     @media (max-width: 480px) {
@@ -1265,7 +1530,31 @@ INDEX_HTML = """
         height: 100%;
         object-fit: contain !important;
       }
-      button { padding: 8px 12px; font-size: 12px; }
+      button { padding: 10px 16px; font-size: 12px; }
+      
+      /* Small mobile header */
+      h1 { font-size: 20px !important; }
+      p { font-size: 12px !important; }
+      
+      /* Small mobile status cards */
+      .status-card {
+        padding: 12px !important;
+        gap: 10px !important;
+      }
+      
+      .status-card div:first-child {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+      }
+      
+      .status-card div:last-child div:first-child {
+        font-size: 14px !important;
+      }
+      
+      .status-card div:last-child div:last-child {
+        font-size: 11px !important;
+      }
     }
     
     /* Fullscreen Styles */
@@ -1607,81 +1896,94 @@ INDEX_HTML = """
   </style>
 </head>
 <body>
-    <div style="max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 32px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700; color: #333;">FTL Face Recognition Gate</h1>
-        <div id="doorInfo" style="display: flex; align-items: center; gap: 8px; justify-content: center; display: none;">
-            <span style="color: #666; font-size: 14px;">Door ID:</span>
-          <span id="doorid" class="pill" style="background: #495057; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">{{ doorid or '—' }}</span>
+    <!-- Main Container with Dark Theme -->
+    <div class="main-container" style="max-width: 1000px; margin: 0 auto; background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); padding: 40px; border: 1px solid #4a5568; transition: all 0.3s ease;">
+      
+      <!-- Header Section -->
+      <div style="text-align: center; margin-bottom: 40px;">
+        <h1 style="margin: 0 0 10px 0; font-size: 32px; font-weight: 800; color: #3498db; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">FTL Face Recognition Gate</h1>
+        <p style="margin: 0; font-size: 16px; color: #bdc3c7; font-weight: 300;">Advanced Security Access Control System</p>
+        <div id="doorInfo" style="display: flex; align-items: center; gap: 8px; justify-content: center; display: none; margin-top: 15px;">
+            <span style="color: #bdc3c7; font-size: 14px;">Door ID:</span>
+          <span id="doorid" class="pill" style="background: #3498db; color: white; padding: 6px 16px; border-radius: 25px; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);">{{ doorid or '—' }}</span>
         </div>
       </div>
       
         <!-- Camera Display Area -->
-        <div id="cameraContainer" style="position: relative; width: 100%; height: 450px; background: #f8f9fa; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-          <video id="video" autoplay playsinline muted style="width: 100%; height: 100%; background: #f8f9fa; border-radius: 12px; object-fit: contain; border: none; transform: scaleX(-1); display: none;"></video>
-          <canvas id="overlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 12px; width: 100%; height: 100%; z-index: 10; background: transparent;"></canvas>
+        <div id="cameraContainer" style="position: relative; width: 100%; height: 500px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(0,0,0,0.4); border: 2px solid #4a5568; transition: all 0.3s ease;">
+          <video id="video" autoplay playsinline muted style="width: 100%; height: 100%; background: #1a1a2e; border-radius: 16px; object-fit: contain; border: none; transform: scaleX(-1); display: none;"></video>
+          <canvas id="overlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 16px; width: 100%; height: 100%; z-index: 10; background: transparent;"></canvas>
           
           <!-- Camera Placeholder -->
-          <div id="cameraPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d;">
-            <div style="width: 48px; height: 36px; border: 2px solid #6c757d; border-radius: 8px; position: relative; margin-bottom: 12px;">
-              <div style="width: 16px; height: 16px; border: 2px solid #6c757d; border-radius: 50%; position: absolute; top: 8px; left: 14px;"></div>
+          <div id="cameraPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #bdc3c7;">
+            <div style="width: 80px; height: 60px; border: 3px solid #3498db; border-radius: 12px; position: relative; margin-bottom: 20px; box-shadow: 0 4px 16px rgba(52, 152, 219, 0.3);">
+              <div style="width: 24px; height: 24px; border: 3px solid #3498db; border-radius: 50%; position: absolute; top: 16px; left: 26px; box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);"></div>
             </div>
-            <div style="font-size: 16px; font-weight: 500; color: #6c757d;">Camera Inactive</div>
+            <div style="font-size: 20px; font-weight: 600; color: #3498db; margin-bottom: 8px;">Camera Feed Active</div>
+            <div style="font-size: 14px; color: #bdc3c7; opacity: 0.8;">Position your face within the frame</div>
           </div>
           
-          <!-- Status Badge -->
-          <div id="cameraStatus" style="position: absolute; top: 12px; left: 12px; background: #495057; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">
-            Offline
+          <!-- Streaming Status Badge -->
+          <div id="cameraStatus" style="position: absolute; top: 20px; left: 20px; background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 8px 16px; border-radius: 25px; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4); display: flex; align-items: center; gap: 8px; transition: all 0.3s ease;">
+            <div style="width: 8px; height: 8px; background: white; border-radius: 50%; animation: pulse 2s infinite;"></div>
+            <span>Streaming</span>
           </div>
           
           <!-- Fullscreen Button -->
-          <button id="fullscreenBtn" style="position: absolute; top: 12px; right: 12px; background: #495057; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;">
-            <i class="fas fa-expand" style="font-size: 12px;"></i>
+          <button id="fullscreenBtn" style="position: absolute; top: 20px; right: 20px; background: rgba(52, 73, 94, 0.9); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: all 0.3s ease;">
+            <i class="fas fa-expand" style="font-size: 16px;"></i>
           </button>
         </div>
       
       <!-- Control Buttons -->
-      <div style="margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-        <button id="btnStart" disabled style="padding: 12px 20px; border: none; border-radius: 8px; background: #007bff; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,123,255,0.3);">
-          <i class="fas fa-camera" style="font-size: 14px;"></i>
+      <div style="margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
+        <button id="btnStart" disabled style="padding: 16px 32px; border: none; border-radius: 12px; background: linear-gradient(135deg, #3498db, #2980b9); color: white; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 12px; box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4); transition: all 0.3s ease; font-size: 16px;">
+          <i class="fas fa-camera" style="font-size: 18px;"></i>
           <span>Start Camera</span>
         </button>
-        <button id="btnStop" disabled style="padding: 12px 20px; border: none; border-radius: 8px; background: #dc3545; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(220,53,69,0.3);">
-          <i class="fas fa-stop" style="font-size: 14px;"></i>
+        <button id="btnStop" disabled style="padding: 16px 32px; border: none; border-radius: 12px; background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 12px; box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4); transition: all 0.3s ease; font-size: 16px;">
+          <i class="fas fa-stop" style="font-size: 18px;"></i>
           <span>Stop Camera</span>
         </button>
       </div>
       
       <!-- Status Cards -->
-      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+      <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 30px;">
         <!-- Face Detection Status -->
-        <div id="detectionResult" style="padding: 16px; border-radius: 12px; background: #f8f9fa; border: 1px solid #e9ecef; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-          <div style="width: 32px; height: 32px; border-radius: 50%; background: #dc3545; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
-            <i class="fas fa-times"></i>
+        <div id="detectionResult" class="status-card" style="padding: 20px; border-radius: 16px; background: linear-gradient(135deg, #e74c3c, #c0392b); border: 2px solid #c0392b; display: flex; align-items: center; gap: 16px; box-shadow: 0 8px 24px rgba(231, 76, 60, 0.3);">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; backdrop-filter: blur(10px);">
+            <i class="fas fa-exclamation-triangle"></i>
           </div>
-          <div id="detectedName" style="font-size: 16px; font-weight: 500; color: #333;">No face detected</div>
+          <div style="flex: 1;">
+            <div id="detectedName" style="font-size: 18px; font-weight: 700; color: white; margin-bottom: 4px;">No face detected</div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.8);">Please position your face within the frame</div>
+          </div>
         </div>
         
         <!-- Camera Status -->
-        <div id="cameraStatusCard" style="padding: 16px; border-radius: 12px; background: #f8f9fa; border: 1px solid #e9ecef; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-          <div id="cameraStatusIcon" style="width: 32px; height: 32px; border-radius: 50%; background: #dc3545; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
-            <i class="fas fa-times"></i>
+        <div id="cameraStatusCard" class="status-card" style="padding: 20px; border-radius: 16px; background: linear-gradient(135deg, #e74c3c, #c0392b); border: 2px solid #c0392b; display: flex; align-items: center; gap: 16px; box-shadow: 0 8px 24px rgba(231, 76, 60, 0.3);">
+          <div id="cameraStatusIcon" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; backdrop-filter: blur(10px);">
+            <i class="fas fa-exclamation-triangle"></i>
           </div>
-          <div id="detectionStatus" style="font-size: 16px; font-weight: 500; color: #333;">Camera inactive</div>
+          <div style="flex: 1;">
+            <div id="detectionStatus" style="font-size: 18px; font-weight: 700; color: white; margin-bottom: 4px;">doorid is required</div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.8);">Please configure the door identification</div>
+          </div>
         </div>
         
         <!-- Countdown Timer -->
-        <div id="countdownTimer" style="display: none; padding: 16px; border-radius: 12px; background: #fff3cd; border: 1px solid #ffeaa7; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.3s ease; opacity: 0; transform: translateY(10px);">
-          <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffc107; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
+        <div id="countdownTimer" style="display: none; padding: 20px; border-radius: 16px; background: linear-gradient(135deg, #f39c12, #e67e22); border: 2px solid #e67e22; display: flex; align-items: center; gap: 16px; box-shadow: 0 8px 24px rgba(243, 156, 18, 0.3); transition: all 0.3s ease; opacity: 0; transform: translateY(10px);">
+          <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; backdrop-filter: blur(10px);">
             <i class="fas fa-clock"></i>
           </div>
           <div style="flex: 1;">
-            <div style="font-size: 14px; font-weight: 500; color: #856404;">Next scan available in: <span id="countdownSeconds" style="font-weight: bold; color: #d63384;">0</span> seconds</div>
+            <div style="font-size: 16px; font-weight: 600; color: white;">Next scan available in: <span id="countdownSeconds" style="font-weight: bold; color: #fff; font-size: 18px;">0</span> seconds</div>
           </div>
         </div>
       </div>
       
-      <div style="color: #999; font-size: 14px; text-align: center; margin-top: 16px;">
+      <div class="info-footer" style="color: #bdc3c7; font-size: 16px; text-align: center; margin-top: 30px; padding: 20px; background: rgba(52, 73, 94, 0.3); border-radius: 12px; border: 1px solid #4a5568; transition: all 0.3s ease; cursor: default;">
+        <i class="fas fa-info-circle" style="margin-right: 8px; color: #3498db;"></i>
         Face recognition runs automatically when camera is active.
       </div>
     </div>
