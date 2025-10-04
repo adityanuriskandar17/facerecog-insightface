@@ -40,45 +40,6 @@ import redis
 import requests
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
-# ==================== STARTUP OPTIMIZATION ====================
-def startup_optimization():
-    """Preload components at startup for better performance"""
-    print("DEBUG: Starting performance optimization...")
-    
-    # Preload InsightFace model
-    try:
-        print("1. Preloading InsightFace model...")
-        load_insightface()
-        print("   ✓ Model preloaded")
-    except Exception as e:
-        print(f"   ✗ Model preload failed: {e}")
-    
-    # Preload member cache
-    try:
-        print("2. Preloading member cache...")
-        ensure_cache_loaded(force_refresh=True)
-        print(f"   ✓ Cache preloaded with {len(_MEMBER_CACHE)} members")
-    except Exception as e:
-        print(f"   ✗ Cache preload failed: {e}")
-    
-    # Test Redis connection
-    try:
-        print("3. Testing Redis connection...")
-        redis_conn = get_redis_conn()
-        if redis_conn:
-            print("   ✓ Redis connected")
-        else:
-            print("   ✗ Redis connection failed")
-    except Exception as e:
-        print(f"   ✗ Redis test failed: {e}")
-    
-    print("DEBUG: Startup optimization completed!")
-
-# Call startup optimization when module loads
-if __name__ == "__main__":
-    startup_optimization()
-# ================================================================
-
 
 # -------------------- Config & Globals --------------------
 load_dotenv()
@@ -137,8 +98,8 @@ def load_insightface():
             if _face_rec_model is None:
                 print("DEBUG: Loading InsightFace model...")
                 from insightface.app import FaceAnalysis
-                _face_rec_model = FaceAnalysis(name="buffalo_s", providers=["CPUExecutionProvider"])  # Smaller model for faster detection
-                _face_rec_model.prepare(ctx_id=0, det_size=(320, 320))  # Smaller detection size for speed
+                _face_rec_model = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])  # arcface_r100 / scrfd
+                _face_rec_model.prepare(ctx_id=0, det_size=(640, 640))
                 _face_det = _face_rec_model  # detector is part of FaceAnalysis
                 print("DEBUG: InsightFace model loaded successfully")
         return _face_rec_model, _face_det
@@ -166,11 +127,10 @@ def get_redis_conn():
             port=REDIS_PORT,
             db=REDIS_DB,
             password=REDIS_PASSWORD if REDIS_PASSWORD else None,
-            decode_responses=False,
-            max_connections=10,
-            retry_on_timeout=True,  # We'll handle binary data
+            decode_responses=False,  # We'll handle binary data
             socket_connect_timeout=2,  # Reduced timeout
-            socket_timeout=2  # Reduced timeout
+            socket_timeout=2,  # Reduced timeout
+            retry_on_timeout=False  # Disable retry for faster failure
         )
         # Test connection
         r.ping()
@@ -260,12 +220,12 @@ _insightface_lock = threading.Lock()
 
 # Cache refresh system - optimized for better performance
 _LAST_CACHE_REFRESH = 0  # Timestamp of last cache refresh
-_CACHE_REFRESH_INTERVAL = 3600  # 1 hour instead of 30 minutes  # 30 minutes - refresh cache every 30 minutes (increased from 5)
+_CACHE_REFRESH_INTERVAL = 1800  # 30 minutes - refresh cache every 30 minutes (increased from 5)
 
 # Redis cache keys
 REDIS_MEMBER_CACHE_KEY = "face_gate:member_encodings"
 REDIS_PROFILE_CACHE_KEY = "face_gate:profile:{}"  # {} will be replaced with member_id
-REDIS_CACHE_TTL = 7200  # 2 hours for better performance  # 1 hour cache TTL
+REDIS_CACHE_TTL = 3600  # 1 hour cache TTL
 
 
 def get_member_encodings_from_redis() -> Optional[List[MemberEnc]]:
