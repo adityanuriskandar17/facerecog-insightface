@@ -1402,14 +1402,14 @@ INDEX_HTML = """
       display: flex !important;
     }
     
-    /* Fullscreen popup styles */
+    /* Fullscreen popup styles - let popup_style determine colors */
     .fullscreen #facePopup {
       position: fixed !important;
       top: 20% !important;
       left: 50% !important;
       transform: translate(-50%, -50%) !important;
       z-index: 10002 !important;
-      background: #4CAF50 !important;
+      /* background color will be set by popup_style */
       color: white !important;
       padding: 20px 30px !important;
       border-radius: 12px !important;
@@ -2766,7 +2766,7 @@ INDEX_HTML = """
           }
         } else if (j.ok && !j.matched) {
           const popupStyle = j.popup_style || 'DENIED';
-          updateDetectionDisplay('Unknown person', 'Face detected but not recognized', null, popupStyle);
+          updateDetectionDisplay('Wajah Belum Terdaftar', 'Face detected but not recognized', null, popupStyle);
           // Draw orange face tracking for unknown face
           if (j.bbox && j.bbox.length === 4) {
             const [x1, y1, x2, y2] = j.bbox;
