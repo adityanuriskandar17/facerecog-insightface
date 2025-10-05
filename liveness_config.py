@@ -11,7 +11,7 @@ LIVENESS_THRESHOLD = 0.3  # Semakin rendah = semakin permisif (default: 0.3)
 
 # Bobot untuk kombinasi skor
 MOTION_WEIGHT = 0.4      # Bobot deteksi gerakan
-BLINK_WEIGHT = 0.3       # Bobot deteksi kedipan  
+BLINK_WEIGHT = 0.3       # Bapobot deteksi kedipan  
 TEXTURE_WEIGHT = 0.3     # Bobot analisis tekstur
 
 # Konfigurasi Motion Detection

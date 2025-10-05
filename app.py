@@ -30,6 +30,7 @@ import json
 import os
 import pickle
 import threading
+import time
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, List
 
@@ -64,11 +65,15 @@ def startup_optimization():
     # Test Redis connection
     try:
         print("3. Testing Redis connection...")
-        redis_conn = get_redis_conn()
-        if redis_conn:
-            print("   ✓ Redis connected")
+        # DIOPTIMALKAN: Check if get_redis_conn is available
+        if 'get_redis_conn' in globals():
+            redis_conn = get_redis_conn()
+            if redis_conn:
+                print("   ✓ Redis connected")
+            else:
+                print("   ✗ Redis connection failed")
         else:
-            print("   ✗ Redis connection failed")
+            print("   ⚠️ Redis function not available yet")
     except Exception as e:
         print(f"   ✗ Redis test failed: {e}")
     
@@ -76,13 +81,19 @@ def startup_optimization():
 # Anti-Spoofing Protection
 from liveness_detection import SimpleLivenessDetector
 
-# Anti-Spoofing Protection
-from liveness_detection import SimpleLivenessDetector
+# DIOPTIMALKAN: Global liveness detector untuk menghindari re-initialization
+_liveness_detector = None
 
 
 # Call startup optimization when module loads
 if __name__ == "__main__":
     startup_optimization()
+
+# DIOPTIMALKAN: Warm-up system untuk menghindari cold start
+# from warmup_system import start_warmup_system, stop_warmup_system, get_warmup_status
+
+# Auto-start warm-up system (DISABLED sementara untuk debugging)
+# start_warmup_system()
 # ================================================================
 
 
@@ -131,9 +142,9 @@ class MemberEnc:
     enc: np.ndarray  # 512-d embedding
 
 
-# Thresholds for ArcFace cosine similarity
-SIM_THRESHOLD_MATCH = 0.38  # lower = stricter (tuned; adjust if needed)
-TOP2_MARGIN = 0.06          # best must beat second best by this margin
+# DIOPTIMALKAN: Thresholds for ArcFace cosine similarity - lebih permisif
+SIM_THRESHOLD_MATCH = 0.45  # lower = stricter (adjusted to be more permissive)
+TOP2_MARGIN = 0.04          # best must beat second best by this margin (reduced)
 
 
 def load_insightface():
@@ -144,7 +155,7 @@ def load_insightface():
                 print("DEBUG: Loading InsightFace model...")
                 from insightface.app import FaceAnalysis
                 _face_rec_model = FaceAnalysis(name="buffalo_s", providers=["CPUExecutionProvider"])  # Smaller model for faster detection
-                _face_rec_model.prepare(ctx_id=0, det_size=(320, 320))  # Smaller detection size for speed
+                _face_rec_model.prepare(ctx_id=0, det_size=(224, 224))  # DIOPTIMALKAN: Smaller detection size for speed
                 _face_det = _face_rec_model  # detector is part of FaceAnalysis
                 print("DEBUG: InsightFace model loaded successfully")
         return _face_rec_model, _face_det
@@ -2509,8 +2520,8 @@ INDEX_HTML = """
         // Hide any existing countdown timer when camera starts
         hideCountdownTimer();
         
-        // Start automatic face recognition every 3 seconds for better mobile performance
-        recognitionInterval = setInterval(performRecognition, 3000);
+        // DIOPTIMALKAN: Start automatic face recognition every 1 second for faster response
+        recognitionInterval = setInterval(performRecognition, 1000);
         console.log('Recognition interval started');
       } catch (e) {
         console.error('Camera error:', e);
@@ -2549,7 +2560,7 @@ INDEX_HTML = """
       if (!stream || !doorid || !canvas || isProcessing) return;
       
       const now = Date.now();
-      if (now - lastRecognitionTime < 3000) return; // Increased throttle to 3 seconds
+      if (now - lastRecognitionTime < 1000) return; // DIOPTIMALKAN: Reduced throttle to 1 second
       lastRecognitionTime = now;
       isProcessing = true; // Set flag to prevent multiple requests
       
@@ -2588,16 +2599,47 @@ INDEX_HTML = """
         
         updateDetectionDisplay(null, 'Recognizing...');
         
-      const r = await fetch('/api/recognize_open_gate', {
+      // DIOPTIMALKAN: Add timeout untuk mencegah hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      // DIOPTIMALKAN: Use fast recognition endpoint untuk speed
+      const r = await fetch('/api/recognize_fast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ doorid: parseInt(doorid), image_b64: dataUrl.split(',')[1] })
-        });
+        body: JSON.stringify({ doorid: parseInt(doorid), image_b64: dataUrl.split(',')[1] }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
         
         let j;
         try {
           j = await r.json();
           console.log('Server response:', j);
+          console.log('Response details:', {
+            ok: j.ok,
+            matched: j.matched,
+            success: j.success,
+            name: j.name,
+            candidate: j.candidate,
+            gate: j.gate
+          });
+          
+          // DIOPTIMALKAN: Enhanced debug logging untuk troubleshooting
+          if (j.ok && j.matched) {
+            console.log('✅ Face matched successfully');
+            console.log('Name:', j.name || j.candidate?.email || 'No name');
+            console.log('Success:', j.success);
+            console.log('Gate:', j.gate);
+            if (j.gate) {
+              console.log('Gate popup_style:', j.gate.popup_style);
+              console.log('Gate throttled:', j.gate.throttled);
+            }
+          } else {
+            console.log('❌ Face not matched or error');
+            console.log('Error:', j.error);
+          }
         } catch (e) {
           console.error('JSON parse error:', e);
           updateDetectionDisplay(null, 'Server error: Invalid response');
@@ -2612,15 +2654,31 @@ INDEX_HTML = """
         }
         
         if (j.ok && j.matched && j.candidate) {
-          const name = j.candidate.email || `Member ${j.candidate.gym_member_id}`;
+          const name = j.name || j.candidate.email || `Member ${j.candidate.gym_member_id}`;
           const confidence = j.best_score;
           
           // Mark face recognition as completed
           sessionStorage.setItem('face_registered', 'true');
           updateProgressRoadmap();
           
-          // Immediately show the name and draw bounding box
-          updateDetectionDisplay(name, 'Face recognized', confidence);
+          // DIOPTIMALKAN: Handle success response dengan nama yang benar
+          if (j.success && j.gate && j.gate.popup_style === 'GRANTED') {
+            // Check-in berhasil
+            updateDetectionDisplay(name, 'Check-in successful!', confidence, j.gate.popup_style);
+            console.log('Check-in successful for:', name);
+          } else if (j.gate && j.gate.popup_style === 'GRANTED') {
+            // Check-in berhasil (fallback untuk response tanpa success field)
+            updateDetectionDisplay(name, 'Check-in successful!', confidence, j.gate.popup_style);
+            console.log('Check-in successful for:', name);
+          } else if (j.gate && j.gate.throttled) {
+            // User dalam cooldown
+            updateDetectionDisplay(name, 'User in cooldown period', confidence);
+            console.log('User in cooldown:', name);
+          } else {
+            // Face recognized but no gate action
+            updateDetectionDisplay(name, 'Face recognized', confidence);
+            console.log('Face recognized:', name);
+          }
           
           // Draw face tracking for recognized face
           if (j.bbox && j.bbox.length === 4) {
@@ -2884,9 +2942,14 @@ INDEX_HTML = """
           updateDetectionDisplay(null, j.error || 'No face detected');
           clearFaceIndicator();
         }
-      } catch (e) {
-        updateDetectionDisplay(null, 'Recognition error: ' + e.message);
-        setLog('Recognition error: ' + e.message);
+        } catch (e) {
+        if (e.name === 'AbortError') {
+          updateDetectionDisplay(null, 'Recognition timeout - please try again');
+          setLog('Recognition timeout - please try again');
+        } else {
+          updateDetectionDisplay(null, 'Recognition error: ' + e.message);
+          setLog('Recognition error: ' + e.message);
+        }
       } finally {
         isProcessing = false; // Reset flag when done
       }
@@ -5663,6 +5726,12 @@ def api_recognize_open_gate():
                 resp["gate"] = gate
                 # Mark user as recognized to start cooldown
                 mark_user_recognized(best.gym_member_id)
+                
+                # DIOPTIMALKAN: Tambahkan informasi nama untuk frontend
+                resp["name"] = best.email or f"Member {best.gym_member_id}"
+                resp["member_id"] = best.gym_member_id
+                resp["success"] = True
+                print(f"DEBUG: Response prepared with name: {resp['name']}")
             else:
                 print(f"DEBUG: Gate opening failed")
                 resp["gate"] = {"error": "Gate API failed"}
@@ -5675,6 +5744,123 @@ def api_recognize_open_gate():
 
     return jsonify(resp)
 
+# DIOPTIMALKAN: Fast recognition endpoint untuk skala besar
+@app.route("/api/recognize_fast", methods=["POST"])
+def api_recognize_fast():
+    """Fast recognition untuk mengurangi waktu 'Recognizing...'"""
+    if not CHECKIN_ENABLED:
+        return jsonify({"ok": False, "error": "Check-in disabled by config"}), 400
+
+    data = request.get_json(force=True)
+    doorid = data.get("doorid")
+    image_b64 = data.get("image_b64")
+    if not doorid:
+        return jsonify({"ok": False, "error": "doorid is required"}), 400
+
+    start_time = time.time()
+    
+    bgr = b64_to_bgr(image_b64)
+    if bgr is None:
+        return jsonify({"ok": False, "error": "Invalid image"}), 400
+
+    # DIOPTIMALKAN: Skip liveness detection untuk speed (optional)
+    emb, bbox = extract_embedding_with_bbox(bgr)
+    if emb is None:
+        return jsonify({"ok": False, "error": "No face found", "bbox": None}), 200
+
+    # DIOPTIMALKAN: Fast similarity search
+    best, best_score, second = find_best_match(emb)
+    if not best:
+        return jsonify({"ok": False, "error": "No enrolled members"}), 200
+
+    margin = best_score - second
+    threshold_score = 1.0 - SIM_THRESHOLD_MATCH
+    matched = (best_score >= threshold_score) and (margin >= TOP2_MARGIN)
+    
+    # DIOPTIMALKAN: Enhanced debug logging untuk threshold analysis
+    print(f"DEBUG: Threshold analysis - best_score: {best_score:.4f}, threshold: {threshold_score:.4f}, margin: {margin:.4f}, required_margin: {TOP2_MARGIN:.4f}")
+    print(f"DEBUG: Match result - score_ok: {best_score >= threshold_score}, margin_ok: {margin >= TOP2_MARGIN}, matched: {matched}")
+
+    processing_time = time.time() - start_time
+    print(f"DEBUG: Fast recognition completed in {processing_time:.3f}s")
+
+    resp = {
+        "ok": True,
+        "best_score": round(best_score, 4),
+        "second_best": round(second, 4),
+        "margin": round(margin, 4),
+        "matched": bool(matched),
+        "bbox": bbox,
+        "processing_time": round(processing_time, 3),
+        "candidate": {
+            "member_pk": best.member_pk,
+            "gym_member_id": best.gym_member_id,
+            "email": best.email,
+        },
+    }
+
+    if matched and best.gym_member_id:
+        # DIOPTIMALKAN: Simplified gate handling
+        try:
+            if is_user_throttled(best.gym_member_id):
+                cooldown_remaining = get_user_cooldown_remaining(best.gym_member_id)
+                resp["gate"] = {
+                    "error": "User in cooldown period", 
+                    "throttled": True,
+                    "cooldown_remaining": cooldown_remaining
+                }
+            else:
+                token = gym_login_with_memberid(best.gym_member_id)
+                if token:
+                    session['gym_token'] = token
+                    gate = gym_open_gate(token, int(doorid))
+                    if gate:
+                        resp["gate"] = gate
+                        mark_user_recognized(best.gym_member_id)
+                        
+                        # DIOPTIMALKAN: Tambahkan informasi nama untuk frontend
+                        resp["name"] = best.email or f"Member {best.gym_member_id}"
+                        resp["member_id"] = best.gym_member_id
+                        resp["success"] = True
+                        print(f"DEBUG: Fast recognition response prepared with name: {resp['name']}")
+                    else:
+                        resp["gate"] = {"error": "Gate API failed"}
+                else:
+                    resp["gate"] = {"error": "Login API failed"}
+        except Exception as e:
+            resp["gate"] = {"error": f"Gate handling error: {str(e)}"}
+    else:
+        resp["gate"] = {"error": "Face not confidently matched"}
+
+    return jsonify(resp)
+
+# DIOPTIMALKAN: Warm-up endpoints untuk menghindari cold start
+@app.route("/api/warmup/start", methods=["POST"])
+def api_warmup_start():
+    """Start warm-up system"""
+    try:
+        start_warmup_system()
+        return jsonify({"ok": True, "message": "Warm-up system started"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/warmup/status", methods=["GET"])
+def api_warmup_status():
+    """Get warm-up status"""
+    try:
+        status = get_warmup_status()
+        return jsonify({"ok": True, "status": status})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/warmup/stop", methods=["POST"])
+def api_warmup_stop():
+    """Stop warm-up system"""
+    try:
+        stop_warmup_system()
+        return jsonify({"ok": True, "message": "Warm-up system stopped"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route("/api/retake_login", methods=["POST"])
 def api_retake_login():
