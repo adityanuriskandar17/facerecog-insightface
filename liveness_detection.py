@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 import time
 from typing import Tuple, Optional, List, Dict
+from liveness_config import get_liveness_config
 
 class SimpleLivenessDetector:
     """Detector liveness sederhana tapi efektif"""
@@ -18,6 +19,7 @@ class SimpleLivenessDetector:
         self.max_buffer_size = 5
         self.blink_count = 0
         self.last_blink_time = 0
+        self.config = get_liveness_config()
         
     def detect_liveness(self, frame: np.ndarray, face_bbox: Tuple[int, int, int, int]) -> Tuple[bool, float, str]:
         """
@@ -42,11 +44,19 @@ class SimpleLivenessDetector:
         # Method 3: Texture Analysis
         texture_score = self._analyze_texture_simple(face_roi)
         
-        # Combine scores
-        total_confidence = (motion_score * 0.4 + blink_score * 0.3 + texture_score * 0.3)
+        # Combine scores menggunakan konfigurasi
+        total_confidence = (
+            motion_score * self.config['motion_weight'] + 
+            blink_score * self.config['blink_weight'] + 
+            texture_score * self.config['texture_weight']
+        )
         
-        # Threshold untuk menentukan liveness
-        is_live = total_confidence > 0.5
+        # Debug logging untuk troubleshooting
+        if self.config['debug_mode']:
+            print(f"DEBUG Liveness: motion={motion_score:.3f}, blink={blink_score:.3f}, texture={texture_score:.3f}, total={total_confidence:.3f}")
+        
+        # Threshold untuk menentukan liveness menggunakan konfigurasi
+        is_live = total_confidence > self.config['threshold']
         
         if is_live:
             message = f"Liveness verified (confidence: {total_confidence:.2f})"
@@ -76,9 +86,9 @@ class SimpleLivenessDetector:
         
         avg_motion = np.mean(motion_scores)
         
-        # Normalize motion (0-1)
+        # Normalize motion (0-1) menggunakan konfigurasi
         # Real people have natural micro-movements
-        motion_score = min(avg_motion / 20.0, 1.0)
+        motion_score = min(avg_motion / self.config['motion_sensitivity'], 1.0)
         
         return motion_score
     
@@ -119,8 +129,8 @@ class SimpleLivenessDetector:
         # Average eye openness
         avg_openness = np.mean(eye_scores)
         
-        # Normalize to 0-1
-        blink_score = min(avg_openness / 1.5, 1.0)
+        # Normalize to 0-1 menggunakan konfigurasi
+        blink_score = min(avg_openness / self.config['blink_openness_divisor'], 1.0)
         
         return blink_score
     
@@ -136,9 +146,9 @@ class SimpleLivenessDetector:
         edge_density = np.sum(edges > 0) / edges.size
         
         # Real faces have more texture variation
-        # Photos tend to be more uniform
+        # Photos tend to be more uniform - menggunakan konfigurasi
         texture_score = (
-            min(texture_variance / 500.0, 1.0) * 0.6 +
+            min(texture_variance / self.config['texture_variance_divisor'], 1.0) * 0.6 +
             edge_density * 0.4
         )
         
