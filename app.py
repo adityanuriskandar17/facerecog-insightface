@@ -185,7 +185,7 @@ def get_redis_conn():
             password=REDIS_PASSWORD if REDIS_PASSWORD else None,
             decode_responses=False,
             max_connections=10,
-            retry_on_timeout=True,  # We'll handle binary data
+            # retry_on_timeout removed - TimeoutError is retried by default in Redis 6.0+
             socket_connect_timeout=2,  # Reduced timeout
             socket_timeout=2  # Reduced timeout
         )
@@ -3987,7 +3987,11 @@ RETAKE_HTML = """
           
           if (profile.memberphoto) {
             setLog('Loading profile photo: ' + profile.memberphoto);
-            img.src = profile.memberphoto;
+            
+            // Add cache-busting parameter to ensure fresh photo is loaded
+            const photoUrl = profile.memberphoto + (profile.memberphoto.includes('?') ? '&' : '?') + 't=' + Date.now();
+            img.src = photoUrl;
+            
             img.onerror = () => {
               setLog('Error loading profile photo: ' + profile.memberphoto);
               photoPlaceholder.style.display = 'block';
@@ -5528,6 +5532,10 @@ def retake():
     if not token:
         # Redirect to login page if not logged in
         return redirect(url_for('login'))
+    
+    # Force refresh profile data to get latest photo
+    # Clear cached profile data to ensure fresh data is fetched
+    session.pop('profile_data', None)
     
     return render_template_string(RETAKE_HTML)
 
