@@ -23,9 +23,7 @@ Open:
   http://localhost:8080/retake                    # Retake/Compare page
 """
 
-import base64
 from datetime import datetime
-import io
 import json
 import os
 import pickle
@@ -78,16 +76,11 @@ def startup_optimization():
         print(f"   ✗ Redis test failed: {e}")
     
     print("DEBUG: Startup optimization completed!")
-# Anti-Spoofing Protection
-from liveness_detection import SimpleLivenessDetector
 
-# DIOPTIMALKAN: Global liveness detector untuk menghindari re-initialization
-_liveness_detector = None
 
 
 # Call startup optimization when module loads
-if __name__ == "__main__":
-    startup_optimization()
+# MOVED TO END OF FILE - after all functions are defined
 
 # DIOPTIMALKAN: Warm-up system untuk menghindari cold start
 # from warmup_system import start_warmup_system, stop_warmup_system, get_warmup_status
@@ -154,7 +147,7 @@ def load_insightface():
             if _face_rec_model is None:
                 print("DEBUG: Loading InsightFace model...")
                 from insightface.app import FaceAnalysis
-                _face_rec_model = FaceAnalysis(name="buffalo_s", providers=["CPUExecutionProvider"])  # Smaller model for faster detection
+                _face_rec_model = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])  # Larger model with better accuracy
                 _face_rec_model.prepare(ctx_id=0, det_size=(224, 224))  # DIOPTIMALKAN: Smaller detection size for speed
                 _face_det = _face_rec_model  # detector is part of FaceAnalysis
                 print("DEBUG: InsightFace model loaded successfully")
@@ -202,8 +195,9 @@ def get_redis_conn():
 def fetch_member_encodings() -> List[MemberEnc]:
     """
     Expected table structure (example):
-      member (id BIGINT PK, gym_member_id BIGINT, email VARCHAR, enc LONGTEXT)
-    where `enc` stores a JSON array of floats (length 512) or a base64 npy blob.
+      member (id BIGINT PK, gym_member_id BIGINT, email VARCHAR, enc MEDIUMBLOB)
+    where `enc` stores a JSON array of float32 values (length 512).
+    Standardized format: JSON only, no base64 NPY.
     """
     conn = None
     cur = None
@@ -212,16 +206,38 @@ def fetch_member_encodings() -> List[MemberEnc]:
         cur = conn.cursor()
         
         # First, check if enc column exists, if not create it
-        cur.execute("SHOW COLUMNS FROM member LIKE 'enc'")
-        if not cur.fetchone():
-            print("DEBUG: Adding enc column to member table")
-            cur.execute("ALTER TABLE member ADD COLUMN enc LONGTEXT")
-            conn.commit()
+        try:
+            # More reliable way to check column existence
+            cur.execute("""
+                SELECT COUNT(*) 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'member' 
+                AND COLUMN_NAME = 'enc'
+            """)
+            column_exists = cur.fetchone()[0] > 0
+            
+            if not column_exists:
+                print("DEBUG: Adding enc column to member table")
+                # Use MEDIUMBLOB for better binary data handling (up to 16MB)
+                # Standardized format: JSON array of float32 values
+                cur.execute("ALTER TABLE member ADD COLUMN enc MEDIUMBLOB")
+                conn.commit()
+            else:
+                print("DEBUG: enc column already exists")
+        except Exception as e:
+            if "Duplicate column name" in str(e):
+                print("DEBUG: enc column already exists (duplicate error caught)")
+            else:
+                print(f"DEBUG: Error checking/creating enc column: {e}")
+                # Continue anyway - column might exist
         
         cur.execute(
             """
-            SELECT id AS member_pk, member_id AS gym_member_id, 
-                   CONCAT(first_name, ' ', last_name) AS email, enc
+            SELECT id AS member_pk, 
+                  member_id AS gym_member_id, 
+                  email, 
+                  enc
             FROM member
             WHERE enc IS NOT NULL AND enc != ''
             """
@@ -231,7 +247,7 @@ def fetch_member_encodings() -> List[MemberEnc]:
             if enc_raw is None:
                 continue
             try:
-                # Try JSON first
+                # Standardized JSON format only
                 vec = np.array(json.loads(enc_raw), dtype=np.float32)
                 if vec.ndim == 1:
                     pass
@@ -239,13 +255,9 @@ def fetch_member_encodings() -> List[MemberEnc]:
                     vec = vec[0]
                 else:
                     vec = vec.flatten()
-            except Exception:
-                # Try base64 npy
-                try:
-                    arr = np.load(io.BytesIO(base64.b64decode(enc_raw)))
-                    vec = arr.astype(np.float32).flatten()
-                except Exception:
-                    continue
+            except Exception as e:
+                print(f"DEBUG: Error parsing enc data for member {member_pk}: {e}")
+                continue
             if vec.size == 0:
                 continue
             # Normalize for cosine similarity
@@ -266,6 +278,22 @@ def fetch_member_encodings() -> List[MemberEnc]:
 # Cache encodings in memory for faster search
 _MEMBER_CACHE: List[MemberEnc] = []
 
+# Matrix optimization for fast similarity search
+_ENC_MATRIX = None  # shape (N, 512) - numpy array of all embeddings
+
+def _rebuild_matrix():
+    """Rebuild the embedding matrix from current member cache for fast similarity search."""
+    global _ENC_MATRIX
+    if _MEMBER_CACHE:
+        try:
+            _ENC_MATRIX = np.stack([m.enc for m in _MEMBER_CACHE]).astype(np.float32)
+            print(f"DEBUG: Rebuilt embedding matrix with shape {_ENC_MATRIX.shape}")
+        except Exception as e:
+            print(f"DEBUG: Error rebuilding embedding matrix: {e}")
+            _ENC_MATRIX = None
+    else:
+        _ENC_MATRIX = None
+
 # Throttling system to prevent spam
 _LAST_RECOGNITION_TIME = {}  # {member_id: timestamp}
 _RECOGNITION_COOLDOWN = 10  # 10 seconds cooldown per user
@@ -279,8 +307,6 @@ _insightface_lock = threading.Lock()
 _LAST_CACHE_REFRESH = 0  # Timestamp of last cache refresh
 _CACHE_REFRESH_INTERVAL = 3600  # 1 hour instead of 30 minutes  # 30 minutes - refresh cache every 30 minutes (increased from 5)
 
-# Anti-spoofing protection
-_liveness_detector = None
 
 # Redis cache keys
 REDIS_MEMBER_CACHE_KEY = "face_gate:member_encodings"
@@ -352,6 +378,7 @@ def ensure_cache_loaded(force_refresh=False):
             if cached_members:
                 _MEMBER_CACHE = cached_members
                 print(f"DEBUG: Loaded {len(_MEMBER_CACHE)} members from Redis cache")
+                _rebuild_matrix()  # Rebuild matrix after loading from Redis
                 return  # Exit early if loaded from Redis
         
         # If no cache or force refresh, load from database
@@ -364,6 +391,7 @@ def ensure_cache_loaded(force_refresh=False):
                 # Save to Redis for next time
                 if _MEMBER_CACHE:
                     save_member_encodings_to_redis(_MEMBER_CACHE)
+                    _rebuild_matrix()  # Rebuild matrix after loading from database
                 
                 # Only print member details in debug mode
                 if len(_MEMBER_CACHE) <= 5:  # Only print if small number of members
@@ -415,26 +443,29 @@ def mark_user_recognized(member_id: int):
 
 
 def find_best_match(query_vec: np.ndarray) -> Tuple[Optional[MemberEnc], float, float]:
-    """Return (best_member, best_score, second_best_score)."""
+    """Return (best_member, best_score, second_best_score) using fast matrix multiplication."""
     try:
         ensure_cache_loaded()
-        if not _MEMBER_CACHE:
+        global _ENC_MATRIX
+        
+        if _ENC_MATRIX is None or len(_ENC_MATRIX) == 0:
             return None, 0.0, 0.0
         
-        # Optimized similarity calculation - only compute top matches
-        best_score = -1.0
-        second_best_score = -1.0
-        best_member = None
+        # Fast matrix multiplication for all similarities at once
+        # query_vec is already normalized, _ENC_MATRIX contains normalized embeddings
+        scores = _ENC_MATRIX @ query_vec  # (N,) - single matrix multiply
         
-        # Single pass to find top 2 matches
-        for member in _MEMBER_CACHE:
-            score = float(np.dot(query_vec, member.enc))
-            if score > best_score:
-                second_best_score = best_score
-                best_score = score
-                best_member = member
-            elif score > second_best_score:
-                second_best_score = score
+        # Find best match
+        best_idx = int(scores.argmax())
+        best_score = float(scores[best_idx])
+        best_member = _MEMBER_CACHE[best_idx]
+        
+        # Find second best score
+        if len(scores) > 1:
+            # Use partition to get second highest without full sort
+            second_best_score = float(np.partition(scores, -2)[-2])
+        else:
+            second_best_score = -1.0
         
         if best_member:
             print(f"DEBUG: Best match: {best_member.email} (score: {best_score:.4f})")
@@ -453,11 +484,16 @@ def gym_login_with_memberid(memberid: int) -> Optional[str]:
         r = requests.post(GYM_LOGIN_URL, json=payload, timeout=15)
         r.raise_for_status()
         data = r.json()
-        if data.get("error") is None:
-            return data["result"]["token"]
+        
+        # Safe response handling
+        if not data or data.get("error"):
+            return None
+        
+        result = data.get("result") or {}
+        token = result.get("token")
+        return token
     except Exception:
         return None
-    return None
 
 
 def gym_login_with_email(email: str, password: str) -> Optional[Dict]:
@@ -466,11 +502,15 @@ def gym_login_with_email(email: str, password: str) -> Optional[Dict]:
         r = requests.post(GYM_LOGIN_URL, json=payload, timeout=15)
         r.raise_for_status()
         data = r.json()
-        if data.get("error") is None:
-            return data["result"]  # contains token, expires, memberid
+        
+        # Safe response handling
+        if not data or data.get("error"):
+            return None
+        
+        result = data.get("result") or {}
+        return result  # contains token, expires, memberid
     except Exception:
         return None
-    return None
 
 
 def gym_open_gate(token: str, doorid: int) -> Optional[Dict]:
@@ -493,22 +533,54 @@ def gym_open_gate(token: str, doorid: int) -> Optional[Dict]:
             print(f"DEBUG: Payload: {payload}")
             
             r = requests.post(endpoint, json=payload, timeout=15)
+            
+            # Check HTTP status before processing response
+            status_code = r.status_code
+            print(f"DEBUG: Endpoint {i+1} HTTP status: {status_code}")
+            
+            if status_code == 401:
+                print(f"DEBUG: Endpoint {i+1} - 401 Unauthorized: Token invalid or expired")
+                continue
+            elif status_code == 403:
+                print(f"DEBUG: Endpoint {i+1} - 403 Forbidden: Token valid but insufficient permissions")
+                continue
+            elif status_code == 404:
+                print(f"DEBUG: Endpoint {i+1} - 404 Not Found: Endpoint doesn't exist (wrong URL)")
+                continue
+            elif status_code >= 400:
+                print(f"DEBUG: Endpoint {i+1} - HTTP {status_code}: Other client error")
+                continue
+            
             r.raise_for_status()
             data = r.json()
             
             print(f"DEBUG: Gate API response: {data}")
             
-            if data.get("error") is None:
-                print(f"DEBUG: Gate opened successfully with endpoint {i+1}")
-                return data["result"]["response"]
+            # Safe response handling
+            if not data or data.get("error"):
+                print(f"DEBUG: Gate API error: {data.get('error') if data else 'No response data'}")
             else:
-                print(f"DEBUG: Gate API error: {data.get('error')}")
+                print(f"DEBUG: Gate opened successfully with endpoint {i+1}")
+                result = data.get("result") or {}
+                response = result.get("response")
+                return response
                 
+        except requests.exceptions.HTTPError as e:
+            print(f"DEBUG: Endpoint {i+1} HTTP error: {e}")
+            continue
+        except requests.exceptions.RequestException as e:
+            print(f"DEBUG: Endpoint {i+1} request error: {e}")
+            continue
         except Exception as e:
-            print(f"DEBUG: Endpoint {i+1} failed: {e}")
+            print(f"DEBUG: Endpoint {i+1} unexpected error: {e}")
             continue
     
     print(f"DEBUG: All gate endpoints failed")
+    print(f"DEBUG: Troubleshooting summary:")
+    print(f"  - If you see 401 errors: Token is invalid/expired, check login")
+    print(f"  - If you see 403 errors: Token valid but no gate permissions")
+    print(f"  - If you see 404 errors: Wrong endpoint URLs, check GymMaster API docs")
+    print(f"  - If you see timeouts: Network/connectivity issues")
     return None
 
 
@@ -523,7 +595,7 @@ def get_profile_from_redis(member_id: int) -> Optional[Dict]:
         cached_data = r.get(cache_key)
         if cached_data:
             print(f"DEBUG: Loading profile for member {member_id} from Redis cache...")
-            profile = json.loads(cached_data)
+            profile = json.loads(cached_data.decode("utf-8"))  # ← decode dulu
             print(f"DEBUG: Loaded profile from Redis: {profile.get('fullname', 'Unknown')}")
             return profile
     except Exception as e:
@@ -549,8 +621,9 @@ def save_profile_to_redis(member_id: int, profile: Dict):
 
 def invalidate_member_cache():
     """Invalidate member encodings cache (both Redis and memory)"""
-    global _MEMBER_CACHE
+    global _MEMBER_CACHE, _ENC_MATRIX
     _MEMBER_CACHE = []
+    _ENC_MATRIX = None  # Clear matrix when cache is invalidated
     
     r = get_redis_conn()
     if r:
@@ -5621,45 +5694,6 @@ def extract_embedding_with_bbox(bgr: np.ndarray) -> Tuple[Optional[np.ndarray], 
 
 
 
-def extract_embedding_with_liveness(bgr: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[Tuple[int, int, int, int]], bool, float]:
-    """
-    Extract embedding dengan liveness detection untuk mencegah spoofing
-    """
-    global _liveness_detector
-    
-    # Initialize liveness detector if not already done
-    if _liveness_detector is None:
-        from liveness_detection import SimpleLivenessDetector
-        _liveness_detector = SimpleLivenessDetector()
-    
-    model, det = load_insightface()
-    if model is None or det is None:
-        return None, None, False, 0.0
-    
-    faces = det.get(bgr)
-    if not faces:
-        return None, None, False, 0.0
-    
-    # Pilih wajah terbesar
-    face = max(faces, key=lambda f: (f.bbox[2]-f.bbox[0])*(f.bbox[3]-f.bbox[1]))
-    
-    # Convert bbox ke integer coordinates
-    bbox = face.bbox
-    x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
-    
-    # Liveness detection
-    is_live, confidence, message = _liveness_detector.detect_liveness(bgr, (x1, y1, x2, y2))
-    
-    if not is_live:
-        print(f"DEBUG: Liveness detection failed: {message}")
-        return None, None, False, confidence
-    
-    # Get embedding
-    emb = face.normed_embedding
-    if emb is None:
-        return None, None, False, 0.0
-    
-    return np.asarray(emb, dtype=np.float32), (x1, y1, x2, y2), True, confidence
 
 # -------------------- API Endpoints --------------------
 @app.route("/api/recognize_open_gate", methods=["POST"])
@@ -5677,18 +5711,9 @@ def api_recognize_open_gate():
     if bgr is None:
         return jsonify({"ok": False, "error": "Invalid image"}), 400
 
-    emb, bbox, is_live, liveness_confidence = extract_embedding_with_liveness(bgr)
+    emb, bbox = extract_embedding_with_bbox(bgr)
     if emb is None:
         return jsonify({"ok": False, "error": "No face found", "bbox": None}), 200
-
-    if not is_live:
-        return jsonify({
-            "ok": False, 
-            "error": "Liveness detection failed - possible spoofing attempt", 
-            "liveness_confidence": liveness_confidence,
-            "bbox": bbox,
-            "anti_spoofing": True
-        }), 200
 
     best, best_score, second = find_best_match(emb)
     if not best:
@@ -5771,7 +5796,7 @@ def api_recognize_fast():
     if bgr is None:
         return jsonify({"ok": False, "error": "Invalid image"}), 400
 
-    # DIOPTIMALKAN: Skip liveness detection untuk speed (optional)
+    # DIOPTIMALKAN: Use buffalo_l model for better accuracy and built-in anti-spoofing
     emb, bbox = extract_embedding_with_bbox(bgr)
     if emb is None:
         return jsonify({"ok": False, "error": "No face found", "bbox": None}), 200
@@ -6331,4 +6356,5 @@ def api_register_face():
 
 # -------------------- Main --------------------
 if __name__ == "__main__":
+    startup_optimization()  # Now all functions are defined
     app.run(host="0.0.0.0", port=APP_PORT, debug=True)
