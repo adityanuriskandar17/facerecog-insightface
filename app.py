@@ -24,6 +24,7 @@ Open:
 """
 
 from datetime import datetime
+import base64
 import json
 import os
 import pickle
@@ -236,14 +237,14 @@ def fetch_member_encodings() -> List[MemberEnc]:
             """
             SELECT id AS member_pk, 
                   member_id AS gym_member_id, 
-                  email, 
+                  CONCAT(first_name, ' ', last_name) AS display_name, 
                   enc
             FROM member
             WHERE enc IS NOT NULL AND enc != ''
             """
         )
         out = []
-        for member_pk, gym_id, email, enc_raw in cur.fetchall():
+        for member_pk, gym_id, display_name, enc_raw in cur.fetchall():
             if enc_raw is None:
                 continue
             try:
@@ -263,7 +264,7 @@ def fetch_member_encodings() -> List[MemberEnc]:
             # Normalize for cosine similarity
             norm = np.linalg.norm(vec) + 1e-8
             vec = vec / norm
-            out.append(MemberEnc(member_pk=member_pk, gym_member_id=gym_id or 0, email=email, enc=vec))
+            out.append(MemberEnc(member_pk=member_pk, gym_member_id=gym_id or 0, email=display_name, enc=vec))
         return out
     except Exception as e:
         print(f"DEBUG: Database error in fetch_member_encodings: {e}")
