@@ -6264,8 +6264,7 @@ def api_register_face():
             
             # Check if user already exists by email in profile data
             # We need to find the member by email from GymMaster profile
-            cur.execute("SELECT id FROM member WHERE first_name = %s AND last_name = %s", 
-                      (profile.get("firstname", ""), profile.get("surname", "")))
+            cur.execute("SELECT id FROM member WHERE email = %s", (user_email,))
             existing = cur.fetchone()
             
             # Ensure all results are consumed to avoid "Unread result found" error
@@ -6281,14 +6280,14 @@ def api_register_face():
                     "UPDATE member SET enc = %s WHERE id = %s",
                     (embedding_json, existing[0])
                 )
-                print(f"DEBUG: Updated existing record for {user_name} (ID: {existing[0]})")
+                print(f"DEBUG: Updated existing record for {user_name} (Email: {user_email}, ID: {existing[0]})")
             else:
                 # Insert new record with member_id from profile
                 cur.execute(
-                    "INSERT INTO member (member_id, first_name, last_name, enc) VALUES (%s, %s, %s, %s)",
-                    (profile.get("id", 0), profile.get("firstname", ""), profile.get("surname", ""), embedding_json)
+                    "INSERT INTO member (member_id, first_name, last_name, email, enc) VALUES (%s, %s, %s, %s, %s)",
+                    (profile.get("id", 0), profile.get("firstname", ""), profile.get("surname", ""), user_email, embedding_json)
                 )
-                print(f"DEBUG: Created new record for {user_name}")
+                print(f"DEBUG: Created new record for {user_name} (Email: {user_email})")
             
             # Ensure all results are consumed to avoid "Unread result found" error
             try:
