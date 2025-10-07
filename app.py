@@ -44,6 +44,9 @@ import redis
 import requests
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_cors import CORS
 # ==================== STARTUP OPTIMIZATION ====================
 def startup_optimization():
     """Preload components at startup for better performance"""
@@ -104,6 +107,12 @@ SECRET_KEY = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
 if isinstance(SECRET_KEY, str):
     SECRET_KEY = SECRET_KEY.encode("utf-8")
 
+# Security settings for door selection
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ALLOWED_IPS = os.getenv("ALLOWED_IPS", "127.0.0.1,192.168.1.0/24").split(",")
+DOOR_ACCESS_SECRET = os.getenv("DOOR_ACCESS_SECRET", "DOOR_SECRET_2024")
+
 DB = dict(
     host=os.getenv("DB_HOST", "127.0.0.1"),
     port=int(os.getenv("DB_PORT", "3306")),
@@ -117,6 +126,18 @@ REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+
+# Rate Limiting & Security Configuration
+RATE_LIMIT_STORAGE_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+MAX_LOGIN_ATTEMPTS = int(os.getenv("MAX_LOGIN_ATTEMPTS", "5"))
+LOGIN_LOCKOUT_TIME = int(os.getenv("LOGIN_LOCKOUT_TIME", "300"))  # 5 minutes
+API_RATE_LIMIT = os.getenv("API_RATE_LIMIT", "100 per minute")
+LOGIN_RATE_LIMIT = os.getenv("LOGIN_RATE_LIMIT", "5 per minute")
+
+# Multi-user per branch configuration
+BRANCH_RATE_LIMIT = os.getenv("BRANCH_RATE_LIMIT", "50 per minute")  # Per branch
+USER_RATE_LIMIT = os.getenv("USER_RATE_LIMIT", "10 per minute")  # Per user
+MAX_USERS_PER_BRANCH = int(os.getenv("MAX_USERS_PER_BRANCH", "20"))  # Max concurrent users
 
 GYM_API_KEY = os.getenv("GYM_API_KEY", "")
 GYM_BASE_URL = os.getenv("GYM_BASE_URL", "https://ftl.gymmasteronline.com")
@@ -188,18 +209,152 @@ def get_redis_conn():
             password=REDIS_PASSWORD if REDIS_PASSWORD else None,
             decode_responses=False,
             max_connections=10,
-            # retry_on_timeout removed - TimeoutError is retried by default in Redis 6.0+
             socket_connect_timeout=2,  # Reduced timeout
-            socket_timeout=2  # Reduced timeout
+            socket_timeout=2,  # Reduced timeout
+            retry_on_timeout=False,  # Don't retry on timeout
+            health_check_interval=0  # Disable health check
         )
-        # Test connection
+        # Test connection with short timeout
         r.ping()
         return r
-    except Exception as e:
-        # Only log Redis errors in debug mode, don't spam logs
-        if "AUTH" not in str(e):  # Skip AUTH errors to reduce log spam
-            print(f"DEBUG: Redis connection failed: {e}")
+    except (redis.ConnectionError, redis.TimeoutError, ConnectionRefusedError) as e:
+        # Redis connection failed - return None gracefully
+        print(f"DEBUG: Redis connection failed: {e}")
         return None
+    except Exception as e:
+        # Other Redis errors
+        print(f"DEBUG: Redis error: {e}")
+        return None
+
+
+# -------------------- Brute Force Protection Functions --------------------
+
+def get_client_identifier():
+    """Get unique client identifier for rate limiting"""
+    # Try to get real IP from headers (for reverse proxy setups)
+    client_ip = request.headers.get('X-Forwarded-For', request.headers.get('X-Real-IP', get_remote_address()))
+    if ',' in client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    return client_ip
+
+def is_login_blocked(identifier: str) -> bool:
+    """Check if login is blocked for this identifier"""
+    redis_conn = get_redis_conn()
+    if not redis_conn:
+        return False
+    
+    try:
+        key = f"login_attempts:{identifier}"
+        attempts = redis_conn.get(key)
+        if attempts:
+            return int(attempts) >= MAX_LOGIN_ATTEMPTS
+        return False
+    except Exception as e:
+        print(f"DEBUG: Error checking login block status: {e}")
+        return False
+
+def increment_login_attempts(identifier: str) -> int:
+    """Increment login attempts for this identifier"""
+    redis_conn = get_redis_conn()
+    if not redis_conn:
+        return 0
+    
+    try:
+        key = f"login_attempts:{identifier}"
+        attempts = redis_conn.incr(key)
+        if attempts == 1:  # First attempt, set expiration
+            redis_conn.expire(key, LOGIN_LOCKOUT_TIME)
+        return attempts
+    except Exception as e:
+        print(f"DEBUG: Error incrementing login attempts: {e}")
+        return 0
+
+def reset_login_attempts(identifier: str):
+    """Reset login attempts for this identifier (on successful login)"""
+    redis_conn = get_redis_conn()
+    if not redis_conn:
+        return
+    
+    try:
+        key = f"login_attempts:{identifier}"
+        redis_conn.delete(key)
+    except Exception as e:
+        print(f"DEBUG: Error resetting login attempts: {e}")
+
+def get_remaining_lockout_time(identifier: str) -> int:
+    """Get remaining lockout time in seconds"""
+    redis_conn = get_redis_conn()
+    if not redis_conn:
+        return 0
+    
+    try:
+        key = f"login_attempts:{identifier}"
+        ttl = redis_conn.ttl(key)
+        return max(0, ttl) if ttl > 0 else 0
+    except Exception as e:
+        print(f"DEBUG: Error getting lockout time: {e}")
+        return 0
+
+def get_user_identifier(email: str = None, user_agent: str = None) -> str:
+    """Get unique user identifier for multi-user rate limiting"""
+    client_ip = get_client_identifier()
+    
+    # If email is provided, use email + IP for user-specific tracking
+    if email:
+        return f"user:{email}:{client_ip}"
+    
+    # If user agent is provided, use it for browser fingerprinting
+    if user_agent:
+        import hashlib
+        user_hash = hashlib.md5(user_agent.encode()).hexdigest()[:8]
+        return f"browser:{user_hash}:{client_ip}"
+    
+    # Fallback to IP only
+    return f"ip:{client_ip}"
+
+def get_branch_identifier() -> str:
+    """Get branch identifier (IP-based)"""
+    client_ip = get_client_identifier()
+    return f"branch:{client_ip}"
+
+def check_branch_capacity(branch_id: str) -> bool:
+    """Check if branch has capacity for more users"""
+    redis_conn = get_redis_conn()
+    if not redis_conn:
+        return True  # Allow if Redis is not available
+    
+    try:
+        key = f"branch_users:{branch_id}"
+        current_users = redis_conn.scard(key)  # Get set cardinality
+        return current_users < MAX_USERS_PER_BRANCH
+    except Exception as e:
+        print(f"DEBUG: Error checking branch capacity: {e}")
+        return True
+
+def add_user_to_branch(branch_id: str, user_id: str, ttl: int = 3600):
+    """Add user to branch tracking (TTL in seconds)"""
+    redis_conn = get_redis_conn()
+    if not redis_conn:
+        return
+    
+    try:
+        key = f"branch_users:{branch_id}"
+        redis_conn.sadd(key, user_id)
+        redis_conn.expire(key, ttl)  # Auto-cleanup after 1 hour
+    except Exception as e:
+        print(f"DEBUG: Error adding user to branch: {e}")
+
+def remove_user_from_branch(branch_id: str, user_id: str):
+    """Remove user from branch tracking"""
+    redis_conn = get_redis_conn()
+    if not redis_conn:
+        return
+    
+    try:
+        key = f"branch_users:{branch_id}"
+        redis_conn.srem(key, user_id)
+    except Exception as e:
+        print(f"DEBUG: Error removing user from branch: {e}")
 
 
 def fetch_member_encodings() -> List[MemberEnc]:
@@ -475,6 +630,61 @@ def find_best_match(query_vec: np.ndarray) -> Tuple[Optional[MemberEnc], float, 
         print(f"DEBUG: Error in find_best_match: {e}")
         return None, 0.0, 0.0
 
+
+# -------------------- Security Functions --------------------
+
+def is_ip_allowed(client_ip: str) -> bool:
+    """Check if client IP is in allowed list"""
+    import ipaddress
+    try:
+        client_ip_obj = ipaddress.ip_address(client_ip)
+        for allowed_ip in ALLOWED_IPS:
+            allowed_ip = allowed_ip.strip()
+            if '/' in allowed_ip:
+                # CIDR notation
+                if client_ip_obj in ipaddress.ip_network(allowed_ip, strict=False):
+                    return True
+            else:
+                # Single IP
+                if str(client_ip_obj) == allowed_ip:
+                    return True
+        return False
+    except Exception as e:
+        print(f"DEBUG: IP check error: {e}")
+        return False
+
+def require_admin_auth(f):
+    """Decorator to require admin authentication"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check if user is admin authenticated
+        if not session.get('admin_authenticated'):
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def require_door_access(f):
+    """Decorator to require door access (IP + Secret)"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        client_ip = request.remote_addr
+        secret_token = request.args.get("token")
+        
+        # Check IP
+        if not is_ip_allowed(client_ip):
+            print(f"DEBUG: Access denied for IP: {client_ip}")
+            return "Access Denied - IP not allowed", 403
+        
+        # Check secret token
+        if secret_token != DOOR_ACCESS_SECRET:
+            print(f"DEBUG: Access denied - invalid token from IP: {client_ip}")
+            return "Access Denied - Invalid token", 403
+        
+        print(f"DEBUG: Door access granted for IP: {client_ip}")
+        return f(*args, **kwargs)
+    return decorated_function
 
 # -------------------- Door Token Functions --------------------
 
@@ -787,6 +997,325 @@ def gym_get_profile(token: str) -> Optional[Dict]:
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
+# Enable CORS for API endpoints
+CORS(app, origins=["*"])  # Configure this properly for production
+
+# Initialize Rate Limiter with fallback
+try:
+    # Test Redis connection first
+    test_redis = get_redis_conn()
+    if test_redis:
+        limiter = Limiter(
+            app=app,
+            key_func=get_client_identifier,
+            storage_uri=RATE_LIMIT_STORAGE_URL,
+            default_limits=[API_RATE_LIMIT],
+            headers_enabled=True
+        )
+        print("DEBUG: Rate limiter initialized with Redis storage")
+    else:
+        # Fallback to in-memory storage
+        limiter = Limiter(
+            app=app,
+            key_func=get_client_identifier,
+            default_limits=[API_RATE_LIMIT],
+            headers_enabled=True
+        )
+        print("DEBUG: Rate limiter initialized with in-memory storage (Redis unavailable)")
+except Exception as e:
+    # Fallback to basic rate limiter without storage
+    limiter = Limiter(
+        app=app,
+        key_func=get_client_identifier,
+        default_limits=[API_RATE_LIMIT],
+        headers_enabled=True
+    )
+    print(f"DEBUG: Rate limiter initialized with fallback: {e}")
+
+# Custom error handler for rate limiting
+@limiter.request_filter
+def custom_rate_limit_handler():
+    """Custom handler for rate limit exceeded"""
+    pass
+
+@app.errorhandler(429)
+def handle_rate_limit_exceeded(e):
+    """Custom error handler for 429 Too Many Requests"""
+    # Check if this is an API request
+    if request.path.startswith('/api/'):
+        return jsonify({
+            "ok": False,
+            "error": "Rate limit exceeded. Please try again later.",
+            "retry_after": getattr(e, 'retry_after', 60)
+        }), 429
+    
+    # For non-API requests, return HTML error page
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Rate Limit Exceeded</title>
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                text-align: center; 
+                padding: 50px; 
+                background: #f8f9fa;
+            }
+            .error-container {
+                background: white;
+                padding: 40px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                max-width: 500px;
+                margin: 0 auto;
+            }
+            .error-icon {
+                font-size: 48px;
+                color: #dc3545;
+                margin-bottom: 20px;
+            }
+            .error-title {
+                color: #dc3545;
+                font-size: 24px;
+                margin-bottom: 15px;
+            }
+            .error-message {
+                color: #6c757d;
+                margin-bottom: 20px;
+            }
+            .retry-info {
+                background: #e9ecef;
+                padding: 15px;
+                border-radius: 5px;
+                margin-top: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="error-container">
+            <div class="error-icon">⏱️</div>
+            <div class="error-title">Rate Limit Exceeded</div>
+            <div class="error-message">
+                Too many requests. Please wait before trying again.
+            </div>
+            <div class="retry-info">
+                <strong>Please wait 60 seconds</strong> before making another request.
+            </div>
+            <button onclick="window.location.reload()" style="
+                background: #007bff; 
+                color: white; 
+                border: none; 
+                padding: 10px 20px; 
+                border-radius: 5px; 
+                cursor: pointer;
+                margin-top: 20px;
+            ">
+                Try Again
+            </button>
+        </div>
+    </body>
+    </html>
+    """), 429
+
+@app.errorhandler(500)
+def handle_internal_server_error(e):
+    """Custom error handler for 500 Internal Server Error"""
+    # Check if this is an API request
+    if request.path.startswith('/api/'):
+        return jsonify({
+            "ok": False,
+            "error": "Internal server error. Please try again later.",
+            "timestamp": datetime.now().isoformat()
+        }), 500
+    
+    # For non-API requests, return HTML error page
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Internal Server Error</title>
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                text-align: center; 
+                padding: 50px; 
+                background: #f8f9fa;
+            }
+            .error-container {
+                background: white;
+                padding: 40px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                max-width: 500px;
+                margin: 0 auto;
+            }
+            .error-icon {
+                font-size: 48px;
+                color: #dc3545;
+                margin-bottom: 20px;
+            }
+            .error-title {
+                color: #dc3545;
+                font-size: 24px;
+                margin-bottom: 15px;
+            }
+            .error-message {
+                color: #6c757d;
+                margin-bottom: 20px;
+            }
+            .retry-info {
+                background: #e9ecef;
+                padding: 15px;
+                border-radius: 5px;
+                margin-top: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="error-container">
+            <div class="error-icon">⚠️</div>
+            <div class="error-title">Internal Server Error</div>
+            <div class="error-message">
+                Something went wrong on our end. Please try again later.
+            </div>
+            <div class="retry-info">
+                <strong>Error Code:</strong> 500<br>
+                <strong>Time:</strong> {{ timestamp }}
+            </div>
+            <button onclick="window.location.reload()" style="
+                background: #007bff; 
+                color: white; 
+                border: none; 
+                padding: 10px 20px; 
+                border-radius: 5px; 
+                cursor: pointer;
+                margin-top: 20px;
+            ">
+                Try Again
+            </button>
+        </div>
+    </body>
+    </html>
+    """, timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")), 500
+
+
+ADMIN_LOGIN_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FTL Face Gate - Admin Login</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-card h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+        .error {
+            color: #e74c3c;
+            background: #fdf2f2;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #fecaca;
+        }
+        .security-note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1><i class="fas fa-shield-alt"></i> Admin Access</h1>
+        {% if error %}
+        <div class="error">
+            <i class="fas fa-exclamation-triangle"></i> {{ error }}
+        </div>
+        {% endif %}
+        <form method="POST">
+            <div class="form-group">
+                <label for="username"><i class="fas fa-user"></i> Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password"><i class="fas fa-lock"></i> Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="login-btn">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+        </form>
+        <div class="security-note">
+            <i class="fas fa-info-circle"></i> 
+            This is a secure admin area for door selection access.
+        </div>
+    </div>
+</body>
+</html>
+"""
 
 LOGIN_HTML = """
 <!DOCTYPE html>
@@ -1304,15 +1833,42 @@ LOGIN_HTML = """
                     })
                 });
                 
-                const result = await response.json();
+                // Handle different response types
+                let result;
+                try {
+                    result = await response.json();
+                } catch (jsonError) {
+                    // If JSON parsing fails, check if it's a rate limit error
+                    if (response.status === 429) {
+                        messageDiv.innerHTML = '<div class="error-message">⏱️ Too many login attempts. Please wait 60 seconds before trying again.</div>';
+                        return;
+                    } else {
+                        messageDiv.innerHTML = '<div class="error-message">❌ Server error. Please try again later.</div>';
+                        return;
+                    }
+                }
                 
                 if (result.ok) {
-                    messageDiv.innerHTML = '<div class="success-message">Login successful! Redirecting...</div>';
+                    messageDiv.innerHTML = '<div class="success-message">✅ Login successful! Redirecting...</div>';
                     setTimeout(() => {
                         window.location.href = '/retake';
                     }, 1500);
                 } else {
-                    messageDiv.innerHTML = '<div class="error-message">Login failed: ' + (result.error || 'Invalid credentials') + '</div>';
+                    // Handle different error types
+                    let errorMessage = result.error || 'Invalid credentials';
+                    
+                    // Add visual indicators for different error types
+                    if (errorMessage.includes('Rate limit exceeded')) {
+                        errorMessage = '⏱️ ' + errorMessage;
+                    } else if (errorMessage.includes('Too many failed login attempts')) {
+                        errorMessage = '🔒 ' + errorMessage;
+                    } else if (errorMessage.includes('Branch is at maximum capacity')) {
+                        errorMessage = '🏢 ' + errorMessage;
+                    } else {
+                        errorMessage = '❌ ' + errorMessage;
+                    }
+                    
+                    messageDiv.innerHTML = '<div class="error-message">' + errorMessage + '</div>';
                 }
             } catch (error) {
                 messageDiv.innerHTML = '<div class="error-message">Login error: ' + error.message + '</div>';
@@ -5782,6 +6338,7 @@ RETAKE_HTML = """
 
 
 @app.route("/", methods=["GET", "POST"])
+@limiter.limit("50 per minute")  # Limit access to main page
 def index():
     doorid = None
     
@@ -5810,7 +6367,8 @@ def index():
     if not doorid:
         doorid = session.get('selected_doorid')
     
-    # Issue door token if doorid is present
+    # Allow access to main page without requiring doorid or admin login
+    # If doorid is present, issue door token
     if doorid:
         try:
             device_fp = _client_fingerprint(request)
@@ -5821,11 +6379,12 @@ def index():
             print(f"DEBUG: Error creating door token: {e}")
             return render_template_string(INDEX_HTML, doorid=doorid, door_token="")
     
-    # Pass doorid to template (but don't show in URL)
-    return render_template_string(INDEX_HTML, doorid=doorid)
+    # Render main page without doorid (public access)
+    return render_template_string(INDEX_HTML, doorid=None, door_token="")
 
 
 @app.route("/api/access_gate", methods=["POST"])
+@limiter.limit("10 per minute")  # More restrictive for door access
 def api_access_gate():
     """API endpoint untuk POST request dengan doorid"""
     data = request.get_json(force=True)
@@ -5846,7 +6405,13 @@ def api_access_gate():
 
 @app.route("/pantooo")
 def door_select():
-    """Halaman untuk memilih doorid"""
+    """Redirect to admin login for door selection"""
+    return redirect(url_for('admin_login'))
+
+@app.route("/admin/door_select")
+@require_admin_auth
+def admin_door_select():
+    """Halaman untuk memilih doorid setelah login admin"""
     return render_template_string("""
 <!DOCTYPE html>
 <html>
@@ -5859,7 +6424,7 @@ def door_select():
             margin: 0; 
             padding: 20px; 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: auto;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -5881,7 +6446,7 @@ def door_select():
             font-weight: 500;
             color: #333;
         }
-        input, select {
+        input {
             width: 100%;
             padding: 12px;
             border: 1px solid #ddd;
@@ -5903,29 +6468,12 @@ def door_select():
         .btn:hover {
             background: #0056b3;
         }
-        .door-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 10px;
+        .logout-btn {
+            background: #dc3545;
             margin-top: 10px;
         }
-        .door-btn {
-            padding: 10px;
-            border: 2px solid #e9ecef;
-            background: white;
-            border-radius: 8px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-        }
-        .door-btn:hover {
-            border-color: #007bff;
-            background: #f8f9fa;
-        }
-        .door-btn.selected {
-            border-color: #007bff;
-            background: #007bff;
-            color: white;
+        .logout-btn:hover {
+            background: #c82333;
         }
     </style>
 </head>
@@ -5941,215 +6489,243 @@ def door_select():
                 <input type="number" id="doorid" name="doorid" placeholder="Enter Door ID" required>
             </div>
             
-            
-            
             <button type="submit" class="btn">
                 <i class="fas fa-arrow-right"></i> Access Gate
+            </button>
+            
+            <button type="button" class="btn logout-btn" onclick="window.location.href='/admin/logout'">
+                <i class="fas fa-sign-out-alt"></i> Logout
             </button>
         </form>
     </div>
 
     <script>
-        // Load doors from API
-        async function loadDoors() {
-            try {
-                const response = await fetch('/api/doors');
-                const data = await response.json();
-                
-                if (data.ok) {
-                    const doorList = document.getElementById('doorList');
-                    doorList.innerHTML = '';
-                    
-                    data.doors.forEach(door => {
-                        const doorBtn = document.createElement('div');
-                        doorBtn.className = 'door-btn';
-                        doorBtn.dataset.doorid = door.id;
-                        doorBtn.innerHTML = `
-                            <div style="font-weight: bold;">${door.id}</div>
-                            <div style="font-size: 12px; color: #666;">${door.name}</div>
-                            <div style="font-size: 10px; color: #999;">${door.location}</div>
-                            <div style="font-size: 10px; color: ${door.status === 'active' ? '#28a745' : '#dc3545'};">
-                                ${door.status === 'active' ? '✓ Active' : '⚠ Maintenance'}
-                            </div>
-                        `;
-                        
-                        if (door.status !== 'active') {
-                            doorBtn.style.opacity = '0.5';
-                            doorBtn.style.cursor = 'not-allowed';
-                        }
-                        
-                        doorList.appendChild(doorBtn);
-                    });
-                    
-                    // Add click handlers
-                    document.querySelectorAll('.door-btn').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            if (this.style.opacity === '0.5') return; // Skip disabled doors
-                            
-                            // Remove selected class from all buttons
-                            document.querySelectorAll('.door-btn').forEach(b => b.classList.remove('selected'));
-                            
-                            // Add selected class to clicked button
-                            this.classList.add('selected');
-                            
-                            // Set the input value
-                            document.getElementById('doorid').value = this.dataset.doorid;
-                        });
-                    });
-                }
-            } catch (error) {
-                document.getElementById('doorList').innerHTML = `
-                    <div style="text-align: center; color: #dc3545; padding: 20px;">
-                        <i class="fas fa-exclamation-triangle"></i> Error loading doors
-                    </div>
-                `;
-            }
-        }
-        
-        // Load doors when page loads
-        loadDoors();
-
-        // Handle form submission
-        document.getElementById('doorForm').addEventListener('submit', async function(e) {
+        // Form submission
+        document.getElementById('doorForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const doorid = document.getElementById('doorid').value;
-            
-            try {
-                const response = await fetch('/api/access_gate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ doorid: parseInt(doorid) })
-                });
-                
-                const result = await response.json();
-                
-                if (result.ok) {
-                    // Navigate to clean URL without parameters
-                    window.location.href = result.redirect_url;
-                } else {
-                    alert('Error: ' + result.error);
-                }
-            } catch (error) {
-                alert('Network error: ' + error.message);
+            if (!doorid) {
+                alert('Please enter a door ID');
+                return;
             }
+            
+            // Submit form
+            fetch('/api/access_gate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({doorid: doorid})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.ok) {
+                    // Redirect to main page without door ID in URL (security)
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Network error: ' + error.message);
+            });
         });
     </script>
 </body>
 </html>
     """)
 
-@app.route("/api/doors")
-def api_doors():
-    """API endpoint untuk mendapatkan daftar door yang tersedia"""
-    # Simulasi data door dari database
-    doors = [
-        {"id": 19456, "name": "Main Entrance", "location": "Lobby", "status": "active"},
-        {"id": 19457, "name": "VIP Entrance", "location": "VIP Area", "status": "active"},
-        {"id": 19458, "name": "Staff Entrance", "location": "Back Office", "status": "active"},
-        {"id": 19459, "name": "Emergency Exit", "location": "Emergency", "status": "maintenance"},
-        {"id": 19460, "name": "Parking Gate", "location": "Parking", "status": "active"},
-        {"id": 19461, "name": "Service Gate", "location": "Service Area", "status": "active"}
-    ]
-    
-    return jsonify({
-        "ok": True,
-        "doors": doors
-    })
-
-@app.route("/api/clear_doorid", methods=["POST"])
-def api_clear_doorid():
-    """API endpoint untuk clear doorid dari session"""
-    session.pop('selected_doorid', None)
-    return jsonify({"ok": True, "message": "Door ID cleared"})
-
-
-@app.route("/api/test_connection", methods=["GET"])
-def api_test_connection():
-    """API endpoint untuk test koneksi database"""
-    try:
-        # Test database connection
-        conn = mysql.connector.connect(**DB)
-        cursor = conn.cursor()
-        
-        # Test basic query
-        cursor.execute("SELECT 1 as test")
-        result = cursor.fetchone()
-        
-        # Test Redis connection
-        redis_conn = get_redis_conn()
-        redis_status = "Connected" if redis_conn else "Failed"
-        
-        # Test GymMaster API connection
-        gym_status = "Unknown"
-        try:
-            # Simple test to GymMaster API
-            test_url = f"{GYM_BASE_URL}/portal/api/v1/health"
-            response = requests.get(test_url, timeout=5)
-            gym_status = "Connected" if response.status_code == 200 else f"HTTP {response.status_code}"
-        except Exception as e:
-            gym_status = f"Failed: {str(e)}"
-        
-        cursor.close()
-        conn.close()
-        
-        return jsonify({
-            "ok": True,
-            "message": "All connections successful",
-            "connections": {
-                "database": {
-                    "status": "Connected",
-                    "host": DB["host"],
-                    "port": DB["port"],
-                    "database": DB["database"],
-                    "test_query": "SELECT 1",
-                    "result": result[0] if result else None
-                },
-                "redis": {
-                    "status": redis_status,
-                    "host": REDIS_HOST,
-                    "port": REDIS_PORT,
-                    "database": REDIS_DB
-                },
-                "gymmaster_api": {
-                    "status": gym_status,
-                    "base_url": GYM_BASE_URL,
-                    "api_key": "***" + GYM_API_KEY[-4:] if GYM_API_KEY else "Not set"
-                }
-            },
-            "timestamp": datetime.now().isoformat()
-        })
-        
-    except mysql.connector.Error as e:
-        return jsonify({
-            "ok": False,
-            "error": f"Database connection failed: {str(e)}",
-            "connections": {
-                "database": {
-                    "status": "Failed",
-                    "error": str(e),
-                    "host": DB["host"],
-                    "port": DB["port"],
-                    "database": DB["database"]
-                }
-            },
-            "timestamp": datetime.now().isoformat()
-        }), 500
-        
-    except Exception as e:
-        return jsonify({
-            "ok": False,
-            "error": f"Connection test failed: {str(e)}",
-            "timestamp": datetime.now().isoformat()
-        }), 500
 
 @app.route("/login")
+@limiter.limit("10 per minute")  # Limit access to login page
 def login():
     return render_template_string(LOGIN_HTML)
 
+@app.route("/admin/login", methods=["GET", "POST"])
+@limiter.limit(LOGIN_RATE_LIMIT)
+def admin_login():
+    if request.method == "POST":
+        client_id = get_client_identifier()
+        
+        # Check if login is blocked due to brute force attempts
+        if is_login_blocked(client_id):
+            remaining_time = get_remaining_lockout_time(client_id)
+            error_msg = f"Too many failed login attempts. Please try again in {remaining_time} seconds."
+            return render_template_string(ADMIN_LOGIN_HTML, error=error_msg)
+        
+        username = request.form.get("username")
+        password = request.form.get("password")
+        
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            # Reset login attempts on successful login
+            reset_login_attempts(client_id)
+            session['admin_authenticated'] = True
+            return redirect(url_for('admin_door_select'))
+        else:
+            # Increment failed login attempts
+            attempts = increment_login_attempts(client_id)
+            remaining_attempts = MAX_LOGIN_ATTEMPTS - attempts
+            
+            if remaining_attempts <= 0:
+                remaining_time = get_remaining_lockout_time(client_id)
+                error_msg = f"Too many failed login attempts. Please try again in {remaining_time} seconds."
+            else:
+                error_msg = f"Invalid credentials. {remaining_attempts} attempts remaining."
+            
+            return render_template_string(ADMIN_LOGIN_HTML, error=error_msg)
+    
+    return render_template_string(ADMIN_LOGIN_HTML)
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop('admin_authenticated', None)
+    return redirect(url_for('admin_login'))
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Health check endpoint for monitoring"""
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "services": {}
+    }
+    
+    # Check database connection
+    try:
+        conn = get_db_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        health_status["services"]["database"] = {
+            "status": "healthy",
+            "host": DB["host"],
+            "port": DB["port"],
+            "database": DB["database"]
+        }
+    except Exception as e:
+        health_status["services"]["database"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    # Check Redis connection
+    try:
+        redis_conn = get_redis_conn()
+        if redis_conn:
+            redis_conn.ping()
+            health_status["services"]["redis"] = {
+                "status": "healthy",
+                "host": REDIS_HOST,
+                "port": REDIS_PORT,
+                "database": REDIS_DB
+            }
+        else:
+            health_status["services"]["redis"] = {
+                "status": "unavailable",
+                "message": "Redis connection failed"
+            }
+            health_status["status"] = "degraded"
+    except Exception as e:
+        health_status["services"]["redis"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    # Check GymMaster API
+    try:
+        response = requests.get(f"{GYM_BASE_URL}/health", timeout=5)
+        health_status["services"]["gymmaster_api"] = {
+            "status": "healthy" if response.status_code == 200 else "unhealthy",
+            "base_url": GYM_BASE_URL,
+            "status_code": response.status_code
+        }
+    except Exception as e:
+        health_status["services"]["gymmaster_api"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    # Return appropriate HTTP status
+    if health_status["status"] == "healthy":
+        return jsonify(health_status), 200
+    elif health_status["status"] == "degraded":
+        return jsonify(health_status), 200  # Still return 200 but with degraded status
+    else:
+        return jsonify(health_status), 503
+
+@app.route("/api/security/status", methods=["GET"])
+@require_admin_auth
+def api_security_status():
+    """Get security status including rate limiting and brute force protection info"""
+    client_id = get_client_identifier()
+    
+    # Get current rate limiting status
+    redis_conn = get_redis_conn()
+    rate_limit_info = {}
+    
+    if redis_conn:
+        try:
+            # Get rate limiting keys
+            rate_limit_keys = redis_conn.keys("LIMITER:*")
+            rate_limit_info["active_rate_limits"] = len(rate_limit_keys)
+            
+            # Get login attempt info
+            login_key = f"login_attempts:{client_id}"
+            login_attempts = redis_conn.get(login_key)
+            if login_attempts:
+                rate_limit_info["current_login_attempts"] = int(login_attempts)
+                rate_limit_info["remaining_lockout_time"] = get_remaining_lockout_time(client_id)
+            else:
+                rate_limit_info["current_login_attempts"] = 0
+                rate_limit_info["remaining_lockout_time"] = 0
+                
+        except Exception as e:
+            rate_limit_info["error"] = str(e)
+    
+    # Get branch information
+    branch_id = get_branch_identifier()
+    branch_capacity_info = {}
+    
+    if redis_conn:
+        try:
+            branch_key = f"branch_users:{branch_id}"
+            current_users = redis_conn.scard(branch_key)
+            branch_capacity_info = {
+                "current_users": current_users,
+                "max_users": MAX_USERS_PER_BRANCH,
+                "capacity_remaining": MAX_USERS_PER_BRANCH - current_users
+            }
+        except Exception as e:
+            branch_capacity_info = {"error": str(e)}
+    
+    return jsonify({
+        "ok": True,
+        "security_status": {
+            "client_identifier": client_id,
+            "branch_identifier": branch_id,
+            "max_login_attempts": MAX_LOGIN_ATTEMPTS,
+            "login_lockout_time": LOGIN_LOCKOUT_TIME,
+            "api_rate_limit": API_RATE_LIMIT,
+            "login_rate_limit": LOGIN_RATE_LIMIT,
+            "user_rate_limit": USER_RATE_LIMIT,
+            "branch_rate_limit": BRANCH_RATE_LIMIT,
+            "max_users_per_branch": MAX_USERS_PER_BRANCH,
+            "rate_limit_info": rate_limit_info,
+            "branch_capacity": branch_capacity_info,
+            "timestamp": datetime.now().isoformat()
+        }
+    })
+
 @app.route("/retake")
+@limiter.limit("20 per minute")  # Limit access to retake page
 def retake():
     # Check if user is logged in
     token = session.get('gym_token')
@@ -6248,6 +6824,7 @@ def extract_embedding_with_bbox(bgr: np.ndarray) -> Tuple[Optional[np.ndarray], 
 
 # -------------------- API Endpoints --------------------
 @app.route("/api/recognize_open_gate", methods=["POST"])
+@limiter.limit("30 per minute")  # Face recognition is resource intensive
 def api_recognize_open_gate():
     if not CHECKIN_ENABLED:
         return jsonify({"ok": False, "error": "Check-in disabled by config"}), 400
@@ -6398,6 +6975,7 @@ def api_get_member_photo(member_id):
 
 # DIOPTIMALKAN: Fast recognition endpoint untuk skala besar
 @app.route("/api/recognize_fast", methods=["POST"])
+@limiter.limit("30 per minute")  # Face recognition is resource intensive
 def api_recognize_fast():
     try:
         data = request.get_json(force=True)
@@ -6505,47 +7083,61 @@ def api_recognize_fast():
         print("DEBUG: api/recognize_fast error", e)
         return jsonify({"ok": False, "error": str(e)}), 500
 
-# DIOPTIMALKAN: Warm-up endpoints untuk menghindari cold start
-@app.route("/api/warmup/start", methods=["POST"])
-def api_warmup_start():
-    """Start warm-up system"""
-    try:
-        start_warmup_system()
-        return jsonify({"ok": True, "message": "Warm-up system started"})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-@app.route("/api/warmup/status", methods=["GET"])
-def api_warmup_status():
-    """Get warm-up status"""
-    try:
-        status = get_warmup_status()
-        return jsonify({"ok": True, "status": status})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-@app.route("/api/warmup/stop", methods=["POST"])
-def api_warmup_stop():
-    """Stop warm-up system"""
-    try:
-        stop_warmup_system()
-        return jsonify({"ok": True, "message": "Warm-up system stopped"})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route("/api/retake_login", methods=["POST"])
+@limiter.limit(USER_RATE_LIMIT, key_func=lambda: get_user_identifier(request.get_json(force=True).get("email") if request.get_json(force=True) else None))
 def api_retake_login():
     data = request.get_json(force=True)
     email = data.get("email")
     password = data.get("password")
+    
     if not email or not password:
         return jsonify({"ok": False, "error": "email and password required"}), 400
+    
+    # Get identifiers for multi-user rate limiting
+    user_id = get_user_identifier(email=email)
+    branch_id = get_branch_identifier()
+    client_id = get_client_identifier()
+    
+    # Check branch capacity
+    if not check_branch_capacity(branch_id):
+        return jsonify({
+            "ok": False, 
+            "error": f"Branch is at maximum capacity ({MAX_USERS_PER_BRANCH} users). Please try again later."
+        }), 429
+    
+    # Check if login is blocked due to brute force attempts (per user)
+    if is_login_blocked(user_id):
+        remaining_time = get_remaining_lockout_time(user_id)
+        return jsonify({
+            "ok": False, 
+            "error": f"Too many failed login attempts for this user. Please try again in {remaining_time} seconds."
+        }), 429
 
     result = gym_login_with_email(email, password)
     if not result:
-        return jsonify({"ok": False, "error": "Login failed"})
+        # Increment failed login attempts (per user)
+        attempts = increment_login_attempts(user_id)
+        remaining_attempts = MAX_LOGIN_ATTEMPTS - attempts
+        
+        if remaining_attempts <= 0:
+            remaining_time = get_remaining_lockout_time(user_id)
+            error_msg = f"Too many failed login attempts for this user. Please try again in {remaining_time} seconds."
+        else:
+            error_msg = f"Login failed. {remaining_attempts} attempts remaining for this user."
+        
+        return jsonify({"ok": False, "error": error_msg})
+    
+    # Reset login attempts on successful login
+    reset_login_attempts(user_id)
+    
+    # Add user to branch tracking
+    add_user_to_branch(branch_id, user_id)
+    
     token = result.get("token")
     session['gym_token'] = token
+    session['user_id'] = user_id
+    session['branch_id'] = branch_id
     
     # Get profile data using the correct API endpoint
     profile = gym_get_profile(token)
@@ -6604,9 +7196,19 @@ def api_get_profile():
 
 @app.route("/api/logout", methods=["POST"])
 def api_logout():
+    # Get user and branch info before clearing session
+    user_id = session.get('user_id')
+    branch_id = session.get('branch_id')
+    
+    # Remove user from branch tracking
+    if user_id and branch_id:
+        remove_user_from_branch(branch_id, user_id)
+    
     # Clear session data
     session.pop('gym_token', None)
     session.pop('profile_data', None)
+    session.pop('user_id', None)
+    session.pop('branch_id', None)
     
     return jsonify({
         "ok": True,
