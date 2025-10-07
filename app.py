@@ -1499,6 +1499,40 @@ INDEX_HTML = """
       max-width: 180px;
     }
     
+    /* Footer Styles */
+    footer {
+      text-align: center;
+      padding: 20px;
+      margin-top: 30px;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      color: #6c757d;
+      font-size: 14px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
+    }
+    
+    footer p {
+      margin: 0;
+      font-weight: 500;
+    }
+    
+    /* Responsive Footer */
+    @media (max-width: 768px) {
+      footer {
+        padding: 15px;
+        margin-top: 20px;
+        font-size: 13px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      footer {
+        padding: 12px;
+        margin-top: 15px;
+        font-size: 12px;
+      }
+    }
+    
     .fullscreen {
       position: fixed !important;
       top: 0 !important;
@@ -3488,6 +3522,17 @@ INDEX_HTML = """
       btnStart.disabled = false;
     }
   </script>
+  
+  <!-- Footer -->
+  <footer>
+    <p>© <span id="currentYear"></span> FTL IT Developer. All rights reserved.</p>
+  </footer>
+  
+  <!-- Dynamic Year Script -->
+  <script>
+    // Set current year dynamically
+    document.getElementById('currentYear').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
 """
@@ -3955,13 +4000,54 @@ RETAKE_HTML = """
         margin-top: 4px !important;
       }
     }
+    
+    /* Footer Styles */
+    footer {
+      text-align: center;
+      padding: 20px;
+      margin-top: 30px;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      color: #6c757d;
+      font-size: 14px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      width: 100%;
+      box-sizing: border-box;
+      position: relative;
+      left: 0;
+      right: 0;
+      display: block;
+      clear: both;
+    }
+    
+    footer p {
+      margin: 0;
+      font-weight: 500;
+    }
+    
+    /* Responsive Footer */
+    @media (max-width: 768px) {
+      footer {
+        padding: 15px;
+        margin-top: 20px;
+        font-size: 13px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      footer {
+        padding: 12px;
+        margin-top: 15px;
+        font-size: 12px;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
   <h1>Profile & Face Registration</h1>
-      <p>Secure biometric authentication and identity verification system By FTL Horizon Developer</p>
+      <p>Secure biometric authentication and identity verification system By FTL IT Developer</p>
     </div>
     
     <!-- Progress Roadmap -->
@@ -5577,6 +5663,17 @@ RETAKE_HTML = """
         }, 5000);
       }
     };
+  </script>
+  
+  <!-- Footer -->
+  <footer>
+    <p>© <span id="currentYearRetake"></span> FTL IT Developer. All rights reserved.</p>
+  </footer>
+  
+  <!-- Dynamic Year Script -->
+  <script>
+    // Set current year dynamically for retake page
+    document.getElementById('currentYearRetake').textContent = new Date().getFullYear();
   </script>
 </body>
 </html>
