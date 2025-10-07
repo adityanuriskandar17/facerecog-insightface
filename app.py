@@ -25,6 +25,7 @@ Open:
 
 from datetime import datetime
 import base64
+import io
 import json
 import os
 import pickle
@@ -137,8 +138,8 @@ class MemberEnc:
 
 
 # DIOPTIMALKAN: Thresholds for ArcFace cosine similarity - lebih permisif
-SIM_THRESHOLD_MATCH = 0.45  # lower = stricter (adjusted to be more permissive)
-TOP2_MARGIN = 0.04          # best must beat second best by this margin (reduced)
+SIM_THRESHOLD_MATCH = float(os.getenv("ARC_COS_THRESHOLD", "0.40"))
+TOP2_MARGIN = float(os.getenv("TOP2_MARGIN", "0.06"))
 
 
 def load_insightface():
@@ -248,8 +249,15 @@ def fetch_member_encodings() -> List[MemberEnc]:
             if enc_raw is None:
                 continue
             try:
-                # Standardized JSON format only
-                vec = np.array(json.loads(enc_raw), dtype=np.float32)
+                # Try NPY format first (new format), fallback to JSON (legacy format)
+                try:
+                    # NPY format - load and convert to float32
+                    vec = np.load(io.BytesIO(enc_raw)).astype(np.float32)
+                except:
+                    # Fallback to JSON format for backward compatibility
+                    vec = np.array(json.loads(enc_raw), dtype=np.float32)
+                
+                # Ensure proper shape
                 if vec.ndim == 1:
                     pass
                 elif vec.ndim == 2 and vec.shape[0] == 1:
@@ -369,7 +377,7 @@ def ensure_cache_loaded(force_refresh=False):
     if should_refresh:
         print("DEBUG: Cache refresh needed, reloading from database...")
         _MEMBER_CACHE = []
-        invalidate_member_cache()
+        _ENC_MATRIX = None  # Clear matrix when force refreshing
         _LAST_CACHE_REFRESH = current_time
     
     if not _MEMBER_CACHE:
@@ -613,8 +621,7 @@ def save_profile_to_redis(member_id: int, profile: Dict):
     
     try:
         cache_key = REDIS_PROFILE_CACHE_KEY.format(member_id)
-        serialized = json.dumps(profile)
-        r.setex(cache_key, REDIS_CACHE_TTL, serialized)
+        r.setex(cache_key, REDIS_CACHE_TTL, json.dumps(profile).encode("utf-8"))
         print(f"DEBUG: Saved profile for member {member_id} to Redis cache")
     except Exception as e:
         print(f"DEBUG: Error saving profile to Redis: {e}")
@@ -633,6 +640,12 @@ def invalidate_member_cache():
             print("DEBUG: Invalidated member encodings cache in Redis")
         except Exception as e:
             print(f"DEBUG: Error invalidating member cache in Redis: {e}")
+
+
+def reload_member_cache():
+    """Reload member cache and rebuild matrix after invalidation"""
+    print("DEBUG: Reloading cache and rebuilding matrix after invalidation")
+    ensure_cache_loaded(force_refresh=True)
 
 
 def invalidate_profile_cache(member_id: int):
@@ -3155,7 +3168,7 @@ INDEX_HTML = """
           }
         } else if (j.ok && !j.matched) {
           const popupStyle = j.popup_style || 'DENIED';
-          updateDetectionDisplay('Wajah Belum Terdaftar', 'Face detected but not recognized', null, popupStyle);
+          updateDetectionDisplay('Wajah Belum Terdaftar Harap Retake', 'Face detected but not recognized', null, popupStyle);
           
           // Hide profile photo for unknown face
           hideMemberProfilePhoto();
@@ -6773,8 +6786,10 @@ def api_register_face():
             conn = get_db_conn()
             cur = conn.cursor()
             
-            # Convert embedding to JSON string
-            embedding_json = json.dumps(avg_embedding.tolist())
+            # Convert embedding to NPY float16 format for storage efficiency
+            npy_buffer = io.BytesIO()
+            np.save(npy_buffer, avg_embedding.astype(np.float16))
+            embedding_npy = npy_buffer.getvalue()
             
             # Check if user already exists by email in profile data
             # We need to find the member by email from GymMaster profile
@@ -6792,14 +6807,14 @@ def api_register_face():
                 # Update existing record
                 cur.execute(
                     "UPDATE member SET enc = %s WHERE id = %s",
-                    (embedding_json, existing[0])
+                    (embedding_npy, existing[0])
                 )
                 print(f"DEBUG: Updated existing record for {user_name} (Email: {user_email}, ID: {existing[0]})")
             else:
                 # Insert new record with member_id from profile
                 cur.execute(
                     "INSERT INTO member (member_id, first_name, last_name, email, enc) VALUES (%s, %s, %s, %s, %s)",
-                    (profile.get("id", 0), profile.get("firstname", ""), profile.get("surname", ""), user_email, embedding_json)
+                    (profile.get("id", 0), profile.get("firstname", ""), profile.get("surname", ""), user_email, embedding_npy)
                 )
                 print(f"DEBUG: Created new record for {user_name} (Email: {user_email})")
             
@@ -6816,6 +6831,7 @@ def api_register_face():
             
             # Clear cache to force reload
             invalidate_member_cache()
+            reload_member_cache()
             
             return jsonify({
                 "ok": True, 
