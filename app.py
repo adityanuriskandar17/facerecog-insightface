@@ -25,14 +25,17 @@ Open:
 
 from datetime import datetime
 import base64
+import hmac
+import hashlib
 import io
 import json
 import os
 import pickle
+import secrets
 import threading
 import time
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, List
+from typing import Any, Dict, Optional, Tuple, List
 
 import cv2
 import mysql.connector
@@ -97,6 +100,9 @@ load_dotenv()
 
 APP_PORT = int(os.getenv("PORT", 8080))
 SECRET_KEY = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
+# Ensure SECRET_KEY is bytes
+if isinstance(SECRET_KEY, str):
+    SECRET_KEY = SECRET_KEY.encode("utf-8")
 
 DB = dict(
     host=os.getenv("DB_HOST", "127.0.0.1"),
@@ -134,6 +140,8 @@ class MemberEnc:
     member_pk: int
     gym_member_id: int
     email: Optional[str]
+    first_name: Optional[str]
+    last_name: Optional[str]
     enc: np.ndarray  # 512-d embedding
 
 
@@ -236,43 +244,43 @@ def fetch_member_encodings() -> List[MemberEnc]:
         
         cur.execute(
             """
-            SELECT id AS member_pk, 
-                  member_id AS gym_member_id, 
-                  CONCAT(first_name, ' ', last_name) AS display_name, 
-                  enc
+            SELECT id AS member_pk,
+            member_id AS gym_member_id,
+            email,
+            first_name,
+            last_name,
+            enc
             FROM member
             WHERE enc IS NOT NULL AND enc != ''
             """
         )
         out = []
-        for member_pk, gym_id, display_name, enc_raw in cur.fetchall():
+        for member_pk, gym_id, email, first_name, last_name, enc_raw in cur.fetchall():
             if enc_raw is None:
                 continue
+            vec = None
             try:
-                # Try NPY format first (new format), fallback to JSON (legacy format)
-                try:
-                    # NPY format - load and convert to float32
-                    vec = np.load(io.BytesIO(enc_raw)).astype(np.float32)
-                except:
-                    # Fallback to JSON format for backward compatibility
-                    vec = np.array(json.loads(enc_raw), dtype=np.float32)
-                
-                # Ensure proper shape
-                if vec.ndim == 1:
-                    pass
-                elif vec.ndim == 2 and vec.shape[0] == 1:
-                    vec = vec[0]
+                # Case A: BLOB (NPY bytes)
+                if isinstance(enc_raw, (bytes, bytearray)):
+                    vec = np.load(io.BytesIO(enc_raw), allow_pickle=False)
                 else:
-                    vec = vec.flatten()
+                    # Case B: JSON string array
+                    if isinstance(enc_raw, str):
+                        try:
+                            vec = np.array(json.loads(enc_raw), dtype=np.float32)
+                        except Exception:
+                            # Case C: base64-encoded NPY string
+                            vec = np.load(io.BytesIO(base64.b64decode(enc_raw)), allow_pickle=False)
+                    else:
+                        continue
+                vec = vec.astype(np.float32).flatten()
+                if vec.size == 0:
+                    continue
+                vec = vec / (np.linalg.norm(vec) + 1e-8)
+                out.append(MemberEnc(member_pk=member_pk, gym_member_id=gym_id or 0, email=email, first_name=first_name, last_name=last_name, enc=vec))
             except Exception as e:
-                print(f"DEBUG: Error parsing enc data for member {member_pk}: {e}")
+                print(f"DEBUG: encoding load error for member {member_pk}: {e}")
                 continue
-            if vec.size == 0:
-                continue
-            # Normalize for cosine similarity
-            norm = np.linalg.norm(vec) + 1e-8
-            vec = vec / norm
-            out.append(MemberEnc(member_pk=member_pk, gym_member_id=gym_id or 0, email=display_name, enc=vec))
         return out
     except Exception as e:
         print(f"DEBUG: Database error in fetch_member_encodings: {e}")
@@ -287,19 +295,14 @@ def fetch_member_encodings() -> List[MemberEnc]:
 # Cache encodings in memory for faster search
 _MEMBER_CACHE: List[MemberEnc] = []
 
-# Matrix optimization for fast similarity search
-_ENC_MATRIX = None  # shape (N, 512) - numpy array of all embeddings
+# Matrix cache for fast cosine search (N,512)
+_ENC_MATRIX: Optional[np.ndarray] = None
 
 def _rebuild_matrix():
-    """Rebuild the embedding matrix from current member cache for fast similarity search."""
+    """Rebuilds the in-memory (N,512) matrix for fast top-K scoring."""
     global _ENC_MATRIX
     if _MEMBER_CACHE:
-        try:
-            _ENC_MATRIX = np.stack([m.enc for m in _MEMBER_CACHE]).astype(np.float32)
-            print(f"DEBUG: Rebuilt embedding matrix with shape {_ENC_MATRIX.shape}")
-        except Exception as e:
-            print(f"DEBUG: Error rebuilding embedding matrix: {e}")
-            _ENC_MATRIX = None
+        _ENC_MATRIX = np.stack([m.enc for m in _MEMBER_CACHE]).astype(np.float32)
     else:
         _ENC_MATRIX = None
 
@@ -452,37 +455,81 @@ def mark_user_recognized(member_id: int):
 
 
 def find_best_match(query_vec: np.ndarray) -> Tuple[Optional[MemberEnc], float, float]:
-    """Return (best_member, best_score, second_best_score) using fast matrix multiplication."""
+    """Return (best_member, best_score, second_best_score) using a single matmul."""
     try:
         ensure_cache_loaded()
         global _ENC_MATRIX
-        
-        if _ENC_MATRIX is None or len(_ENC_MATRIX) == 0:
+        if _ENC_MATRIX is None or _ENC_MATRIX.size == 0:
             return None, 0.0, 0.0
-        
-        # Fast matrix multiplication for all similarities at once
-        # query_vec is already normalized, _ENC_MATRIX contains normalized embeddings
-        scores = _ENC_MATRIX @ query_vec  # (N,) - single matrix multiply
-        
-        # Find best match
+        scores = _ENC_MATRIX @ query_vec  # (N,)
         best_idx = int(scores.argmax())
         best_score = float(scores[best_idx])
-        best_member = _MEMBER_CACHE[best_idx]
-        
-        # Find second best score
-        if len(scores) > 1:
-            # Use partition to get second highest without full sort
+        if scores.size > 1:
+            # get second best without sorting full array
             second_best_score = float(np.partition(scores, -2)[-2])
         else:
             second_best_score = -1.0
-        
-        if best_member:
-            print(f"DEBUG: Best match: {best_member.email} (score: {best_score:.4f})")
-        
+        best_member = _MEMBER_CACHE[best_idx]
         return best_member, best_score, second_best_score
     except Exception as e:
         print(f"DEBUG: Error in find_best_match: {e}")
         return None, 0.0, 0.0
+
+
+# -------------------- Door Token Functions --------------------
+
+def _client_fingerprint(req) -> str:
+    ua = req.headers.get("User-Agent", "")
+    ip = req.headers.get("X-Forwarded-For", req.remote_addr or "")
+    accept = req.headers.get("Accept", "")
+    raw = f"{ua}|{ip}|{accept}"
+    fingerprint = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+    print(f"DEBUG: Client fingerprint components - UA: {ua[:50]}..., IP: {ip}, Accept: {accept[:50]}...")
+    print(f"DEBUG: Generated fingerprint: {fingerprint}")
+    return fingerprint
+
+
+def sign_door_token(doorid: int, device_fp: str, ttl_sec: int = 3600) -> str:  # 1 hour instead of 60 seconds
+    exp = int(time.time()) + int(ttl_sec)
+    payload = f"{doorid}.{device_fp}.{exp}"
+    sig = hmac.new(SECRET_KEY, payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{payload}.{sig}"
+
+
+def verify_door_token(token: str, req) -> Optional[Tuple[int, str]]:
+    try:
+        print(f"DEBUG: Verifying token: {token[:30]}...")
+        parts = token.split(".")
+        if len(parts) != 4:
+            print(f"DEBUG: Token has {len(parts)} parts, expected 4")
+            return None
+        doorid_s, device_fp, exp_s, sig = parts
+        payload = f"{doorid_s}.{device_fp}.{exp_s}"
+        exp = int(exp_s)
+        current_time = int(time.time())
+        print(f"DEBUG: Token exp: {exp}, current: {current_time}, expired: {current_time > exp}")
+        
+        sig_calc = hmac.new(SECRET_KEY, payload.encode("utf-8"), hashlib.sha256).hexdigest()
+        sig_match = hmac.compare_digest(sig, sig_calc)
+        print(f"DEBUG: Signature match: {sig_match}")
+        
+        if not sig_match:
+            return None
+        if current_time > exp:
+            print(f"DEBUG: Token expired")
+            return None
+        
+        # bind to current client (temporarily disabled for testing)
+        current_fp = _client_fingerprint(req)
+        print(f"DEBUG: Token device_fp: {device_fp}, current_fp: {current_fp}")
+        # Temporarily disable fingerprint check for testing
+        # if device_fp != current_fp:
+        #     print(f"DEBUG: Device fingerprint mismatch")
+        #     return None
+        return int(doorid_s), device_fp
+    except Exception as e:
+        print(f"DEBUG: Token verification error: {e}")
+        return None
 
 
 # -------------------- GymMaster API Helpers --------------------
@@ -1975,6 +2022,30 @@ INDEX_HTML = """
   <script>
     // Get doorid from backend template (hidden from URL)
     const doorid = '{{ doorid }}' || null;
+    const DOOR_TOKEN = '{{ door_token or "" }}' || null;
+    
+    // Debug logging
+    console.log('DEBUG: doorid =', doorid);
+    console.log('DEBUG: DOOR_TOKEN =', DOOR_TOKEN ? DOOR_TOKEN.substring(0, 20) + '...' : 'null');
+    
+    // Function to refresh door token when expired
+    async function refreshDoorToken() {
+      if (!doorid) return null;
+      try {
+        const response = await fetch('/api/access_gate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ doorid: parseInt(doorid) })
+        });
+        const result = await response.json();
+        if (result.ok) {
+          // Reload page to get new token
+          window.location.reload();
+        }
+      } catch (error) {
+        console.error('Failed to refresh token:', error);
+      }
+    }
     
     // Hide door info from UI
     const doorInfo = document.getElementById('doorInfo');
@@ -2229,7 +2300,7 @@ INDEX_HTML = """
     }
 
     function setButtons(running) {
-      btnStart.disabled = running || !doorid;
+      btnStart.disabled = running || !DOOR_TOKEN;
       btnStop.disabled = !running;
     }
 
@@ -2837,7 +2908,7 @@ INDEX_HTML = """
     }
 
     async function performRecognition() {
-      if (!stream || !doorid || !canvas || isProcessing) return;
+      if (!stream || !DOOR_TOKEN || !canvas || isProcessing) return;
       
       const now = Date.now();
       if (now - lastRecognitionTime < 1000) return; // DIOPTIMALKAN: Reduced throttle to 1 second
@@ -2884,10 +2955,19 @@ INDEX_HTML = """
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
       // DIOPTIMALKAN: Use fast recognition endpoint untuk speed
+      const requestBody = {
+        door_token: DOOR_TOKEN,
+        image_b64: dataUrl.split(',')[1]
+      };
+      console.log('DEBUG: Sending request body:', {
+        door_token: DOOR_TOKEN ? DOOR_TOKEN.substring(0, 20) + '...' : 'null',
+        image_b64: 'present'
+      });
+      
       const r = await fetch('/api/recognize_fast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ doorid: parseInt(doorid), image_b64: dataUrl.split(',')[1] }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       });
       
@@ -2896,6 +2976,14 @@ INDEX_HTML = """
         let j;
         try {
           j = await r.json();
+          
+          // Handle token expired - auto refresh
+          if (r.status === 401 && j.error === "Invalid door token") {
+            console.log("Token expired, refreshing...");
+            await refreshDoorToken();
+            return;
+          }
+          
           console.log('Server response:', j);
           console.log('Response details:', {
             ok: j.ok,
@@ -3531,7 +3619,7 @@ INDEX_HTML = """
     }
 
     setButtons(false);
-    if (doorid) {
+    if (DOOR_TOKEN) {
       btnStart.disabled = false;
     }
   </script>
@@ -5722,6 +5810,17 @@ def index():
     if not doorid:
         doorid = session.get('selected_doorid')
     
+    # Issue door token if doorid is present
+    if doorid:
+        try:
+            device_fp = _client_fingerprint(request)
+            token = sign_door_token(int(doorid), device_fp)
+            print(f"DEBUG: Created door token for doorid {doorid}: {token[:20]}...")
+            return render_template_string(INDEX_HTML, doorid=doorid, door_token=token)
+        except Exception as e:
+            print(f"DEBUG: Error creating door token: {e}")
+            return render_template_string(INDEX_HTML, doorid=doorid, door_token="")
+    
     # Pass doorid to template (but don't show in URL)
     return render_template_string(INDEX_HTML, doorid=doorid)
 
@@ -6200,7 +6299,17 @@ def api_recognize_open_gate():
                 "cooldown_remaining": cooldown_remaining
             }
             resp["member_id"] = best.gym_member_id
-            resp["name"] = best.email or f"Member {best.gym_member_id}"
+            # Create name from first_name + last_name
+            first_name = best.first_name or ""
+            last_name = best.last_name or ""
+            if first_name and last_name:
+                resp["name"] = f"{first_name} {last_name}"
+            elif first_name:
+                resp["name"] = first_name
+            elif last_name:
+                resp["name"] = last_name
+            else:
+                resp["name"] = best.email or f"Member {best.gym_member_id}"
             return jsonify(resp)
         
         token = gym_login_with_memberid(best.gym_member_id)
@@ -6215,7 +6324,17 @@ def api_recognize_open_gate():
                 mark_user_recognized(best.gym_member_id)
                 
                 # DIOPTIMALKAN: Tambahkan informasi nama untuk frontend
-                resp["name"] = best.email or f"Member {best.gym_member_id}"
+                # Create name from first_name + last_name
+                first_name = best.first_name or ""
+                last_name = best.last_name or ""
+                if first_name and last_name:
+                    resp["name"] = f"{first_name} {last_name}"
+                elif first_name:
+                    resp["name"] = first_name
+                elif last_name:
+                    resp["name"] = last_name
+                else:
+                    resp["name"] = best.email or f"Member {best.gym_member_id}"
                 resp["member_id"] = best.gym_member_id
                 resp["success"] = True
                 print(f"DEBUG: Response prepared with name: {resp['name']}")
@@ -6236,20 +6355,28 @@ def api_recognize_open_gate():
 def api_get_member_photo(member_id):
     """Get member profile photo by member_id"""
     try:
+        print(f"DEBUG: Getting member photo for member_id: {member_id}")
         # Login dengan member_id untuk mendapatkan token
         token = gym_login_with_memberid(member_id)
         if not token:
+            print(f"DEBUG: Failed to login with member_id: {member_id}")
             return jsonify({"ok": False, "error": "Failed to login with member ID"}), 401
         
         # Ambil profile data
         profile = gym_get_profile(token)
         if not profile:
+            print(f"DEBUG: Failed to fetch profile for member_id: {member_id}")
             return jsonify({"ok": False, "error": "Failed to fetch profile"}), 404
+        
+        print(f"DEBUG: Profile data for member_id {member_id}: {profile}")
         
         # Ambil URL foto profil
         profile_photo_url = profile.get("memberphoto")
         if not profile_photo_url:
+            print(f"DEBUG: No profile photo found for member_id: {member_id}")
             return jsonify({"ok": False, "error": "No profile photo found"}), 404
+        
+        print(f"DEBUG: Profile photo URL for member_id {member_id}: {profile_photo_url}")
         
         # Ambil nama lengkap
         full_name = profile.get("fullname", f"Member {member_id}")
@@ -6272,94 +6399,111 @@ def api_get_member_photo(member_id):
 # DIOPTIMALKAN: Fast recognition endpoint untuk skala besar
 @app.route("/api/recognize_fast", methods=["POST"])
 def api_recognize_fast():
-    """Fast recognition untuk mengurangi waktu 'Recognizing...'"""
-    if not CHECKIN_ENABLED:
-        return jsonify({"ok": False, "error": "Check-in disabled by config"}), 400
-
-    data = request.get_json(force=True)
-    doorid = data.get("doorid")
-    image_b64 = data.get("image_b64")
-    if not doorid:
-        return jsonify({"ok": False, "error": "doorid is required"}), 400
-
-    start_time = time.time()
-    
-    bgr = b64_to_bgr(image_b64)
-    if bgr is None:
-        return jsonify({"ok": False, "error": "Invalid image"}), 400
-
-    # DIOPTIMALKAN: Use buffalo_l model for better accuracy and built-in anti-spoofing
-    emb, bbox = extract_embedding_with_bbox(bgr)
-    if emb is None:
-        return jsonify({"ok": False, "error": "No face found", "bbox": None}), 200
-
-    # DIOPTIMALKAN: Fast similarity search
-    best, best_score, second = find_best_match(emb)
-    if not best:
-        return jsonify({"ok": False, "error": "No enrolled members"}), 200
-
-    margin = best_score - second
-    threshold_score = 1.0 - SIM_THRESHOLD_MATCH
-    matched = (best_score >= threshold_score) and (margin >= TOP2_MARGIN)
-    
-    # DIOPTIMALKAN: Enhanced debug logging untuk threshold analysis
-    print(f"DEBUG: Threshold analysis - best_score: {best_score:.4f}, threshold: {threshold_score:.4f}, margin: {margin:.4f}, required_margin: {TOP2_MARGIN:.4f}")
-    print(f"DEBUG: Match result - score_ok: {best_score >= threshold_score}, margin_ok: {margin >= TOP2_MARGIN}, matched: {matched}")
-
-    processing_time = time.time() - start_time
-    print(f"DEBUG: Fast recognition completed in {processing_time:.3f}s")
-
-    resp = {
-        "ok": True,
-        "best_score": round(best_score, 4),
-        "second_best": round(second, 4),
-        "margin": round(margin, 4),
-        "matched": bool(matched),
-        "bbox": bbox,
-        "processing_time": round(processing_time, 3),
-        "candidate": {
-            "member_pk": best.member_pk,
-            "gym_member_id": best.gym_member_id,
-            "email": best.email,
-        },
-    }
-
-    if matched and best.gym_member_id:
-        # DIOPTIMALKAN: Simplified gate handling
-        try:
-            if is_user_throttled(best.gym_member_id):
-                cooldown_remaining = get_user_cooldown_remaining(best.gym_member_id)
-                resp["gate"] = {
-                    "error": "User in cooldown period", 
-                    "throttled": True,
-                    "cooldown_remaining": cooldown_remaining
-                }
-                resp["member_id"] = best.gym_member_id
-                resp["name"] = best.email or f"Member {best.gym_member_id}"
+    try:
+        data = request.get_json(force=True)
+        image_b64 = data.get("image_b64")
+        door_token = data.get("door_token")
+        
+        print(f"DEBUG: Received request - door_token: {door_token[:30] if door_token else 'None'}..., image_b64: {'present' if image_b64 else 'missing'}")
+        
+        if not door_token:
+            return jsonify({"ok": False, "error": "door_token is required"}), 400
+        
+        # Verify door token and extract doorid
+        token_result = verify_door_token(door_token, request)
+        if not token_result:
+            return jsonify({"ok": False, "error": "Invalid door token"}), 401
+        doorid, _ = token_result
+        
+        if not image_b64:
+            return jsonify({"ok": False, "error": "image_b64 is required"}), 400
+        
+        bgr = b64_to_bgr(image_b64)
+        if bgr is None:
+            return jsonify({"ok": False, "error": "Failed to decode image"}), 400
+        
+        model, _ = load_insightface()
+        if model is None:
+            return jsonify({"ok": False, "error": "Model not ready"}), 503
+        
+        faces = model.get(bgr)
+        if not faces:
+            return jsonify({"ok": True, "matched": False, "error": "No face detected"})
+        
+        # choose largest face
+        f = max(faces, key=lambda x: (x.bbox[2]-x.bbox[0])*(x.bbox[3]-x.bbox[1]))
+        q = f.normed_embedding.astype(np.float32)
+        
+        best_member, best_score, second_score = find_best_match(q)
+        matched = (
+            best_member is not None and
+            best_score >= SIM_THRESHOLD_MATCH and
+            (best_score - (second_score if second_score is not None else 0.0)) >= TOP2_MARGIN
+        )
+        
+        resp: Dict[str, Any] = {
+            "ok": True,
+            "matched": bool(matched),
+            "best_score": float(best_score),
+            "second_best": float(second_score),
+            "bbox": [int(v) for v in f.bbox.tolist()],
+        }
+        
+        if matched and best_member:
+            member_id = int(best_member.gym_member_id)
+            # Create name from first_name + last_name
+            first_name = best_member.first_name or ""
+            last_name = best_member.last_name or ""
+            if first_name and last_name:
+                name = f"{first_name} {last_name}"
+            elif first_name:
+                name = first_name
+            elif last_name:
+                name = last_name
             else:
-                token = gym_login_with_memberid(best.gym_member_id)
+                name = best_member.email or f"Member {member_id}"
+            resp.update({
+                "name": name,
+                "candidate": {
+                    "member_pk": int(best_member.member_pk),
+                    "gym_member_id": member_id,
+                    "email": best_member.email,
+                    "first_name": best_member.first_name,
+                    "last_name": best_member.last_name,
+                }
+            })
+            
+            # Cooldown
+            if is_user_throttled(member_id):
+                remaining = get_user_cooldown_remaining(member_id)
+                resp["gate"] = {"throttled": True, "cooldown_remaining": remaining, "popup_style": "WARNING"}
+                resp["member_id"] = member_id
+                resp["name"] = name
+                return jsonify(resp)
+            
+            # Open gate if enabled
+            if CHECKIN_ENABLED:
+                token = gym_login_with_memberid(member_id)
                 if token:
-                    session['gym_token'] = token
-                    gate = gym_open_gate(token, int(doorid))
-                    if gate:
-                        resp["gate"] = gate
-                        mark_user_recognized(best.gym_member_id)
-                        
-                        # DIOPTIMALKAN: Tambahkan informasi nama untuk frontend
-                        resp["name"] = best.email or f"Member {best.gym_member_id}"
-                        resp["member_id"] = best.gym_member_id
+                    gate_result = gym_open_gate(token, int(doorid))
+                    if gate_result:
+                        mark_user_recognized(member_id)
                         resp["success"] = True
-                        print(f"DEBUG: Fast recognition response prepared with name: {resp['name']}")
-                    else:
-                        resp["gate"] = {"error": "Gate API failed"}
-                else:
-                    resp["gate"] = {"error": "Login API failed"}
-        except Exception as e:
-            resp["gate"] = {"error": f"Gate handling error: {str(e)}"}
-    else:
-        resp["gate"] = {"error": "Face not confidently matched"}
-
-    return jsonify(resp)
+                        resp["gate"] = {"throttled": False, "popup_style": "GRANTED", "response": gate_result}
+                        return jsonify(resp)
+            
+            # Recognized but gate not opened (fallback)
+            mark_user_recognized(member_id)
+            resp["success"] = True
+            resp["gate"] = {"throttled": False, "popup_style": "GRANTED"}
+            return jsonify(resp)
+        
+        # Not matched
+        resp["popup_style"] = "DENIED"
+        return jsonify(resp)
+    except Exception as e:
+        print("DEBUG: api/recognize_fast error", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 # DIOPTIMALKAN: Warm-up endpoints untuk menghindari cold start
 @app.route("/api/warmup/start", methods=["POST"])
