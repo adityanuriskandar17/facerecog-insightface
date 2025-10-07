@@ -6829,7 +6829,13 @@ def api_recognize_open_gate():
     if not CHECKIN_ENABLED:
         return jsonify({"ok": False, "error": "Check-in disabled by config"}), 400
 
-    data = request.get_json(force=True)
+    try:
+        data = request.get_json()
+        if data is None:
+            return jsonify({"ok": False, "error": "No JSON data provided"}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Invalid JSON data: {str(e)}"}), 400
+    
     doorid = data.get("doorid")
     image_b64 = data.get("image_b64")
     if not doorid:
@@ -7351,7 +7357,13 @@ def api_update_profile_photo():
     if not token:
         return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
 
-    data = request.get_json(force=True)
+    try:
+        data = request.get_json()
+        if data is None:
+            return jsonify({"ok": False, "error": "No JSON data provided"}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Invalid JSON data: {str(e)}"}), 400
+    
     image_b64 = data.get("image_b64")
     if not image_b64:
         return jsonify({"ok": False, "error": "No image provided"}), 400
