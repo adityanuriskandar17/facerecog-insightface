@@ -1323,6 +1323,85 @@ INDEX_HTML = """
     .field { display: inline-flex; gap: 8px; align-items: center; }
     .stack { display: grid; gap: 12px; }
     
+    /* Profile Photo Display - Inside Camera Container */
+    .profile-photo-container {
+      position: absolute;
+      bottom: 15px;
+      right: 15px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      background: linear-gradient(135deg, #4ca7e5 0%, #0072bc 100%);
+      display: none;
+      z-index: 1000;
+      transition: all 0.3s ease;
+      border: 3px solid rgba(255, 255, 255, 0.9);
+    }
+    
+    .profile-photo-container.show {
+      display: block;
+      animation: slideInUp 0.5s ease-out;
+    }
+    
+    .profile-photo-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    
+    .profile-photo-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+    }
+    
+    .profile-photo-placeholder i {
+      font-size: 2rem;
+      margin-bottom: 5px;
+      opacity: 0.8;
+    }
+    
+    .profile-photo-placeholder span {
+      font-size: 0.7rem;
+      font-weight: 500;
+    }
+    
+    .profile-name-overlay {
+      position: absolute;
+      bottom: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      white-space: nowrap;
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    @keyframes slideInUp {
+      from {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
     /* Responsive Design */
     @media (max-width: 768px) {
       body { margin: 10px; padding: 10px; }
@@ -1330,6 +1409,28 @@ INDEX_HTML = """
       #cameraContainer { 
         height: 400px !important; 
         min-height: 400px !important;
+      }
+      
+      /* Profile photo responsive */
+      .profile-photo-container {
+        width: 60px;
+        height: 60px;
+        bottom: 10px;
+        right: 10px;
+      }
+      
+      .profile-photo-placeholder i {
+        font-size: 1.2rem;
+      }
+      
+      .profile-photo-placeholder span {
+        font-size: 0.5rem;
+      }
+      
+      .profile-name-overlay {
+        font-size: 0.5rem;
+        bottom: -20px;
+        max-width: 100px;
       }
       video, canvas, img { 
         width: 100%; 
@@ -1350,10 +1451,54 @@ INDEX_HTML = """
         height: 100%;
         object-fit: contain !important;
       }
+      
+      /* Profile photo responsive for small mobile */
+      .profile-photo-container {
+        width: 50px;
+        height: 50px;
+        bottom: 8px;
+        right: 8px;
+      }
+      
+      .profile-photo-placeholder i {
+        font-size: 1rem;
+      }
+      
+      .profile-photo-placeholder span {
+        font-size: 0.4rem;
+      }
+      
+      .profile-name-overlay {
+        font-size: 0.4rem;
+        bottom: -18px;
+        max-width: 80px;
+      }
       button { padding: 8px 12px; font-size: 12px; }
     }
     
     /* Fullscreen Styles */
+    .fullscreen .profile-photo-container {
+      width: 120px;
+      height: 120px;
+      bottom: 30px;
+      right: 30px;
+      border: 4px solid rgba(255, 255, 255, 0.9);
+    }
+    
+    .fullscreen .profile-photo-placeholder i {
+      font-size: 3rem;
+    }
+    
+    .fullscreen .profile-photo-placeholder span {
+      font-size: 0.9rem;
+    }
+    
+    .fullscreen .profile-name-overlay {
+      font-size: 0.8rem;
+      bottom: -35px;
+      max-width: 180px;
+    }
+    
     .fullscreen {
       position: fixed !important;
       top: 0 !important;
@@ -1723,6 +1868,16 @@ INDEX_HTML = """
           <button id="fullscreenBtn" style="position: absolute; top: 12px; right: 12px; background: #495057; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;">
             <i class="fas fa-expand" style="font-size: 12px;"></i>
           </button>
+          
+          <!-- Profile Photo Container - Inside Camera -->
+          <div id="profilePhotoContainer" class="profile-photo-container">
+            <div id="profilePhotoPlaceholder" class="profile-photo-placeholder">
+              <i class="fas fa-user"></i>
+              <span>Profile</span>
+            </div>
+            <img id="profilePhoto" style="display: none;" alt="Profile Photo">
+            <div id="profileNameOverlay" class="profile-name-overlay"></div>
+          </div>
         </div>
       
       <!-- Control Buttons -->
@@ -2621,6 +2776,10 @@ INDEX_HTML = """
       setLog('Camera stopped.');
       updateDetectionDisplay(null, 'Camera inactive');
       
+      // Hide profile photo when camera stops
+      hideMemberProfilePhoto();
+      currentDisplayedMember = null;
+      
       // Show placeholder and hide video
       video.style.display = 'none';
       document.getElementById('cameraPlaceholder').style.display = 'flex';
@@ -2740,14 +2899,29 @@ INDEX_HTML = """
             // Check-in berhasil
             updateDetectionDisplay(name, 'Check-in successful!', confidence, j.gate.popup_style);
             console.log('Check-in successful for:', name);
+            
+            // Tampilkan foto profil di pojok kanan bawah
+            if (j.member_id) {
+              ensureProfilePhotoVisible(j.member_id, name);
+            }
           } else if (j.gate && j.gate.popup_style === 'GRANTED') {
             // Check-in berhasil (fallback untuk response tanpa success field)
             updateDetectionDisplay(name, 'Check-in successful!', confidence, j.gate.popup_style);
             console.log('Check-in successful for:', name);
+            
+            // Tampilkan foto profil di pojok kanan bawah
+            if (j.member_id) {
+              ensureProfilePhotoVisible(j.member_id, name);
+            }
           } else if (j.gate && j.gate.throttled) {
             // User dalam cooldown
             updateDetectionDisplay(name, 'User in cooldown period', confidence);
             console.log('User in cooldown:', name);
+            
+            // Tampilkan foto profil di pojok kanan bawah untuk cooldown juga
+            if (j.member_id) {
+              ensureProfilePhotoVisible(j.member_id, name);
+            }
           } else {
             // Face recognized but no gate action
             updateDetectionDisplay(name, 'Face recognized', confidence);
@@ -2948,6 +3122,10 @@ INDEX_HTML = """
         } else if (j.ok && !j.matched) {
           const popupStyle = j.popup_style || 'DENIED';
           updateDetectionDisplay('Wajah Belum Terdaftar', 'Face detected but not recognized', null, popupStyle);
+          
+          // Hide profile photo for unknown face
+          hideMemberProfilePhoto();
+          currentDisplayedMember = null;
           // Draw orange face tracking for unknown face
           if (j.bbox && j.bbox.length === 4) {
             const [x1, y1, x2, y2] = j.bbox;
@@ -3015,6 +3193,10 @@ INDEX_HTML = """
         } else {
           updateDetectionDisplay(null, j.error || 'No face detected');
           clearFaceIndicator();
+          
+          // Hide profile photo when no face detected
+          hideMemberProfilePhoto();
+          currentDisplayedMember = null;
         }
         } catch (e) {
         if (e.name === 'AbortError') {
@@ -3140,6 +3322,165 @@ INDEX_HTML = """
         btn.textContent = 'Show Overlay';
         btn.style.background = '#28a745';
       }
+    }
+    
+    // Global variable to track current displayed member
+    let currentDisplayedMember = null;
+    
+    // Function to show member profile photo in bottom right corner
+    async function ensureProfilePhotoVisible(memberId, memberName) {
+      try {
+        // If different member is detected, hide current photo first
+        if (currentDisplayedMember !== null && currentDisplayedMember !== memberId) {
+          console.log('Different member detected, hiding current photo');
+          hideMemberProfilePhoto();
+        }
+        
+        // Always show photo for recognized member, even if same member
+        console.log('Showing profile photo for member:', memberId);
+        
+        // Always show photo, even for same member
+        console.log('Always showing photo for member:', memberId);
+        
+        console.log('Fetching profile photo for member:', memberId);
+        currentDisplayedMember = memberId;
+        
+        const response = await fetch(`/api/get_member_photo/${memberId}`);
+        const data = await response.json();
+        
+        if (data.ok && data.photo_url) {
+          const container = document.getElementById('profilePhotoContainer');
+          const placeholder = document.getElementById('profilePhotoPlaceholder');
+          const photo = document.getElementById('profilePhoto');
+          const nameOverlay = document.getElementById('profileNameOverlay');
+          
+          // Set photo source
+          photo.src = data.photo_url + (data.photo_url.includes('?') ? '&' : '?') + 't=' + Date.now();
+          
+          // Set member name
+          nameOverlay.textContent = data.full_name || memberName || `Member ${memberId}`;
+          
+          // Show photo and hide placeholder
+          photo.style.display = 'block';
+          placeholder.style.display = 'none';
+          
+          // Show container with animation
+          container.classList.add('show');
+          container.style.display = 'block';
+          
+          console.log('Profile photo displayed for:', data.full_name);
+          
+          // Keep photo visible - no auto-hide
+          
+        } else {
+          console.log('No profile photo available for member:', memberId);
+          // Show placeholder with member name
+          showMemberProfilePlaceholder(memberName || `Member ${memberId}`);
+        }
+        
+      } catch (error) {
+        console.error('Error fetching profile photo:', error);
+        // Show placeholder with member name
+        showMemberProfilePlaceholder(memberName || `Member ${memberId}`);
+      }
+    }
+    
+    // Function to show profile placeholder
+    function showMemberProfilePlaceholder(memberName) {
+      const container = document.getElementById('profilePhotoContainer');
+      const placeholder = document.getElementById('profilePhotoPlaceholder');
+      const photo = document.getElementById('profilePhoto');
+      const nameOverlay = document.getElementById('profileNameOverlay');
+      
+      // Hide photo and show placeholder
+      photo.style.display = 'none';
+      placeholder.style.display = 'flex';
+      
+      // Set member name
+      nameOverlay.textContent = memberName;
+      
+      // Show container with animation
+      container.classList.add('show');
+      container.style.display = 'block';
+      
+      // Keep placeholder visible - no auto-hide
+    }
+    
+    // Function to hide member profile photo
+    function hideMemberProfilePhoto() {
+      const container = document.getElementById('profilePhotoContainer');
+      container.classList.remove('show');
+      
+      // Hide after animation completes
+      setTimeout(() => {
+        container.style.display = 'none';
+      }, 500);
+    }
+    
+    // Function to show member profile photo (renamed from showMemberProfilePhoto)
+    async function showMemberProfilePhoto(memberId, memberName) {
+      try {
+        // If different member is detected, hide current photo first
+        if (currentDisplayedMember !== null && currentDisplayedMember !== memberId) {
+          console.log('Different member detected, hiding current photo');
+          hideMemberProfilePhoto();
+        }
+        
+        // Always show photo for recognized member, even if same member
+        console.log('Showing profile photo for member:', memberId);
+        
+        // Always show photo, even for same member
+        console.log('Always showing photo for member:', memberId);
+        
+        console.log('Fetching profile photo for member:', memberId);
+        currentDisplayedMember = memberId;
+        
+        const response = await fetch(`/api/get_member_photo/${memberId}`);
+        const data = await response.json();
+        
+        if (data.ok && data.photo_url) {
+          const container = document.getElementById('profilePhotoContainer');
+          const placeholder = document.getElementById('profilePhotoPlaceholder');
+          const photo = document.getElementById('profilePhoto');
+          const nameOverlay = document.getElementById('profileNameOverlay');
+          
+          // Set photo source
+          photo.src = data.photo_url + (data.photo_url.includes('?') ? '&' : '?') + 't=' + Date.now();
+          
+          // Set member name
+          nameOverlay.textContent = data.full_name || memberName || `Member ${memberId}`;
+          
+          // Show photo and hide placeholder
+          photo.style.display = 'block';
+          placeholder.style.display = 'none';
+          
+          // Show container with animation
+          container.classList.add('show');
+          container.style.display = 'block';
+          
+          console.log('Profile photo displayed for:', data.full_name);
+          
+          // Keep photo visible - no auto-hide
+          
+        } else {
+          console.log('No profile photo available for member:', memberId);
+          // Show placeholder with member name
+          showMemberProfilePlaceholder(memberName || `Member ${memberId}`);
+        }
+        
+      } catch (error) {
+        console.error('Error fetching profile photo:', error);
+        // Show placeholder with member name
+        showMemberProfilePlaceholder(memberName || `Member ${memberId}`);
+      }
+    }
+    
+    // Function to ensure profile photo is always visible for recognized user
+    function ensureProfilePhotoVisible(memberId, memberName) {
+      console.log('Ensuring profile photo visible for member:', memberId);
+      
+      // Always call showMemberProfilePhoto to ensure photo is displayed
+      showMemberProfilePhoto(memberId, memberName);
     }
 
     setButtons(false);
@@ -5748,6 +6089,8 @@ def api_recognize_open_gate():
                 "throttled": True,
                 "cooldown_remaining": cooldown_remaining
             }
+            resp["member_id"] = best.gym_member_id
+            resp["name"] = best.email or f"Member {best.gym_member_id}"
             return jsonify(resp)
         
         token = gym_login_with_memberid(best.gym_member_id)
@@ -5777,6 +6120,44 @@ def api_recognize_open_gate():
         resp["gate"] = {"error": "Face not confidently matched"}
 
     return jsonify(resp)
+
+# Endpoint untuk mengambil foto profil member
+@app.route("/api/get_member_photo/<int:member_id>", methods=["GET"])
+def api_get_member_photo(member_id):
+    """Get member profile photo by member_id"""
+    try:
+        # Login dengan member_id untuk mendapatkan token
+        token = gym_login_with_memberid(member_id)
+        if not token:
+            return jsonify({"ok": False, "error": "Failed to login with member ID"}), 401
+        
+        # Ambil profile data
+        profile = gym_get_profile(token)
+        if not profile:
+            return jsonify({"ok": False, "error": "Failed to fetch profile"}), 404
+        
+        # Ambil URL foto profil
+        profile_photo_url = profile.get("memberphoto")
+        if not profile_photo_url:
+            return jsonify({"ok": False, "error": "No profile photo found"}), 404
+        
+        # Ambil nama lengkap
+        full_name = profile.get("fullname", f"Member {member_id}")
+        first_name = profile.get("firstname", "")
+        last_name = profile.get("surname", "")
+        
+        return jsonify({
+            "ok": True,
+            "member_id": member_id,
+            "full_name": full_name,
+            "first_name": first_name,
+            "last_name": last_name,
+            "photo_url": profile_photo_url
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: Error getting member photo: {e}")
+        return jsonify({"ok": False, "error": f"Error: {str(e)}"}), 500
 
 # DIOPTIMALKAN: Fast recognition endpoint untuk skala besar
 @app.route("/api/recognize_fast", methods=["POST"])
@@ -5843,6 +6224,8 @@ def api_recognize_fast():
                     "throttled": True,
                     "cooldown_remaining": cooldown_remaining
                 }
+                resp["member_id"] = best.gym_member_id
+                resp["name"] = best.email or f"Member {best.gym_member_id}"
             else:
                 token = gym_login_with_memberid(best.gym_member_id)
                 if token:
