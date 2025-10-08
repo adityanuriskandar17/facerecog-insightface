@@ -6276,15 +6276,66 @@ RETAKE_HTML = """
                 min-width: 300px;
               `;
               completionNotification.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                  <div style="font-size: 24px;">✅</div>
-                  <div>CAPTURE COMPLETE! Processing ${capturedFrames.length} frames...</div>
-                  <div style="font-size: 24px;">✅</div>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;">
+                  <div style="font-size: 18px; font-weight: 600; color: #fff;">CAPTURE COMPLETE!</div>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="loading-spinner"></div>
+                    <div style="color: #fff;">Processing ${capturedFrames.length} frames...</div>
+                  </div>
                 </div>
+                <style>
+                  .loading-spinner {
+                    width: 20px;
+                    height: 20px;
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    border-top: 2px solid #fff;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                  }
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                </style>
               `;
               document.body.appendChild(completionNotification);
               
-              progress.textContent = 'Sending photos for face encoding...';
+              progress.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px; justify-content: center;">
+                  <div class="loading-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <div>Sending photos for face encoding...</div>
+                </div>
+                <style>
+                  .loading-dots {
+                    display: inline-flex;
+                    gap: 4px;
+                  }
+                  .loading-dots span {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    background-color: #2196F3;
+                    animation: loadingDots 1.4s infinite ease-in-out both;
+                  }
+                  .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+                  .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+                  .loading-dots span:nth-child(3) { animation-delay: 0s; }
+                  @keyframes loadingDots {
+                    0%, 80%, 100% { 
+                      transform: scale(0);
+                      opacity: 0.5;
+                    } 
+                    40% { 
+                      transform: scale(1);
+                      opacity: 1;
+                    }
+                  }
+                </style>
+              `;
               
               // Send frames to server for encoding
               const r = await fetch('/api/register_face', {
