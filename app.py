@@ -2018,6 +2018,150 @@ INDEX_HTML = """
       }
     }
     
+    /* Loading Animation for Recognizing State */
+    @keyframes loadingPulse {
+      0% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+      50% {
+        transform: scale(1.1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+    }
+    
+    @keyframes loadingRotate {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    
+    @keyframes loadingDots {
+      0%, 20% {
+        opacity: 0.5;
+      }
+      50% {
+        opacity: 1;
+      }
+      80%, 100% {
+        opacity: 0.5;
+      }
+    }
+    
+    @keyframes loadingScan {
+      0% {
+        transform: translateX(-100%);
+        opacity: 0;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+    
+    .loading-animation {
+      animation: loadingPulse 1.5s ease-in-out infinite;
+    }
+    
+    .loading-icon {
+      animation: loadingRotate 2s linear infinite;
+    }
+    
+    .loading-text {
+      animation: loadingDots 1.5s ease-in-out infinite;
+    }
+    
+    .loading-scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #2196F3, transparent);
+      animation: loadingScan 2s ease-in-out infinite;
+      z-index: 15;
+    }
+    
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(33, 150, 243, 0.1);
+      display: none;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    .loading-overlay.show {
+      display: block;
+    }
+    
+    .loading-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #2196F3;
+      z-index: 20;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      min-width: 250px;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(33, 150, 243, 0.3);
+      border-top: 4px solid #2196F3;
+      border-radius: 50%;
+      animation: loadingRotate 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    .loading-text-large {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      line-height: 1.2;
+      text-shadow: none;
+      color: #2196F3;
+    }
+    
+    .loading-text-small {
+      font-size: 14px;
+      opacity: 0.8;
+      line-height: 1.4;
+      margin: 0;
+    }
+    
+    /* Fullscreen loading animation */
+    .fullscreen .loading-overlay {
+      z-index: 10005 !important;
+    }
+    
+    .fullscreen .loading-content {
+      z-index: 10006 !important;
+    }
+    
+    .fullscreen .loading-scan-line {
+      z-index: 10007 !important;
+    }
+    
     /* Responsive Design */
     @media (max-width: 768px) {
       body { margin: 10px; padding: 10px; }
@@ -2498,8 +2642,18 @@ INDEX_HTML = """
       
         <!-- Camera Display Area -->
         <div id="cameraContainer" style="position: relative; width: 100%; height: 450px; background: #f8f9fa; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-          <video id="video" autoplay playsinline muted style="width: 100%; height: 100%; background: #f8f9fa; border-radius: 12px; object-fit: contain; border: none; transform: scaleX(-1); display: none;"></video>
-          <canvas id="overlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 12px; width: 100%; height: 100%; z-index: 10; background: transparent;"></canvas>
+            <video id="video" autoplay playsinline muted style="width: 100%; height: 100%; background: #f8f9fa; border-radius: 12px; object-fit: contain; border: none; transform: scaleX(-1); display: none;"></video>
+            <canvas id="overlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 12px; width: 100%; height: 100%; z-index: 10; background: transparent;"></canvas>
+            
+            <!-- Loading Overlay for Recognizing State -->
+            <div id="loadingOverlay" class="loading-overlay">
+              <div class="loading-scan-line"></div>
+              <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <div class="loading-text-large">Recognizing...</div>
+                <div class="loading-text-small">Please wait while we scan your face</div>
+              </div>
+            </div>
           
           <!-- Camera Placeholder -->
           <div id="cameraPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d;">
@@ -3075,6 +3229,19 @@ INDEX_HTML = """
         showPopup(name, status, popupStyle);
       }
       detectionStatus.textContent = status;
+      
+      // Check if status is "Recognizing..." to show loading animation
+      const isRecognizing = status === 'Recognizing...';
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      
+      // Show/hide loading overlay
+      if (loadingOverlay) {
+        if (isRecognizing) {
+          loadingOverlay.classList.add('show');
+        } else {
+          loadingOverlay.classList.remove('show');
+        }
+      }
       
       // Check if it's a success message (gate opened, recognized, etc.)
       const isSuccess = status.toLowerCase().includes('success') || 
@@ -4797,6 +4964,150 @@ RETAKE_HTML = """
       box-shadow: 0 2px 8px rgba(76, 167, 229, 0.3);
     }
     
+    /* Loading Animation for Recognizing State - Retake Page */
+    @keyframes loadingPulse {
+      0% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+      50% {
+        transform: scale(1.1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+    }
+    
+    @keyframes loadingRotate {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    
+    @keyframes loadingDots {
+      0%, 20% {
+        opacity: 0.5;
+      }
+      50% {
+        opacity: 1;
+      }
+      80%, 100% {
+        opacity: 0.5;
+      }
+    }
+    
+    @keyframes loadingScan {
+      0% {
+        transform: translateX(-100%);
+        opacity: 0;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+    
+    .loading-animation {
+      animation: loadingPulse 1.5s ease-in-out infinite;
+    }
+    
+    .loading-icon {
+      animation: loadingRotate 2s linear infinite;
+    }
+    
+    .loading-text {
+      animation: loadingDots 1.5s ease-in-out infinite;
+    }
+    
+    .loading-scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #2196F3, transparent);
+      animation: loadingScan 2s ease-in-out infinite;
+      z-index: 15;
+    }
+    
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(33, 150, 243, 0.1);
+      display: none;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    .loading-overlay.show {
+      display: block;
+    }
+    
+    .loading-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #2196F3;
+      z-index: 20;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      min-width: 250px;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(33, 150, 243, 0.3);
+      border-top: 4px solid #2196F3;
+      border-radius: 50%;
+      animation: loadingRotate 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    .loading-text-large {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      line-height: 1.2;
+      text-shadow: none;
+      color: #2196F3;
+    }
+    
+    .loading-text-small {
+      font-size: 14px;
+      opacity: 0.8;
+      line-height: 1.4;
+      margin: 0;
+    }
+    
+    /* Fullscreen loading animation */
+    .fullscreen .loading-overlay {
+      z-index: 10005 !important;
+    }
+    
+    .fullscreen .loading-content {
+      z-index: 10006 !important;
+    }
+    
+    .fullscreen .loading-scan-line {
+      z-index: 10007 !important;
+    }
+    
     /* Responsive Design */
     @media (max-width: 768px) {
       .stepper-container {
@@ -5059,8 +5370,18 @@ RETAKE_HTML = """
         </div>
         <div class="camera-container" id="cameraContainer">
           <video id="video" autoplay playsinline muted style="display: none; transform: scaleX(-1);"></video>
-          <canvas id="overlay" class="camera-overlay" style="display: none;"></canvas>
-          <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: contain; border-radius: 12px;" />
+            <canvas id="overlay" class="camera-overlay" style="display: none;"></canvas>
+            <img id="capturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: contain; border-radius: 12px;" />
+            
+            <!-- Loading Overlay for Recognizing State -->
+            <div id="loadingOverlay" class="loading-overlay">
+              <div class="loading-scan-line"></div>
+              <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <div class="loading-text-large">Recognizing...</div>
+                <div class="loading-text-small">Please wait while we scan your face</div>
+              </div>
+            </div>
           <div class="camera-placeholder" id="cameraPlaceholder">
             <i class="fas fa-camera"></i>
           </div>
@@ -5176,13 +5497,28 @@ RETAKE_HTML = """
         </div>
       </div>
       
-      <!-- Hidden Control Buttons (tidak ditampilkan, hanya untuk event handlers) -->
-      <div style="display: none;">
-        <button id="btnStartRegister"></button>
-        <button id="btnBurstCapture"></button>
-        <button id="btnCapturePhoto"></button>
-        <button id="btnUpdatePhoto"></button>
-        <button id="btnResetPhoto"></button>
+      <!-- Control Buttons -->
+      <div style="display: flex; gap: 12px; justify-content: center; margin: 20px 0; flex-wrap: wrap;">
+        <button id="btnStartRegister" class="step-action-btn" style="display: none; background: linear-gradient(135deg, #4ca7e5, #0072bc); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(76, 167, 229, 0.3); transition: all 0.3s ease;">
+          <i class="fas fa-camera" style="margin-right: 8px;"></i>
+          Start Camera
+        </button>
+        <button id="btnBurstCapture" class="step-action-btn" style="background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3); transition: all 0.3s ease; opacity: 0.5; cursor: not-allowed;" disabled>
+          <i class="fas fa-bolt" style="margin-right: 8px;"></i>
+          Burst Capture
+        </button>
+        <button id="btnCapturePhoto" class="step-action-btn" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); transition: all 0.3s ease; opacity: 0.5; cursor: not-allowed;" disabled>
+          <i class="fas fa-camera" style="margin-right: 8px;"></i>
+          Capture Photo
+        </button>
+        <button id="btnUpdatePhoto" class="step-action-btn" style="background: linear-gradient(135deg, #6f42c1, #5a32a3); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(111, 66, 193, 0.3); transition: all 0.3s ease; opacity: 0.5; cursor: not-allowed;" disabled>
+          <i class="fas fa-upload" style="margin-right: 8px;"></i>
+          Update Photo
+        </button>
+        <button id="btnResetPhoto" class="step-action-btn reset-btn" style="background: linear-gradient(135deg, #ffc107, #ff9800); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3); transition: all 0.3s ease; opacity: 0.5; cursor: not-allowed;" disabled>
+          <i class="fas fa-redo" style="margin-right: 8px;"></i>
+          Reset Photo
+        </button>
       </div>
       
       <!-- Progress and Status -->
@@ -5324,37 +5660,9 @@ RETAKE_HTML = """
     const maxRegisterSteps = 3;
     
     function updateRegisterButtonStates() {
-      const buttons = [
-        'btnStartRegister',      // Step 1
-        'btnBurstCapture',       // Step 2  
-        'btnCapturePhoto'        // Step 3
-      ];
-      
-      buttons.forEach((btnId, index) => {
-        const button = document.getElementById(btnId);
-        if (button) {
-          const stepNumber = index + 1;
-          
-          // Button 5 (Reset) is always available
-          if (stepNumber === 5) {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.cursor = 'pointer';
-            return;
-          }
-          
-          // Other buttons follow sequential logic
-          if (stepNumber <= currentRegisterStep) {
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.cursor = 'pointer';
-          } else {
-            button.disabled = true;
-            button.style.opacity = '0.5';
-            button.style.cursor = 'not-allowed';
-          }
-        }
-      });
+      // Manual control - only reset states, don't override manual activation
+      // This function is now mainly for resetting states when modal opens
+      console.log('updateRegisterButtonStates called - not overriding manual button states');
     }
     
     function nextRegisterStep() {
@@ -5364,11 +5672,9 @@ RETAKE_HTML = """
         updateStepperStates();
         console.log(`Advanced to register step ${currentRegisterStep}`);
       } else {
-        // All steps completed, show final countdown and exit
-        console.log('All register steps completed, showing final countdown...');
-        showFinalCountdown().then(() => {
-          closeRegisterModal();
-        });
+        // All steps completed, show completion message
+        console.log('All register steps completed, showing completion message...');
+        showFinalCountdown();
       }
     }
     
@@ -5380,10 +5686,8 @@ RETAKE_HTML = """
         return;
       }
       isModalClosing = true;
-      console.log('Photo update completed, showing final countdown...');
-      showFinalCountdown().then(() => {
-        closeRegisterModal();
-      });
+      console.log('Photo update completed, showing completion message...');
+      showFinalCountdown();
     }
     
     function resetRegisterSteps() {
@@ -5411,19 +5715,21 @@ RETAKE_HTML = """
         if (stepNumber < currentRegisterStep) {
           // Completed steps
           step.classList.add('completed');
-          stepNumberSpan.style.display = 'none';
-          stepCheck.style.display = 'block';
+          if (stepNumberSpan) stepNumberSpan.style.display = 'none';
+          if (stepCheck) stepCheck.style.display = 'block';
         } else if (stepNumber === currentRegisterStep) {
           // Current active step
           step.classList.add('active');
-          stepNumberSpan.style.display = 'block';
-          stepCheck.style.display = 'none';
+          if (stepNumberSpan) stepNumberSpan.style.display = 'block';
+          if (stepCheck) stepCheck.style.display = 'none';
         } else {
           // Future steps
-          stepNumberSpan.style.display = 'block';
-          stepCheck.style.display = 'none';
+          if (stepNumberSpan) stepNumberSpan.style.display = 'block';
+          if (stepCheck) stepCheck.style.display = 'none';
         }
       });
+      
+      console.log(`Stepper updated: currentRegisterStep = ${currentRegisterStep}`);
     }
     
     function nextStepperStep() {
@@ -5433,11 +5739,9 @@ RETAKE_HTML = """
         updateStepperStates();
         console.log(`Advanced to stepper step ${currentRegisterStep}`);
       } else {
-        // All steps completed, show final countdown and exit
-        console.log('All stepper steps completed, showing final countdown...');
-        showFinalCountdown().then(() => {
-          closeRegisterModal();
-        });
+        // All steps completed, show completion message
+        console.log('All stepper steps completed, showing completion message...');
+        showFinalCountdown();
       }
     }
     
@@ -6009,9 +6313,8 @@ RETAKE_HTML = """
           
           document.getElementById('registerProgress').textContent = 'Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.';
           
-          // Move to next step after successful photo capture
-          nextRegisterStep();
-          updateStepperStates();
+          // Enable the update photo button instead of auto-advancing
+          document.getElementById('btnUpdatePhoto').disabled = false;
           
         } catch (e) {
           document.getElementById('registerProgress').textContent = 'Capture error: ' + e.message;
@@ -6312,25 +6615,21 @@ RETAKE_HTML = """
         console.log('Starting camera immediately...');
         await startRegisterCamera();
         
-        // Wait a bit for camera to stabilize
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Update stepper to show step 1 completed and step 2 active
+        currentRegisterStep = 2;
+        updateStepperStates();
         
-        // Step 2: Burst Capture with countdown
-        await performBurstCapture();
-        
-        // Step 3: Wait for photo capture and update to complete
-        // This is handled by showCountdownForPhotoCapture() which calls nextRegisterStep()
-        // We need to wait for the entire process to complete
-        
-        // The flow will be:
-        // 1. performBurstCapture() -> success popup -> showCountdownForPhotoCapture()
-        // 2. showCountdownForPhotoCapture() -> capture photo -> update to GymMaster -> nextRegisterStep()
-        // 3. nextRegisterStep() will trigger the final countdown and exit
+        // Enable the Burst Capture button
+        const burstButton = document.getElementById('btnBurstCapture');
+        burstButton.disabled = false;
+        burstButton.style.opacity = '1';
+        burstButton.style.cursor = 'pointer';
+        document.getElementById('registerProgress').textContent = 'Camera started! Click "Burst Capture" to continue.';
+        console.log('Camera started automatically, step 1 completed, step 2 active');
         
       } catch (error) {
-        console.error('Auto register process error:', error);
-        // Don't show error popup, just log it and continue
-        document.getElementById('registerProgress').textContent = 'Process completed with some issues: ' + error.message;
+        console.error('Register process error:', error);
+        document.getElementById('registerProgress').textContent = 'Camera start failed: ' + error.message;
       }
     }
     
@@ -6372,13 +6671,13 @@ RETAKE_HTML = """
                   console.log('Video started playing');
                   document.getElementById('registerProgress').textContent = 'Camera started successfully!';
                   
-                  // Enable next buttons
-                  document.getElementById('btnCapturePhoto').disabled = false;
-                  document.getElementById('btnBurstCapture').disabled = false;
+                  // Enable burst capture button for manual control
+                  const burstButton = document.getElementById('btnBurstCapture');
+                  burstButton.disabled = false;
+                  burstButton.style.opacity = '1';
+                  burstButton.style.cursor = 'pointer';
+                  console.log('Burst capture button enabled');
                   
-                  // Move to next step
-                  nextRegisterStep();
-                  updateStepperStates();
                   resolve();
                 }).catch(err => {
                   console.error('Video play error:', err);
@@ -6544,6 +6843,10 @@ RETAKE_HTML = """
                 from { transform: translateX(-50%) translateY(-100px); opacity: 0; }
                 to { transform: translateX(-50%) translateY(0); opacity: 1; }
               }
+              @keyframes slideUp {
+                from { transform: translateX(-50%) translateY(0); opacity: 1; }
+                to { transform: translateX(-50%) translateY(-100px); opacity: 0; }
+              }
               @keyframes framePulse {
                 0% { transform: translateX(-50%) scale(1); }
                 50% { transform: translateX(-50%) scale(1.02); }
@@ -6624,24 +6927,47 @@ RETAKE_HTML = """
               `;
               completionNotification.innerHTML = `
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;">
-                  <div style="font-size: 18px; font-weight: 600; color: #fff;">CAPTURE COMPLETE!</div>
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <div class="loading-spinner"></div>
-                    <div style="color: #fff;">Processing ${capturedFrames.length} frames...</div>
+                  <div style="display: flex; align-items: center; gap: 15px;">
+                    <div class="processing-animation">
+                      <div class="processing-dots">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                      </div>
+                    </div>
+                    <div style="color: #fff; font-size: 16px; font-weight: 500;">Processing ${capturedFrames.length} frames...</div>
                   </div>
                 </div>
                 <style>
-                  .loading-spinner {
-                    width: 20px;
-                    height: 20px;
-                    border: 2px solid rgba(255, 255, 255, 0.3);
-                    border-top: 2px solid #fff;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
+                  .processing-animation {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                   }
-                  @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
+                  .processing-dots {
+                    display: flex;
+                    gap: 4px;
+                    align-items: center;
+                  }
+                  .dot {
+                    width: 8px;
+                    height: 8px;
+                    background: #fff;
+                    border-radius: 50%;
+                    animation: processingBounce 1.4s ease-in-out infinite both;
+                  }
+                  .dot:nth-child(1) { animation-delay: -0.32s; }
+                  .dot:nth-child(2) { animation-delay: -0.16s; }
+                  .dot:nth-child(3) { animation-delay: 0s; }
+                  @keyframes processingBounce {
+                    0%, 80%, 100% {
+                      transform: scale(0.8);
+                      opacity: 0.5;
+                    }
+                    40% {
+                      transform: scale(1.2);
+                      opacity: 1;
+                    }
                   }
                 </style>
               `;
@@ -6760,8 +7086,8 @@ RETAKE_HTML = """
                 
                 console.log('Face registration successful:', j);
                 
-                // Move to next step after burst capture completed
-                nextRegisterStep();
+                // Enable the capture photo button instead of auto-advancing
+                document.getElementById('btnCapturePhoto').disabled = false;
                 
                 resolve();
               } else {
@@ -6779,119 +7105,16 @@ RETAKE_HTML = """
     }
     
     function showCountdownForPhotoCapture() {
-      // Clear any existing notifications first
-      const existingSuccess = document.getElementById('faceEncodingSuccess');
-      if (existingSuccess && document.body.contains(existingSuccess)) {
-        document.body.removeChild(existingSuccess);
-      }
-      
-      const existingCountdown = document.getElementById('photoCaptureCountdown');
-      if (existingCountdown && document.body.contains(existingCountdown)) {
-        document.body.removeChild(existingCountdown);
-      }
-      
+      // Remove automatic countdown - just enable the capture button
       const progress = document.getElementById('registerProgress');
-      progress.textContent = 'Preparing photo capture...';
+      progress.textContent = 'Burst capture completed! Click "Capture Photo" to take your final photo.';
       
-      let countdown = 5;
-      
-      // Create countdown popup for photo capture
-      const countdownDisplay = document.createElement('div');
-      countdownDisplay.id = 'photoCaptureCountdown';
-      countdownDisplay.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: linear-gradient(135deg, #2196F3, #1976D2);
-        color: white;
-        padding: 30px 40px;
-        border-radius: 20px;
-        font-size: 24px;
-        font-weight: bold;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(33, 150, 243, 0.4);
-        z-index: 10000;
-        animation: photoCountdownPulse 1s infinite;
-        border: 3px solid #fff;
-        min-width: 350px;
-      `;
-      
-      // Add countdown animation
-      const countdownStyle = document.createElement('style');
-      countdownStyle.textContent = `
-        @keyframes photoCountdownPulse {
-          0% { transform: translate(-50%, -50%) scale(1); }
-          50% { transform: translate(-50%, -50%) scale(1.05); }
-          100% { transform: translate(-50%, -50%) scale(1); }
-        }
-        @keyframes photoCountdownFlash {
-          0%, 100% { background: linear-gradient(135deg, #2196F3, #1976D2); }
-          50% { background: linear-gradient(135deg, #42A5F5, #1E88E5); }
-        }
-      `;
-      document.head.appendChild(countdownStyle);
-      
-      countdownDisplay.innerHTML = `
-        <div style="font-size: 18px; margin-bottom: 10px;">📸 PHOTO CAPTURE STARTING</div>
-        <div id="photoCountdownNumber" style="font-size: 48px; font-weight: 900; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">${countdown}</div>
-        <div style="font-size: 16px; margin-top: 10px;">Get ready to capture photos!</div>
-      `;
-      
-      document.body.appendChild(countdownDisplay);
-      
-      progress.textContent = `Photo capture starting in ${countdown} seconds...`;
-      
-      // Countdown timer
-      const countdownInterval = setInterval(() => {
-        countdown--;
-        const countdownNumber = document.getElementById('photoCountdownNumber');
-        if (countdownNumber) {
-          countdownNumber.textContent = countdown;
-          // Flash effect for last 3 seconds
-          if (countdown <= 3) {
-            countdownDisplay.style.animation = 'photoCountdownFlash 0.5s infinite';
-          }
-        }
-        progress.textContent = `Photo capture starting in ${countdown} seconds...`;
-        
-        if (countdown <= 0) {
-          clearInterval(countdownInterval);
-          document.body.removeChild(countdownDisplay);
-          
-          // Start photo capture process
-          progress.textContent = 'Capturing photos...';
-          
-          // Capture photo after countdown completes
-          captureRegisterPhoto().then(async () => {
-            console.log('Photo captured successfully');
-            
-            // Update photo to GymMaster
-            progress.textContent = 'Updating photo to system...';
-            try {
-              await updateRegisterPhoto();
-              console.log('Photo updated to GymMaster successfully');
-              // Use auto close function instead of nextRegisterStep for auto register flow
-              autoCloseModalAfterUpdate();
-            } catch (error) {
-              console.error('Update photo error:', error);
-              progress.textContent = 'Update photo failed: ' + error.message;
-              
-              // Show error popup
-              Swal.fire({
-                title: '❌ Upload Error',
-                text: 'Gagal mengupload foto ke GymMaster: ' + error.message,
-                icon: 'error',
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#dc3545'
-              });
-            }
-          }).catch((error) => {
-            console.error('Photo capture error:', error);
-            progress.textContent = 'Photo capture failed: ' + error.message;
-          });
-        }
-      }, 1000);
+      // Enable the capture photo button with proper styling
+      const captureButton = document.getElementById('btnCapturePhoto');
+      captureButton.disabled = false;
+      captureButton.style.opacity = '1';
+      captureButton.style.cursor = 'pointer';
+      console.log('Capture Photo button enabled in showCountdownForPhotoCapture');
     }
     
     let isFinalCountdownShown = false;
@@ -6935,80 +7158,14 @@ RETAKE_HTML = """
     }
     
     function showFinalCountdown() {
-      if (isFinalCountdownShown) {
-        console.log('Final countdown already shown, skipping...');
-        return Promise.resolve();
-      }
-      isFinalCountdownShown = true;
+      // Remove automatic countdown - just show completion message
+      const progress = document.getElementById('registerProgress');
+      progress.textContent = 'Registration completed successfully! You can now close the modal.';
       
       // Update stepper to show all steps completed with checkmarks
       updateStepperToCompleted();
       
-      return new Promise((resolve) => {
-        const progress = document.getElementById('registerProgress');
-        progress.textContent = 'Preparing to exit...';
-        
-        let countdown = 5;
-        
-        // Create final countdown popup
-        const countdownDisplay = document.createElement('div');
-        countdownDisplay.id = 'finalCountdown';
-        countdownDisplay.style.cssText = `
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background: linear-gradient(135deg, #28a745, #20c997);
-          color: white;
-          padding: 30px 40px;
-          border-radius: 20px;
-          font-size: 24px;
-          font-weight: bold;
-          text-align: center;
-          box-shadow: 0 10px 30px rgba(40, 167, 69, 0.4);
-          z-index: 10000;
-          animation: finalCountdownPulse 1s infinite;
-          border: 3px solid #fff;
-          min-width: 350px;
-        `;
-        
-        // Add countdown animation
-        const countdownStyle = document.createElement('style');
-        countdownStyle.textContent = `
-          @keyframes finalCountdownPulse {
-            0% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.05); }
-            100% { transform: translate(-50%, -50%) scale(1); }
-          }
-        `;
-        document.head.appendChild(countdownStyle);
-        
-        countdownDisplay.innerHTML = `
-          <div style="font-size: 18px; margin-bottom: 10px;">✅ REGISTRATION COMPLETE</div>
-          <div id="finalCountdownNumber" style="font-size: 48px; font-weight: 900; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">${countdown}</div>
-          <div style="font-size: 16px; margin-top: 10px;">Modal will close in...</div>
-        `;
-        
-        document.body.appendChild(countdownDisplay);
-        
-        progress.textContent = `Modal will close in ${countdown} seconds...`;
-        
-        // Countdown timer
-        const countdownInterval = setInterval(() => {
-          countdown--;
-          const countdownNumber = document.getElementById('finalCountdownNumber');
-          if (countdownNumber) {
-            countdownNumber.textContent = countdown;
-          }
-          progress.textContent = `Modal will close in ${countdown} seconds...`;
-          
-          if (countdown <= 0) {
-            clearInterval(countdownInterval);
-            document.body.removeChild(countdownDisplay);
-            resolve();
-          }
-        }, 1000);
-      });
+      return Promise.resolve();
     }
     
     async function captureRegisterPhoto() {
@@ -7043,9 +7200,12 @@ RETAKE_HTML = """
           
           document.getElementById('registerProgress').textContent = 'Photo captured successfully!';
           
-          // Move to next step
-          nextRegisterStep();
+          // Move to step 4 (Update Photo) after photo capture completed
+          currentRegisterStep = 4;
           updateStepperStates();
+          
+          // Enable the update photo button instead of auto-advancing
+          document.getElementById('btnUpdatePhoto').disabled = false;
           resolve();
           
         } catch (e) {
@@ -7220,6 +7380,12 @@ RETAKE_HTML = """
         // Initialize register button states when modal opens
         updateRegisterButtonStates();
         updateStepperStates();
+        
+        // Hide the Start Camera button since camera starts automatically
+        const startButton = document.getElementById('btnStartRegister');
+        if (startButton) {
+          startButton.style.display = 'none';
+        }
       }, 50);
       
       // Debug: Check if elements exist
@@ -7381,11 +7547,20 @@ RETAKE_HTML = """
           }
         }, 1000);
         
-        document.getElementById('btnCapturePhoto').disabled = false;
-        document.getElementById('btnBurstCapture').disabled = false;
+        // Enable the burst capture button with proper styling
+        const burstButton = document.getElementById('btnBurstCapture');
+        burstButton.disabled = false;
+        burstButton.style.opacity = '1';
+        burstButton.style.cursor = 'pointer';
         
-        // Move to next step after successful camera start
-        nextRegisterStep();
+        // Disable the start camera button since camera is now running
+        const startButton = document.getElementById('btnStartRegister');
+        startButton.disabled = true;
+        startButton.style.opacity = '0.5';
+        startButton.style.cursor = 'not-allowed';
+        
+        // Update stepper to show step 1 completed and step 2 active
+        currentRegisterStep = 2; // Move to step 2 after camera starts
         updateStepperStates();
         
       } catch (e) {
@@ -7394,29 +7569,7 @@ RETAKE_HTML = """
       }
     };
 
-    // Burst Capture button (Step 2)
-    document.getElementById('btnBurstCapture').onclick = async () => {
-      if (currentRegisterStep !== 2) {
-        console.log('Button 2 can only be clicked when current step is 2');
-        return;
-      }
-      
-      try {
-        console.log('Starting burst capture...');
-        document.getElementById('registerProgress').textContent = 'Capturing multiple photos...';
-        
-        // Start burst capture logic here
-        // For now, just simulate the process
-        setTimeout(() => {
-          document.getElementById('registerProgress').textContent = 'Burst capture completed!';
-          nextRegisterStep(); // Move to step 3
-        }, 2000);
-        
-      } catch (e) {
-        console.error('Burst capture error:', e);
-        document.getElementById('registerProgress').textContent = 'Burst capture error: ' + e.message;
-      }
-    };
+    // Burst Capture button (Step 2) - removed duplicate handler
 
     // Capture Photo button in modal - handled by unified function above
 
@@ -7432,73 +7585,13 @@ RETAKE_HTML = """
       const progress = document.getElementById('registerProgress');
       
       let capturedFrames = [];
-      let countdown = 5;
       
-      // Create prominent countdown display
-      const countdownDisplay = document.createElement('div');
-      countdownDisplay.id = 'burstCountdown';
-      countdownDisplay.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: linear-gradient(135deg, #ff6b35, #f7931e);
-        color: white;
-        padding: 30px 40px;
-        border-radius: 20px;
-        font-size: 24px;
-        font-weight: bold;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(255, 107, 53, 0.4);
-        z-index: 10000;
-        animation: pulse 1s infinite;
-        border: 3px solid #fff;
-      `;
-      
-      // Add pulse animation
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes pulse {
-          0% { transform: translate(-50%, -50%) scale(1); }
-          50% { transform: translate(-50%, -50%) scale(1.05); }
-          100% { transform: translate(-50%, -50%) scale(1); }
-        }
-        @keyframes flash {
-          0%, 100% { background: linear-gradient(135deg, #ff6b35, #f7931e); }
-          50% { background: linear-gradient(135deg, #ff8c42, #ffa726); }
-        }
-      `;
-      document.head.appendChild(style);
-      
-      countdownDisplay.innerHTML = `
-        <div style="font-size: 18px; margin-bottom: 10px;">🚀 BURST CAPTURE STARTING</div>
-        <div id="countdownNumber" style="font-size: 48px; font-weight: 900; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">${countdown}</div>
-        <div style="font-size: 16px; margin-top: 10px;">Get ready to capture 25 frames!</div>
-      `;
-      
-      document.body.appendChild(countdownDisplay);
-      
-      progress.textContent = `Burst capture starting in ${countdown} seconds...`;
+      // Start burst capture immediately without countdown
+      progress.textContent = 'Starting burst capture...';
       document.getElementById('btnBurstCapture').disabled = true;
       
-      // Enhanced countdown with visual feedback
-      const countdownInterval = setInterval(() => {
-        countdown--;
-        const countdownNumber = document.getElementById('countdownNumber');
-        if (countdownNumber) {
-          countdownNumber.textContent = countdown;
-          // Flash effect for last 3 seconds
-          if (countdown <= 3) {
-            countdownDisplay.style.animation = 'flash 0.5s infinite';
-          }
-        }
-        progress.textContent = `Burst capture starting in ${countdown} seconds...`;
-        if (countdown <= 0) {
-          clearInterval(countdownInterval);
-          document.body.removeChild(countdownDisplay);
-          startBurstCapture();
-        }
-      }, 1000);
+      // Start burst capture immediately
+      startBurstCapture();
       
       function startBurstCapture() {
         // Create prominent frame capture notification
@@ -7529,6 +7622,10 @@ RETAKE_HTML = """
           @keyframes slideDown {
             from { transform: translateX(-50%) translateY(-100px); opacity: 0; }
             to { transform: translateX(-50%) translateY(0); opacity: 1; }
+          }
+          @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(0); opacity: 1; }
+            to { transform: translateX(-50%) translateY(-100px); opacity: 0; }
           }
           @keyframes framePulse {
             0% { transform: translateX(-50%) scale(1); }
@@ -7609,15 +7706,88 @@ RETAKE_HTML = """
             min-width: 300px;
           `;
           completionNotification.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-              <div style="font-size: 24px;">✅</div>
-              <div>CAPTURE COMPLETE! Processing ${capturedFrames.length} frames...</div>
-              <div style="font-size: 24px;">✅</div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+              <div class="processing-animation">
+                <div class="processing-dots">
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                </div>
+              </div>
+              <div style="color: #fff; font-size: 16px; font-weight: 500;">Processing ${capturedFrames.length} frames...</div>
             </div>
+            <style>
+              .processing-animation {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              }
+              .processing-dots {
+                display: flex;
+                gap: 4px;
+                align-items: center;
+              }
+              .dot {
+                width: 8px;
+                height: 8px;
+                background: #fff;
+                border-radius: 50%;
+                animation: processingBounce 1.4s ease-in-out infinite both;
+              }
+              .dot:nth-child(1) { animation-delay: -0.32s; }
+              .dot:nth-child(2) { animation-delay: -0.16s; }
+              .dot:nth-child(3) { animation-delay: 0s; }
+              @keyframes processingBounce {
+                0%, 80%, 100% {
+                  transform: scale(0.8);
+                  opacity: 0.5;
+                }
+                40% {
+                  transform: scale(1.2);
+                  opacity: 1;
+                }
+              }
+            </style>
           `;
           document.body.appendChild(completionNotification);
           
-          progress.textContent = 'Sending photos for face encoding...';
+          progress.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px; justify-content: center;">
+              <div class="loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div>Sending photos for face encoding...</div>
+            </div>
+            <style>
+              .loading-dots {
+                display: inline-flex;
+                gap: 4px;
+                align-items: center;
+              }
+              .loading-dots span {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #4ca7e5;
+                animation: loadingBounce 1.4s ease-in-out infinite both;
+              }
+              .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+              .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+              .loading-dots span:nth-child(3) { animation-delay: 0s; }
+              @keyframes loadingBounce {
+                0%, 80%, 100% {
+                  transform: scale(0.8);
+                  opacity: 0.5;
+                }
+                40% {
+                  transform: scale(1.2);
+                  opacity: 1;
+                }
+              }
+            </style>
+          `;
           
           // Update stepper to show burst capture completed
           updateStepperStates();
@@ -7636,17 +7806,79 @@ RETAKE_HTML = """
           }
           
           if (j.ok) {
+            // Remove the loading notification
+            if (completionNotification && document.body.contains(completionNotification)) {
+              document.body.removeChild(completionNotification);
+            }
+            
+            // Show success popup
+            const successNotification = document.createElement('div');
+            successNotification.id = 'faceEncodingSuccess';
+            successNotification.style.cssText = `
+              position: fixed;
+              top: 20px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: linear-gradient(135deg, #28a745, #20c997);
+              color: white;
+              padding: 20px 30px;
+              border-radius: 12px;
+              font-size: 16px;
+              font-weight: 600;
+              text-align: center;
+              box-shadow: 0 8px 32px rgba(40, 167, 69, 0.4);
+              z-index: 10000;
+              animation: slideDown 0.5s ease-out;
+              border: 2px solid #fff;
+              min-width: 300px;
+            `;
+            successNotification.innerHTML = `
+              <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <div style="font-size: 24px;">✅</div>
+                <div>Face encoding successful!</div>
+                <div style="font-size: 24px;">✅</div>
+              </div>
+            `;
+            document.body.appendChild(successNotification);
+            
             progress.textContent = 'Face recognition registered successfully!';
             document.getElementById('btnBurstCapture').disabled = false;
+            
+            // Move to step 3 (Capture Photo) after burst capture completed
+            currentRegisterStep = 3;
+            updateStepperStates();
+            
+            // Enable the capture photo button with proper styling
+            const captureButton = document.getElementById('btnCapturePhoto');
+            captureButton.disabled = false;
+            captureButton.style.opacity = '1';
+            captureButton.style.cursor = 'pointer';
+            console.log('Capture Photo button enabled after burst capture');
             
             // Mark face recognition as completed and update roadmap
             sessionStorage.setItem('face_registered', 'true');
             updateProgressRoadmap();
             
-            // Move to next step after successful photo update
-            nextRegisterStep();
-            updateStepperStates();
+            // Auto remove success popup after 3 seconds
+            setTimeout(() => {
+              if (successNotification && document.body.contains(successNotification)) {
+                successNotification.style.animation = 'slideUp 0.5s ease-out';
+                setTimeout(() => {
+                  if (document.body.contains(successNotification)) {
+                    document.body.removeChild(successNotification);
+                  }
+                }, 500);
+              }
+            }, 3000);
+            
+            // Show completion message instead of auto-advancing
+            progress.textContent = 'Photo updated successfully! Registration complete.';
           } else {
+            // Remove the loading notification
+            if (completionNotification && document.body.contains(completionNotification)) {
+              document.body.removeChild(completionNotification);
+            }
+            
             progress.textContent = 'Error: ' + j.error;
             document.getElementById('btnBurstCapture').disabled = false;
           }
