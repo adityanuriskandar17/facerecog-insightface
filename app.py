@@ -5173,28 +5173,13 @@ RETAKE_HTML = """
         </div>
       </div>
       
-      <!-- Control Buttons (Hidden from stepper, separate control) -->
-      <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 20px 0;">
-        <button id="btnStartRegister" class="btn btn-start" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-play"></i>
-          <span>Start Camera</span>
-        </button>
-        <button id="btnBurstCapture" class="btn btn-capture" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-bolt"></i>
-          <span>Burst Capture</span>
-        </button>
-        <button id="btnCapturePhoto" class="btn btn-capture" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-camera"></i>
-          <span>Capture Photo</span>
-        </button>
-        <button id="btnUpdatePhoto" class="btn btn-update" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-upload"></i>
-          <span>Update Photo</span>
-        </button>
-        <button id="btnResetPhoto" class="btn btn-reset" style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-          <i class="fas fa-redo"></i>
-          <span>Reset Photo</span>
-        </button>
+      <!-- Hidden Control Buttons (tidak ditampilkan, hanya untuk event handlers) -->
+      <div style="display: none;">
+        <button id="btnStartRegister"></button>
+        <button id="btnBurstCapture"></button>
+        <button id="btnCapturePhoto"></button>
+        <button id="btnUpdatePhoto"></button>
+        <button id="btnResetPhoto"></button>
       </div>
       
       <!-- Progress and Status -->
@@ -6773,6 +6758,10 @@ RETAKE_HTML = """
           }, 2000);
                 
                 console.log('Face registration successful:', j);
+                
+                // Move to next step after burst capture completed
+                nextRegisterStep();
+                
                 resolve();
               } else {
                 throw new Error(j.error || 'Failed to register face');
