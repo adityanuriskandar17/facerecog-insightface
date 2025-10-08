@@ -2525,7 +2525,7 @@ INDEX_HTML = """
               <i class="fas fa-user"></i>
               <span>Profile</span>
             </div>
-            <img id="profilePhoto" style="display: none;" alt="Profile Photo">
+            <img id="profilePhoto" style="display: none; transform: scaleX(-1);" alt="Profile Photo">
             <div id="profileNameOverlay" class="profile-name-overlay"></div>
           </div>
         </div>
@@ -4770,7 +4770,7 @@ RETAKE_HTML = """
       <h3>Profile Photo</h3>
     </div>
         <div class="photo-container" id="photoContainer">
-          <img id="profile" alt="profile" style="display: none;" />
+          <img id="profile" alt="profile" style="display: none; transform: scaleX(-1);" />
           <div class="photo-placeholder" id="photoPlaceholder">
             <i class="fas fa-camera"></i>
             <p>Profile photo will be displayed here</p>
