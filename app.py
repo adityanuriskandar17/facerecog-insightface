@@ -6895,12 +6895,54 @@ RETAKE_HTML = """
     }
     
     let isFinalCountdownShown = false;
+    
+    function updateStepperToCompleted() {
+      const steps = document.querySelectorAll('.step-horizontal');
+      
+      steps.forEach((step, index) => {
+        const stepNumber = index + 1;
+        const stepCircle = step.querySelector('.step-circle');
+        const stepNumberSpan = stepCircle.querySelector('.step-number');
+        const stepCheck = stepCircle.querySelector('.step-check');
+        
+        // Mark all steps as completed
+        step.classList.remove('active');
+        step.classList.add('completed');
+        
+        // Show checkmark and hide number
+        if (stepNumberSpan) stepNumberSpan.style.display = 'none';
+        if (stepCheck) stepCheck.style.display = 'block';
+        
+        // Update circle styling to completed state
+        stepCircle.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+        stepCircle.style.borderColor = '#28a745';
+        stepCircle.style.color = 'white';
+        stepCircle.style.boxShadow = '0 4px 12px rgba(40, 167, 69, 0.4)';
+        
+        // Update text colors
+        const stepTitle = step.querySelector('.step-title');
+        const stepDescription = step.querySelector('.step-description');
+        if (stepTitle) {
+          stepTitle.style.color = '#28a745';
+          stepTitle.style.fontWeight = '700';
+        }
+        if (stepDescription) {
+          stepDescription.style.color = '#388E3C';
+        }
+      });
+      
+      console.log('Stepper updated to show all steps completed');
+    }
+    
     function showFinalCountdown() {
       if (isFinalCountdownShown) {
         console.log('Final countdown already shown, skipping...');
         return Promise.resolve();
       }
       isFinalCountdownShown = true;
+      
+      // Update stepper to show all steps completed with checkmarks
+      updateStepperToCompleted();
       
       return new Promise((resolve) => {
         const progress = document.getElementById('registerProgress');
