@@ -5090,6 +5090,14 @@ RETAKE_HTML = """
       }
     }
     
+    // Auto close modal after photo update (for auto register flow)
+    function autoCloseModalAfterUpdate() {
+      console.log('Photo update completed, showing final countdown...');
+      showFinalCountdown().then(() => {
+        closeRegisterModal();
+      });
+    }
+    
     function resetRegisterSteps() {
       currentRegisterStep = 1;
       updateRegisterButtonStates();
@@ -6458,7 +6466,8 @@ RETAKE_HTML = """
             try {
               await updateRegisterPhoto();
               console.log('Photo updated to GymMaster successfully');
-              nextRegisterStep();
+              // Use auto close function instead of nextRegisterStep for auto register flow
+              autoCloseModalAfterUpdate();
             } catch (error) {
               console.error('Update photo error:', error);
               progress.textContent = 'Update photo failed: ' + error.message;
