@@ -5373,7 +5373,13 @@ RETAKE_HTML = """
     }
     
     // Auto close modal after photo update (for auto register flow)
+    let isModalClosing = false;
     function autoCloseModalAfterUpdate() {
+      if (isModalClosing) {
+        console.log('Modal is already closing, skipping...');
+        return;
+      }
+      isModalClosing = true;
       console.log('Photo update completed, showing final countdown...');
       showFinalCountdown().then(() => {
         closeRegisterModal();
@@ -5384,6 +5390,8 @@ RETAKE_HTML = """
       currentRegisterStep = 1;
       updateRegisterButtonStates();
       updateStepperStates();
+      isModalClosing = false;
+      isFinalCountdownShown = false;
       console.log('Reset to register step 1');
     }
     
@@ -6886,7 +6894,14 @@ RETAKE_HTML = """
       }, 1000);
     }
     
+    let isFinalCountdownShown = false;
     function showFinalCountdown() {
+      if (isFinalCountdownShown) {
+        console.log('Final countdown already shown, skipping...');
+        return Promise.resolve();
+      }
+      isFinalCountdownShown = true;
+      
       return new Promise((resolve) => {
         const progress = document.getElementById('registerProgress');
         progress.textContent = 'Preparing to exit...';
@@ -7094,6 +7109,27 @@ RETAKE_HTML = """
       document.getElementById('btnBurstCapture').disabled = true;
       
       document.getElementById('registerProgress').textContent = '';
+      
+      // Clean up any remaining popups
+      const finalCountdown = document.getElementById('finalCountdown');
+      if (finalCountdown && document.body.contains(finalCountdown)) {
+        document.body.removeChild(finalCountdown);
+        console.log('Removed final countdown popup');
+      }
+      
+      // Clean up other possible popups
+      const burstCountdown = document.getElementById('burstCountdown');
+      if (burstCountdown && document.body.contains(burstCountdown)) {
+        document.body.removeChild(burstCountdown);
+        console.log('Removed burst countdown popup');
+      }
+      
+      const frameNotification = document.getElementById('frameCaptureNotification');
+      if (frameNotification && document.body.contains(frameNotification)) {
+        document.body.removeChild(frameNotification);
+        console.log('Removed frame notification popup');
+      }
+      
       // Force close modal
       const registerModal = document.getElementById('registerModal');
       if (registerModal) {
