@@ -6558,6 +6558,17 @@ RETAKE_HTML = """
               // Success for register modal
               document.getElementById('registerProgress').textContent = 'Profile photo updated successfully!';
               document.getElementById('btnUpdatePhoto').disabled = true;
+              
+              // Success notification for register modal
+              Swal.fire({
+                title: '✅ Success!',
+                text: 'Success updated photos',
+                icon: 'success',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#28a745',
+                timer: 3000,
+                timerProgressBar: true
+              });
             } else {
               // Success for main page
               setOut('Profile photo updated successfully!');
@@ -7380,6 +7391,18 @@ RETAKE_HTML = """
             
             document.getElementById('registerProgress').textContent = 'Profile photo updated successfully!';
             document.getElementById('btnUpdatePhoto').disabled = true;
+            
+            // Success notification for register modal
+            Swal.fire({
+              title: '✅ Success!',
+              text: 'Success updated photos',
+              icon: 'success',
+              confirmButtonText: 'OK',
+              confirmButtonColor: '#28a745',
+              timer: 3000,
+              timerProgressBar: true
+            });
+            
             resolve();
           } else {
             reject(new Error(j.message || 'Upload failed'));
