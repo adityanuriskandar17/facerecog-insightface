@@ -4597,9 +4597,10 @@ RETAKE_HTML = """
     .stepper-horizontal {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
       position: relative;
       padding: 20px 0;
+      gap: 0;
     }
     
     .step-horizontal {
@@ -4607,24 +4608,26 @@ RETAKE_HTML = """
       flex-direction: column;
       align-items: center;
       gap: 12px;
-      flex: 1;
       position: relative;
       z-index: 2;
+      margin: 0 20px;
     }
     
     .step-horizontal:not(:last-child)::after {
       content: '';
       position: absolute;
       top: 25px;
-      left: 50%;
-      right: -50%;
-      height: 2px;
+      left: 50px;
+      width: calc(100% + 40px);
+      height: 3px;
       background: #e9ecef;
       z-index: 1;
+      border-radius: 2px;
     }
     
     .step-horizontal.completed:not(:last-child)::after {
       background: linear-gradient(135deg, #4CAF50, #388E3C);
+      box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
     }
     
     .step-horizontal:hover .step-circle {
@@ -4661,6 +4664,8 @@ RETAKE_HTML = """
       transition: all 0.3s ease;
       position: relative;
       flex-shrink: 0;
+      z-index: 3;
+      box-shadow: 0 0 0 2px white;
     }
     
     .step.active .step-circle {
@@ -5168,29 +5173,6 @@ RETAKE_HTML = """
             </div>
           </div>
           
-          <!-- Step 4: Update Photo -->
-          <div class="step-horizontal" data-step="4">
-            <div class="step-circle" id="stepCircle4">
-              <span class="step-number">4</span>
-              <i class="fas fa-check step-check" style="display: none;"></i>
-            </div>
-            <div class="step-content">
-              <div class="step-title">Update Photo</div>
-              <div class="step-description">Upload to system</div>
-            </div>
-          </div>
-          
-          <!-- Step 5: Reset Photo -->
-          <div class="step-horizontal" data-step="5">
-            <div class="step-circle" id="stepCircle5">
-              <span class="step-number">5</span>
-              <i class="fas fa-check step-check" style="display: none;"></i>
-            </div>
-            <div class="step-content">
-              <div class="step-title">Reset Photo</div>
-              <div class="step-description">Start over</div>
-            </div>
-          </div>
         </div>
       </div>
       
@@ -5339,16 +5321,13 @@ RETAKE_HTML = """
     
     // Sequential register button state management
     let currentRegisterStep = 1;
-    const maxRegisterSteps = 6;
+    const maxRegisterSteps = 3;
     
     function updateRegisterButtonStates() {
       const buttons = [
         'btnStartRegister',      // Step 1
         'btnBurstCapture',       // Step 2  
-        'btnCapturePhoto',      // Step 3
-        'btnUpdatePhoto',        // Step 4
-        'btnResetPhoto'          // Step 5 (Reset - always available)
-        // btnCloseRegister tidak termasuk dalam sequential karena ada di pojok kanan atas
+        'btnCapturePhoto'        // Step 3
       ];
       
       buttons.forEach((btnId, index) => {
