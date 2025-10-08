@@ -6332,6 +6332,11 @@ RETAKE_HTML = """
           updateButton.style.cursor = 'pointer';
           
           document.getElementById('registerProgress').textContent = 'Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.';
+          
+          // Move to step 4 (Update Photo) after photo capture completed
+          currentRegisterStep = 4;
+          updateStepperStates();
+          
           console.log('After photo capture: Only Update Photo and Reset Photo buttons are enabled');
           
         } catch (e) {
@@ -6389,6 +6394,10 @@ RETAKE_HTML = """
           updateButton.style.cursor = 'pointer';
           
           setOut('Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.');
+          
+          // Move to step 4 (Update Photo) after photo capture completed
+          currentRegisterStep = 4;
+          updateStepperStates();
           
           // Show success notification
           Swal.fire({
