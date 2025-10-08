@@ -4584,6 +4584,246 @@ RETAKE_HTML = """
     
     .hidden { display: none; }
     
+    /* Modern Stepper Styles */
+    .stepper-container {
+      margin: 30px 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #f8fbff 0%, #e8f4fd 100%);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(76, 167, 229, 0.15);
+      border: 1px solid rgba(76, 167, 229, 0.2);
+    }
+    
+    .stepper {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+    
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      border: 2px solid #e9ecef;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    .step:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+    
+    .step.active {
+      border-color: #4ca7e5;
+      background: linear-gradient(135deg, #f8fbff 0%, #e8f4fd 100%);
+    }
+    
+    .step.completed {
+      border-color: #28a745;
+      background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);
+    }
+    
+    .step-circle {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 18px;
+      color: #6c757d;
+      background: #f8f9fa;
+      border: 3px solid #e9ecef;
+      transition: all 0.3s ease;
+      position: relative;
+      flex-shrink: 0;
+    }
+    
+    .step.active .step-circle {
+      background: linear-gradient(135deg, #4ca7e5 0%, #0072bc 100%);
+      border-color: #0072bc;
+      color: white;
+      box-shadow: 0 4px 12px rgba(76, 167, 229, 0.4);
+    }
+    
+    .step.completed .step-circle {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      border-color: #28a745;
+      color: white;
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    }
+    
+    .step-number {
+      display: block;
+    }
+    
+    .step-check {
+      display: none;
+      font-size: 20px;
+    }
+    
+    .step.completed .step-number {
+      display: none;
+    }
+    
+    .step.completed .step-check {
+      display: block;
+    }
+    
+    .step-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .step-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+      margin: 0;
+    }
+    
+    .step.active .step-title {
+      color: #0072bc;
+    }
+    
+    .step.completed .step-title {
+      color: #28a745;
+    }
+    
+    .step-description {
+      font-size: 14px;
+      color: #6c757d;
+      margin: 0;
+    }
+    
+    .step-action-btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+      min-width: 120px;
+      justify-content: center;
+    }
+    
+    .step-action-btn:not(:disabled) {
+      background: linear-gradient(135deg, #4ca7e5 0%, #0072bc 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(76, 167, 229, 0.3);
+    }
+    
+    .step-action-btn:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(76, 167, 229, 0.4);
+    }
+    
+    .step-action-btn:disabled {
+      background: #e9ecef;
+      color: #6c757d;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .step-action-btn.reset-btn {
+      background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+      color: #212529;
+    }
+    
+    .step-action-btn.reset-btn:hover:not(:disabled) {
+      box-shadow: 0 6px 16px rgba(255, 193, 7, 0.4);
+    }
+    
+    .stepper-progress {
+      position: absolute;
+      left: 45px;
+      top: 70px;
+      bottom: 70px;
+      width: 4px;
+      background: #e9ecef;
+      border-radius: 2px;
+      z-index: 1;
+    }
+    
+    .progress-line {
+      height: 0%;
+      background: linear-gradient(180deg, #4ca7e5 0%, #0072bc 100%);
+      border-radius: 2px;
+      transition: height 0.5s ease;
+      box-shadow: 0 2px 8px rgba(76, 167, 229, 0.3);
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .stepper-container {
+        margin: 20px 0;
+        padding: 15px;
+      }
+      
+      .step {
+        padding: 15px;
+        gap: 15px;
+      }
+      
+      .step-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+      }
+      
+      .step-title {
+        font-size: 16px;
+      }
+      
+      .step-description {
+        font-size: 13px;
+      }
+      
+      .step-action-btn {
+        padding: 10px 20px;
+        font-size: 13px;
+        min-width: 100px;
+      }
+      
+      .stepper-progress {
+        left: 35px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .step {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+      }
+      
+      .step-content {
+        order: 2;
+      }
+      
+      .step-action-btn {
+        order: 3;
+        width: 100%;
+      }
+      
+      .stepper-progress {
+        display: none;
+      }
+    }
+    
     /* Pulse animation for completed steps */
     @keyframes pulse {
       0% {
@@ -4863,42 +5103,98 @@ RETAKE_HTML = """
       </style>
       
       <!-- Control Buttons -->
+      <!-- Modern Stepper Component -->
+      <div class="stepper-container">
+        <div class="stepper">
+          <!-- Step 1: Start Camera -->
+          <div class="step" data-step="1">
+            <div class="step-circle" id="stepCircle1">
+              <span class="step-number">1</span>
+              <i class="fas fa-check step-check" style="display: none;"></i>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Start Camera</div>
+              <div class="step-description">Initialize camera for face capture</div>
+            </div>
+          </div>
+          
+          <!-- Step 2: Burst Capture -->
+          <div class="step" data-step="2">
+            <div class="step-circle" id="stepCircle2">
+              <span class="step-number">2</span>
+              <i class="fas fa-check step-check" style="display: none;"></i>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Burst Capture</div>
+              <div class="step-description">Capture multiple frames for better accuracy</div>
+            </div>
+          </div>
+          
+          <!-- Step 3: Capture Photo -->
+          <div class="step" data-step="3">
+            <div class="step-circle" id="stepCircle3">
+              <span class="step-number">3</span>
+              <i class="fas fa-check step-check" style="display: none;"></i>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Capture Photo</div>
+              <div class="step-description">Take final photo for registration</div>
+            </div>
+          </div>
+          
+          <!-- Step 4: Update Photo -->
+          <div class="step" data-step="4">
+            <div class="step-circle" id="stepCircle4">
+              <span class="step-number">4</span>
+              <i class="fas fa-check step-check" style="display: none;"></i>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Update Photo</div>
+              <div class="step-description">Upload photo to GymMaster system</div>
+            </div>
+          </div>
+          
+          <!-- Step 5: Reset Photo -->
+          <div class="step" data-step="5">
+            <div class="step-circle" id="stepCircle5">
+              <span class="step-number">5</span>
+              <i class="fas fa-check step-check" style="display: none;"></i>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Reset Photo</div>
+              <div class="step-description">Reset and start over if needed</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Progress Line -->
+        <div class="stepper-progress">
+          <div class="progress-line" id="stepperProgressLine"></div>
+        </div>
+      </div>
+      
+      <!-- Control Buttons (Hidden from stepper, separate control) -->
       <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 20px 0;">
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="font-size: 16px; color: #333; font-weight: bold;">1</span>
-          <button id="btnStartRegister" class="register-sequential" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        <button id="btnStartRegister" class="btn btn-start" style="padding: 12px 24px; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-play"></i>
-            <span>Start Camera</span>
+          <span>Start Camera</span>
         </button>
-        </div>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="font-size: 16px; color: #333; font-weight: bold;">2</span>
-          <button id="btnBurstCapture" class="register-sequential" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-bolt"></i>
-            <span>Burst Capture</span>
-          </button>
-        </div>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="font-size: 16px; color: #333; font-weight: bold;">3</span>
-          <button id="btnCapturePhoto" class="register-sequential" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        <button id="btnBurstCapture" class="btn btn-capture" disabled style="padding: 12px 24px; background: #FF9800; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-bolt"></i>
+          <span>Burst Capture</span>
+        </button>
+        <button id="btnCapturePhoto" class="btn btn-capture" disabled style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-camera"></i>
-            <span>Capture Photo</span>
+          <span>Capture Photo</span>
         </button>
-        </div>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="font-size: 16px; color: #333; font-weight: bold;">4</span>
-          <button id="btnUpdatePhoto" class="register-sequential" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        <button id="btnUpdatePhoto" class="btn btn-update" disabled style="padding: 12px 24px; background: #17a2b8; color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-upload"></i>
-            <span>Update Photo</span>
+          <span>Update Photo</span>
         </button>
-        </div>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="font-size: 16px; color: #333; font-weight: bold;">5</span>
-          <button id="btnResetPhoto" style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        <button id="btnResetPhoto" class="btn btn-reset" style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-redo"></i>
-            <span>Reset Photo</span>
+          <span>Reset Photo</span>
         </button>
-        </div>
       </div>
       
       <!-- Progress and Status -->
@@ -5080,6 +5376,7 @@ RETAKE_HTML = """
       if (currentRegisterStep < maxRegisterSteps) {
         currentRegisterStep++;
         updateRegisterButtonStates();
+        updateStepperStates();
         console.log(`Advanced to register step ${currentRegisterStep}`);
       } else {
         // All steps completed, show final countdown and exit
@@ -5101,7 +5398,68 @@ RETAKE_HTML = """
     function resetRegisterSteps() {
       currentRegisterStep = 1;
       updateRegisterButtonStates();
+      updateStepperStates();
       console.log('Reset to register step 1');
+    }
+    
+    // Stepper Management Functions
+    function updateStepperStates() {
+      const steps = document.querySelectorAll('.step');
+      const progressLine = document.getElementById('stepperProgressLine');
+      
+      steps.forEach((step, index) => {
+        const stepNumber = index + 1;
+        const stepCircle = step.querySelector('.step-circle');
+        const stepNumberSpan = stepCircle.querySelector('.step-number');
+        const stepCheck = stepCircle.querySelector('.step-check');
+        
+        // Remove all state classes
+        step.classList.remove('active', 'completed');
+        
+        if (stepNumber < currentRegisterStep) {
+          // Completed steps
+          step.classList.add('completed');
+          stepNumberSpan.style.display = 'none';
+          stepCheck.style.display = 'block';
+        } else if (stepNumber === currentRegisterStep) {
+          // Current active step
+          step.classList.add('active');
+          stepNumberSpan.style.display = 'block';
+          stepCheck.style.display = 'none';
+        } else {
+          // Future steps
+          stepNumberSpan.style.display = 'block';
+          stepCheck.style.display = 'none';
+        }
+      });
+      
+      // Update progress line
+      if (progressLine) {
+        const progressPercentage = ((currentRegisterStep - 1) / (steps.length - 1)) * 100;
+        progressLine.style.height = progressPercentage + '%';
+      }
+    }
+    
+    function nextStepperStep() {
+      if (currentRegisterStep < maxRegisterSteps) {
+        currentRegisterStep++;
+        updateRegisterButtonStates();
+        updateStepperStates();
+        console.log(`Advanced to stepper step ${currentRegisterStep}`);
+      } else {
+        // All steps completed, show final countdown and exit
+        console.log('All stepper steps completed, showing final countdown...');
+        showFinalCountdown().then(() => {
+          closeRegisterModal();
+        });
+      }
+    }
+    
+    function resetStepperSteps() {
+      currentRegisterStep = 1;
+      updateRegisterButtonStates();
+      updateStepperStates();
+      console.log('Reset to stepper step 1');
     }
 
     // Auto-load profile when page loads
@@ -5667,6 +6025,7 @@ RETAKE_HTML = """
           
           // Move to next step after successful photo capture
           nextRegisterStep();
+          updateStepperStates();
           
         } catch (e) {
           document.getElementById('registerProgress').textContent = 'Capture error: ' + e.message;
@@ -5745,6 +6104,7 @@ RETAKE_HTML = """
         // Reset to step 3 (Capture Photo step) so user can capture again
         currentRegisterStep = 3;
         updateRegisterButtonStates();
+        updateStepperStates();
         
         document.getElementById('registerProgress').textContent = 'Photo reset. You can now capture a new photo.';
         console.log('Reset to register step 3 - Capture Photo enabled');
@@ -6032,6 +6392,7 @@ RETAKE_HTML = """
                   
                   // Move to next step
                   nextRegisterStep();
+                  updateStepperStates();
                   resolve();
                 }).catch(err => {
                   console.error('Video play error:', err);
@@ -6404,6 +6765,9 @@ RETAKE_HTML = """
                     document.body.removeChild(successNotification);
                   }
                   
+                  // Update stepper to show burst capture completed
+                  updateStepperStates();
+                  
                   // Show countdown popup for photo capture
                   showCountdownForPhotoCapture();
           }, 2000);
@@ -6642,6 +7006,7 @@ RETAKE_HTML = """
           
           // Move to next step
           nextRegisterStep();
+          updateStepperStates();
           resolve();
           
         } catch (e) {
@@ -6769,37 +7134,59 @@ RETAKE_HTML = """
       
       console.log('Opening register modal...');
       
+      // Check if modal is already open
+      const registerModal = document.getElementById('registerModal');
+      if (registerModal && registerModal.style.display === 'block') {
+        console.log('Modal is already open, ignoring click');
+        return;
+      }
+      
+      // Reset any existing modal state
+      if (registerModal) {
+        registerModal.style.display = 'none';
+        registerModal.style.visibility = 'hidden';
+        registerModal.style.opacity = '0';
+      }
+      
       // Stop validation camera when opening register modal
       stopValidationCamera();
       
-      document.getElementById('registerModal').style.display = 'block';
-      
-      // Initialize register button states when modal opens
-      updateRegisterButtonStates();
+      // Small delay to ensure modal is closed before opening
+      setTimeout(() => {
+        registerModal.style.display = 'block';
+        registerModal.style.visibility = 'visible';
+        registerModal.style.opacity = '1';
+        
+        // Initialize register button states when modal opens
+        updateRegisterButtonStates();
+        updateStepperStates();
+      }, 50);
       
       // Debug: Check if elements exist
-      const video = document.getElementById('registerVideo');
-      const placeholder = document.getElementById('cameraPlaceholder');
-      console.log('Video element:', video);
-      console.log('Placeholder element:', placeholder);
-      
-      // Reset modal state
-      if (video) {
-        video.style.display = 'none';
-        video.srcObject = null;
-      }
-      if (placeholder) {
-        placeholder.style.display = 'flex';
-      }
-      
-      // Reset button states
-      document.getElementById('btnCapturePhoto').disabled = true;
-      document.getElementById('btnUpdatePhoto').disabled = true;
-      document.getElementById('btnResetPhoto').disabled = true;
-      document.getElementById('btnBurstCapture').disabled = true;
-      
-      // Start automatic registration process
-      startAutoRegisterProcess();
+      setTimeout(() => {
+        const video = document.getElementById('registerVideo');
+        const placeholder = document.getElementById('cameraPlaceholder');
+        console.log('Video element:', video);
+        console.log('Placeholder element:', placeholder);
+        
+        // Reset modal state
+        if (video) {
+          video.style.display = 'none';
+          video.srcObject = null;
+        }
+        if (placeholder) {
+          placeholder.style.display = 'flex';
+        }
+        
+        // Reset button states
+        document.getElementById('btnCapturePhoto').disabled = true;
+        document.getElementById('btnUpdatePhoto').disabled = true;
+        document.getElementById('btnResetPhoto').disabled = true;
+        document.getElementById('btnBurstCapture').disabled = true;
+        
+        // Start automatic registration process
+        startAutoRegisterProcess();
+      }, 100);
     };
 
     document.getElementById('btnCloseRegister').onclick = () => {
@@ -6939,6 +7326,7 @@ RETAKE_HTML = """
         
         // Move to next step after successful camera start
         nextRegisterStep();
+        updateStepperStates();
         
       } catch (e) {
         console.error('Camera error:', e);
@@ -7171,6 +7559,9 @@ RETAKE_HTML = """
           
           progress.textContent = 'Sending photos for face encoding...';
           
+          // Update stepper to show burst capture completed
+          updateStepperStates();
+          
           // Send frames to server for encoding
           const r = await fetch('/api/register_face', {
             method: 'POST', 
@@ -7194,6 +7585,7 @@ RETAKE_HTML = """
             
             // Move to next step after successful photo update
             nextRegisterStep();
+            updateStepperStates();
           } else {
             progress.textContent = 'Error: ' + j.error;
             document.getElementById('btnBurstCapture').disabled = false;
