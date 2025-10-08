@@ -6308,13 +6308,31 @@ RETAKE_HTML = """
           
           // Update button states
           document.getElementById('btnCapturePhoto').disabled = true;
-          document.getElementById('btnUpdatePhoto').disabled = false;
-          document.getElementById('btnResetPhoto').disabled = false;
+          document.getElementById('btnBurstCapture').disabled = true;
+          
+          // Disable Capture Photo and Burst Capture buttons with proper styling
+          const captureButton = document.getElementById('btnCapturePhoto');
+          captureButton.style.opacity = '0.5';
+          captureButton.style.cursor = 'not-allowed';
+          
+          const burstButton = document.getElementById('btnBurstCapture');
+          burstButton.style.opacity = '0.5';
+          burstButton.style.cursor = 'not-allowed';
+          
+          // Enable Reset Photo button with proper styling
+          const resetButton = document.getElementById('btnResetPhoto');
+          resetButton.disabled = false;
+          resetButton.style.opacity = '1';
+          resetButton.style.cursor = 'pointer';
+          
+          // Enable the update photo button with proper styling
+          const updateButton = document.getElementById('btnUpdatePhoto');
+          updateButton.disabled = false;
+          updateButton.style.opacity = '1';
+          updateButton.style.cursor = 'pointer';
           
           document.getElementById('registerProgress').textContent = 'Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.';
-          
-          // Enable the update photo button instead of auto-advancing
-          document.getElementById('btnUpdatePhoto').disabled = false;
+          console.log('After photo capture: Only Update Photo and Reset Photo buttons are enabled');
           
         } catch (e) {
           document.getElementById('registerProgress').textContent = 'Capture error: ' + e.message;
@@ -6347,8 +6365,28 @@ RETAKE_HTML = """
           
           // Update button states
           document.getElementById('btnCapturePhoto').disabled = true;
-          document.getElementById('btnUpdatePhoto').disabled = false;
-          document.getElementById('btnResetPhoto').disabled = false;
+          document.getElementById('btnBurstCapture').disabled = true;
+          
+          // Disable Capture Photo and Burst Capture buttons with proper styling
+          const captureButton = document.getElementById('btnCapturePhoto');
+          captureButton.style.opacity = '0.5';
+          captureButton.style.cursor = 'not-allowed';
+          
+          const burstButton = document.getElementById('btnBurstCapture');
+          burstButton.style.opacity = '0.5';
+          burstButton.style.cursor = 'not-allowed';
+          
+          // Enable Reset Photo button with proper styling
+          const resetButton = document.getElementById('btnResetPhoto');
+          resetButton.disabled = false;
+          resetButton.style.opacity = '1';
+          resetButton.style.cursor = 'pointer';
+          
+          // Enable the update photo button with proper styling
+          const updateButton = document.getElementById('btnUpdatePhoto');
+          updateButton.disabled = false;
+          updateButton.style.opacity = '1';
+          updateButton.style.cursor = 'pointer';
           
           setOut('Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.');
           
@@ -6392,8 +6430,25 @@ RETAKE_HTML = """
         
         // Reset to step 3 (Capture Photo step) so user can capture again
         currentRegisterStep = 3;
-        updateRegisterButtonStates();
         updateStepperStates();
+        
+        // Enable Capture Photo button with proper styling
+        const captureButton = document.getElementById('btnCapturePhoto');
+        captureButton.disabled = false;
+        captureButton.style.opacity = '1';
+        captureButton.style.cursor = 'pointer';
+        
+        // Disable Update Photo button since no photo is captured yet
+        const updateButton = document.getElementById('btnUpdatePhoto');
+        updateButton.disabled = true;
+        updateButton.style.opacity = '0.5';
+        updateButton.style.cursor = 'not-allowed';
+        
+        // Keep Reset Photo button enabled
+        const resetButton = document.getElementById('btnResetPhoto');
+        resetButton.disabled = false;
+        resetButton.style.opacity = '1';
+        resetButton.style.cursor = 'pointer';
         
         document.getElementById('registerProgress').textContent = 'Photo reset. You can now capture a new photo.';
         console.log('Reset to register step 3 - Capture Photo enabled');
@@ -7195,8 +7250,28 @@ RETAKE_HTML = """
           
           // Update button states
           document.getElementById('btnCapturePhoto').disabled = true;
-          document.getElementById('btnUpdatePhoto').disabled = false;
-          document.getElementById('btnResetPhoto').disabled = false;
+          document.getElementById('btnBurstCapture').disabled = true;
+          
+          // Disable Capture Photo and Burst Capture buttons with proper styling
+          const captureButton = document.getElementById('btnCapturePhoto');
+          captureButton.style.opacity = '0.5';
+          captureButton.style.cursor = 'not-allowed';
+          
+          const burstButton = document.getElementById('btnBurstCapture');
+          burstButton.style.opacity = '0.5';
+          burstButton.style.cursor = 'not-allowed';
+          
+          // Enable Reset Photo button with proper styling
+          const resetButton = document.getElementById('btnResetPhoto');
+          resetButton.disabled = false;
+          resetButton.style.opacity = '1';
+          resetButton.style.cursor = 'pointer';
+          
+          // Enable the update photo button with proper styling
+          const updateButton = document.getElementById('btnUpdatePhoto');
+          updateButton.disabled = false;
+          updateButton.style.opacity = '1';
+          updateButton.style.cursor = 'pointer';
           
           document.getElementById('registerProgress').textContent = 'Photo captured successfully!';
           
@@ -7204,8 +7279,7 @@ RETAKE_HTML = """
           currentRegisterStep = 4;
           updateStepperStates();
           
-          // Enable the update photo button instead of auto-advancing
-          document.getElementById('btnUpdatePhoto').disabled = false;
+          console.log('After photo capture: Only Update Photo and Reset Photo buttons are enabled');
           resolve();
           
         } catch (e) {
@@ -7251,6 +7325,49 @@ RETAKE_HTML = """
             // Mark photo upload as completed
             sessionStorage.setItem('photo_uploaded', 'true');
             updateProgressRoadmap();
+            
+            // Show success popup
+            const successNotification = document.createElement('div');
+            successNotification.id = 'photoUpdateSuccess';
+            successNotification.style.cssText = `
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              background: linear-gradient(135deg, #28a745, #20c997);
+              color: white;
+              padding: 30px 40px;
+              border-radius: 15px;
+              box-shadow: 0 10px 30px rgba(40, 167, 69, 0.3);
+              z-index: 10000;
+              text-align: center;
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              animation: slideDown 0.5s ease-out;
+            `;
+            successNotification.innerHTML = `
+              <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                <div style="font-size: 32px;">✅</div>
+                <div>
+                  <div style="font-size: 20px; font-weight: 600; margin-bottom: 5px;">Photo Updated Successfully!</div>
+                  <div style="font-size: 16px; opacity: 0.9;">Your profile photo has been updated to GymMaster</div>
+                </div>
+                <div style="font-size: 32px;">✅</div>
+              </div>
+            `;
+            
+            document.body.appendChild(successNotification);
+            
+            // Auto remove success popup after 3 seconds
+            setTimeout(() => {
+              if (successNotification && document.body.contains(successNotification)) {
+                successNotification.style.animation = 'slideUp 0.5s ease-out';
+                setTimeout(() => {
+                  if (document.body.contains(successNotification)) {
+                    document.body.removeChild(successNotification);
+                  }
+                }, 500);
+              }
+            }, 3000);
             
             document.getElementById('registerProgress').textContent = 'Profile photo updated successfully!';
             document.getElementById('btnUpdatePhoto').disabled = true;
