@@ -5081,6 +5081,12 @@ RETAKE_HTML = """
         currentRegisterStep++;
         updateRegisterButtonStates();
         console.log(`Advanced to register step ${currentRegisterStep}`);
+      } else {
+        // All steps completed, show final countdown and exit
+        console.log('All register steps completed, showing final countdown...');
+        showFinalCountdown().then(() => {
+          closeRegisterModal();
+        });
       }
     }
     
@@ -5895,6 +5901,808 @@ RETAKE_HTML = """
       }
     };
 
+    // Auto Register Process Functions
+    let autoRegisterTimeout = null;
+    
+    function showNotificationPopup(message, duration = 5000) {
+      let countdown = Math.ceil(duration / 1000);
+      
+      return Swal.fire({
+        title: '⏳ Processing...',
+        html: `
+          <div style="text-align: center;">
+            <div style="font-size: 18px; margin-bottom: 20px;">${message}</div>
+            <div style="font-size: 48px; font-weight: bold; color: #2196F3; margin: 20px 0;">
+              <span id="countdown-timer">${countdown}</span>
+            </div>
+            <div style="font-size: 14px; color: #666;">Memulai dalam...</div>
+            <div style="width: 100%; background-color: #f0f0f0; border-radius: 10px; margin-top: 15px;">
+              <div id="progress-bar" style="width: 0%; height: 8px; background: linear-gradient(90deg, #2196F3, #21CBF3); border-radius: 10px; transition: width 0.1s ease;"></div>
+            </div>
+          </div>
+        `,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          const timerElement = document.getElementById('countdown-timer');
+          const progressBar = document.getElementById('progress-bar');
+          let timeLeft = duration;
+          
+          const interval = setInterval(() => {
+            timeLeft -= 100;
+            const secondsLeft = Math.ceil(timeLeft / 1000);
+            
+            if (timerElement) {
+              timerElement.textContent = secondsLeft;
+            }
+            
+            if (progressBar) {
+              const progress = ((duration - timeLeft) / duration) * 100;
+              progressBar.style.width = progress + '%';
+            }
+            
+            if (timeLeft <= 0) {
+              clearInterval(interval);
+            }
+          }, 100);
+        }
+      });
+    }
+    
+    async function startAutoRegisterProcess() {
+      console.log('Starting automatic register process...');
+      
+      try {
+        // Step 1: Start Camera immediately (no countdown)
+        console.log('Starting camera immediately...');
+        await startRegisterCamera();
+        
+        // Wait a bit for camera to stabilize
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Step 2: Burst Capture with countdown
+        await performBurstCapture();
+        
+        // Step 3: Wait for photo capture and update to complete
+        // This is handled by showCountdownForPhotoCapture() which calls nextRegisterStep()
+        // We need to wait for the entire process to complete
+        
+        // The flow will be:
+        // 1. performBurstCapture() -> success popup -> showCountdownForPhotoCapture()
+        // 2. showCountdownForPhotoCapture() -> capture photo -> update to GymMaster -> nextRegisterStep()
+        // 3. nextRegisterStep() will trigger the final countdown and exit
+        
+      } catch (error) {
+        console.error('Auto register process error:', error);
+        // Don't show error popup, just log it and continue
+        document.getElementById('registerProgress').textContent = 'Process completed with some issues: ' + error.message;
+      }
+    }
+    
+    async function startRegisterCamera() {
+      return new Promise((resolve, reject) => {
+        try {
+          console.log('Starting register camera...');
+          document.getElementById('registerProgress').textContent = 'Starting camera...';
+          
+          // Stop validation camera if running
+          stopValidationCamera();
+          
+          // Stop any existing stream first
+          if (registerStream) {
+            registerStream.getTracks().forEach(track => track.stop());
+            registerStream = null;
+          }
+          
+          navigator.mediaDevices.getUserMedia({ 
+            video: { 
+              width: { ideal: 1280 }, 
+              height: { ideal: 720 },
+              facingMode: 'user'
+            } 
+          }).then(stream => {
+            registerStream = stream;
+            const video = document.getElementById('registerVideo');
+            const placeholder = document.getElementById('cameraPlaceholder');
+            
+            if (video && placeholder) {
+              video.srcObject = stream;
+              video.style.display = 'block';
+              placeholder.style.display = 'none';
+              
+              // Add event listeners for better handling
+              video.onloadedmetadata = () => {
+                console.log('Video metadata loaded');
+                video.play().then(() => {
+                  console.log('Video started playing');
+                  document.getElementById('registerProgress').textContent = 'Camera started successfully!';
+                  
+                  // Enable next buttons
+                  document.getElementById('btnCapturePhoto').disabled = false;
+                  document.getElementById('btnBurstCapture').disabled = false;
+                  
+                  // Move to next step
+                  nextRegisterStep();
+                  resolve();
+                }).catch(err => {
+                  console.error('Video play error:', err);
+                  reject(err);
+                });
+              };
+              
+              video.onerror = (err) => {
+                console.error('Video error:', err);
+                reject(new Error('Video failed to load'));
+              };
+              
+            } else {
+              reject(new Error('Video elements not found'));
+            }
+          }).catch(err => {
+            console.error('getUserMedia error:', err);
+            document.getElementById('registerProgress').textContent = 'Camera access denied or not available';
+            reject(err);
+          });
+          
+        } catch (e) {
+          console.error('Camera error:', e);
+          document.getElementById('registerProgress').textContent = 'Camera error: ' + e.message;
+          reject(e);
+        }
+      });
+    }
+    
+    async function performBurstCapture() {
+      return new Promise(async (resolve, reject) => {
+        try {
+          console.log('Performing burst capture...');
+          
+          // Step 1: Validate server connection and user profile first
+          const progress = document.getElementById('registerProgress');
+          progress.textContent = 'Validating server connection...';
+          
+          // Check if user is logged in and profile is available
+          const profileResponse = await fetch('/api/get_profile', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          if (!profileResponse.ok) {
+            throw new Error('User not logged in or profile not available');
+          }
+          
+          const profileData = await profileResponse.json();
+          if (!profileData.ok) {
+            throw new Error('Failed to get user profile');
+          }
+          
+          progress.textContent = 'Server validated. Starting burst capture...';
+          
+          if (!registerStream) {
+            reject(new Error('Camera not started'));
+            return;
+          }
+          
+          const registerVideo = document.getElementById('registerVideo');
+          
+          if (!registerVideo) {
+            reject(new Error('Video element not found'));
+            return;
+          }
+          
+          let capturedFrames = [];
+          let countdown = 5;
+          
+          // Create prominent countdown display with enhanced styling
+          const countdownDisplay = document.createElement('div');
+          countdownDisplay.id = 'burstCountdown';
+          countdownDisplay.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            color: white;
+            padding: 30px 40px;
+            border-radius: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.4);
+            z-index: 10000;
+            animation: pulse 1s infinite;
+            border: 3px solid #fff;
+          `;
+          
+          // Add pulse animation
+          const style = document.createElement('style');
+          style.textContent = `
+            @keyframes pulse {
+              0% { transform: translate(-50%, -50%) scale(1); }
+              50% { transform: translate(-50%, -50%) scale(1.05); }
+              100% { transform: translate(-50%, -50%) scale(1); }
+            }
+            @keyframes flash {
+              0%, 100% { background: linear-gradient(135deg, #ff6b35, #f7931e); }
+              50% { background: linear-gradient(135deg, #ff8c42, #ffa726); }
+            }
+          `;
+          document.head.appendChild(style);
+          
+          countdownDisplay.innerHTML = `
+            <div style="font-size: 18px; margin-bottom: 10px;">🚀 BURST CAPTURE STARTING</div>
+            <div id="countdownNumber" style="font-size: 48px; font-weight: 900; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">${countdown}</div>
+            <div style="font-size: 16px; margin-top: 10px;">Get ready to capture 25 frames!</div>
+          `;
+          
+          document.body.appendChild(countdownDisplay);
+          
+          progress.textContent = `Burst capture starting in ${countdown} seconds...`;
+          
+          // Enhanced countdown with visual feedback
+          const countdownInterval = setInterval(() => {
+            countdown--;
+            const countdownNumber = document.getElementById('countdownNumber');
+            if (countdownNumber) {
+              countdownNumber.textContent = countdown;
+              // Flash effect for last 3 seconds
+              if (countdown <= 3) {
+                countdownDisplay.style.animation = 'flash 0.5s infinite';
+              }
+            }
+            progress.textContent = `Burst capture starting in ${countdown} seconds...`;
+            if (countdown <= 0) {
+              clearInterval(countdownInterval);
+              document.body.removeChild(countdownDisplay);
+              startBurstCapture();
+            }
+          }, 1000);
+          
+          function startBurstCapture() {
+            // Create prominent frame capture notification
+            const frameNotification = document.createElement('div');
+            frameNotification.id = 'frameCaptureNotification';
+            frameNotification.style.cssText = `
+              position: fixed;
+              top: 20px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: linear-gradient(135deg, #4CAF50, #45a049);
+              color: white;
+              padding: 20px 30px;
+              border-radius: 15px;
+              font-size: 20px;
+              font-weight: bold;
+              text-align: center;
+              box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
+              z-index: 10000;
+              animation: slideDown 0.5s ease-out;
+              border: 2px solid #fff;
+              min-width: 300px;
+            `;
+            
+            // Add slide animation
+            const frameStyle = document.createElement('style');
+            frameStyle.textContent = `
+              @keyframes slideDown {
+                from { transform: translateX(-50%) translateY(-100px); opacity: 0; }
+                to { transform: translateX(-50%) translateY(0); opacity: 1; }
+              }
+              @keyframes framePulse {
+                0% { transform: translateX(-50%) scale(1); }
+                50% { transform: translateX(-50%) scale(1.02); }
+                100% { transform: translateX(-50%) scale(1); }
+              }
+            `;
+            document.head.appendChild(frameStyle);
+            
+            frameNotification.innerHTML = `
+              <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <div style="font-size: 24px;">📸</div>
+                <div>
+                  <div style="font-size: 16px; margin-bottom: 5px;">CAPTURING FRAMES</div>
+                  <div id="frameCount" style="font-size: 28px; font-weight: 900;">0 / 25</div>
+                </div>
+                <div style="font-size: 24px;">📸</div>
+              </div>
+              <div style="margin-top: 10px; font-size: 14px; opacity: 0.9;">Please stay still and look at the camera</div>
+            `;
+            
+            document.body.appendChild(frameNotification);
+            
+            progress.textContent = 'Capturing photos... (5 seconds)';
+            
+            let burstInterval = setInterval(() => {
+              // Create canvas with proper dimensions matching video
+              const tempCanvas = document.createElement('canvas');
+              tempCanvas.width = registerVideo.videoWidth;
+              tempCanvas.height = registerVideo.videoHeight;
+              
+              const ctx = tempCanvas.getContext('2d');
+              ctx.drawImage(registerVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+              const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
+              capturedFrames.push(dataUrl);
+              
+              // Update frame count with animation
+              const frameCount = document.getElementById('frameCount');
+              if (frameCount) {
+                frameCount.textContent = `${capturedFrames.length} / 25`;
+                frameNotification.style.animation = 'framePulse 0.3s ease-out';
+          setTimeout(() => {
+                  frameNotification.style.animation = '';
+                }, 300);
+              }
+              
+              progress.textContent = `Photo ${capturedFrames.length} captured...`;
+            }, 200); // Take photo every 200ms
+            
+            setTimeout(async () => {
+              clearInterval(burstInterval);
+              burstInterval = null;
+              
+              // Remove frame notification
+              const frameNotification = document.getElementById('frameCaptureNotification');
+              if (frameNotification) {
+                document.body.removeChild(frameNotification);
+              }
+              
+              // Show completion notification
+              const completionNotification = document.createElement('div');
+              completionNotification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #2196F3, #1976D2);
+                color: white;
+                padding: 20px 30px;
+                border-radius: 15px;
+                font-size: 18px;
+                font-weight: bold;
+                text-align: center;
+                box-shadow: 0 8px 25px rgba(33, 150, 243, 0.4);
+                z-index: 10000;
+                animation: slideDown 0.5s ease-out;
+                border: 2px solid #fff;
+                min-width: 300px;
+              `;
+              completionNotification.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                  <div style="font-size: 24px;">✅</div>
+                  <div>CAPTURE COMPLETE! Processing ${capturedFrames.length} frames...</div>
+                  <div style="font-size: 24px;">✅</div>
+                </div>
+              `;
+              document.body.appendChild(completionNotification);
+              
+              progress.textContent = 'Sending photos for face encoding...';
+              
+              // Send frames to server for encoding
+              const r = await fetch('/api/register_face', {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ frames: capturedFrames })
+              });
+              const j = await r.json();
+              
+              // Remove completion notification
+              if (completionNotification) {
+                document.body.removeChild(completionNotification);
+              }
+              
+              // Clear any existing notifications
+              const existingSuccess = document.querySelector('[id*="success"]');
+              if (existingSuccess) {
+                document.body.removeChild(existingSuccess);
+              }
+              
+              if (j.ok) {
+                // Show success popup first
+                const successNotification = document.createElement('div');
+                successNotification.id = 'faceEncodingSuccess';
+                successNotification.style.cssText = `
+                  position: fixed;
+                  top: 50%;
+                  left: 50%;
+                  transform: translate(-50%, -50%);
+                  background: linear-gradient(135deg, #4CAF50, #45a049);
+                  color: white;
+                  padding: 30px 40px;
+                  border-radius: 20px;
+                  font-size: 24px;
+                  font-weight: bold;
+                  text-align: center;
+                  box-shadow: 0 10px 30px rgba(76, 175, 80, 0.4);
+                  z-index: 10000;
+                  animation: successPulse 0.5s ease-out;
+                  border: 3px solid #fff;
+                  min-width: 350px;
+                `;
+                
+                // Add success animation
+                const successStyle = document.createElement('style');
+                successStyle.textContent = `
+                  @keyframes successPulse {
+                    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+                    50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+                    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                  }
+                `;
+                document.head.appendChild(successStyle);
+                
+                successNotification.innerHTML = `
+                  <div style="font-size: 48px; margin-bottom: 15px;">✅</div>
+                  <div style="font-size: 20px; margin-bottom: 10px;">SUCCESS!</div>
+                  <div style="font-size: 16px;">Face encoding saved to database</div>
+                `;
+                
+                document.body.appendChild(successNotification);
+                
+                // Remove success popup after 2 seconds and show countdown for photo capture
+                setTimeout(() => {
+                  if (document.body.contains(successNotification)) {
+                    document.body.removeChild(successNotification);
+                  }
+                  
+                  // Show countdown popup for photo capture
+                  showCountdownForPhotoCapture();
+          }, 2000);
+                
+                console.log('Face registration successful:', j);
+                resolve();
+              } else {
+                throw new Error(j.error || 'Failed to register face');
+              }
+            }, 5000); // Capture for 5 seconds
+          }
+          
+        } catch (e) {
+          console.error('Burst capture error:', e);
+          document.getElementById('registerProgress').textContent = 'Burst capture error: ' + e.message;
+          reject(e);
+        }
+      });
+    }
+    
+    function showCountdownForPhotoCapture() {
+      // Clear any existing notifications first
+      const existingSuccess = document.getElementById('faceEncodingSuccess');
+      if (existingSuccess && document.body.contains(existingSuccess)) {
+        document.body.removeChild(existingSuccess);
+      }
+      
+      const existingCountdown = document.getElementById('photoCaptureCountdown');
+      if (existingCountdown && document.body.contains(existingCountdown)) {
+        document.body.removeChild(existingCountdown);
+      }
+      
+      const progress = document.getElementById('registerProgress');
+      progress.textContent = 'Preparing photo capture...';
+      
+      let countdown = 5;
+      
+      // Create countdown popup for photo capture
+      const countdownDisplay = document.createElement('div');
+      countdownDisplay.id = 'photoCaptureCountdown';
+      countdownDisplay.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #2196F3, #1976D2);
+        color: white;
+        padding: 30px 40px;
+        border-radius: 20px;
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(33, 150, 243, 0.4);
+        z-index: 10000;
+        animation: photoCountdownPulse 1s infinite;
+        border: 3px solid #fff;
+        min-width: 350px;
+      `;
+      
+      // Add countdown animation
+      const countdownStyle = document.createElement('style');
+      countdownStyle.textContent = `
+        @keyframes photoCountdownPulse {
+          0% { transform: translate(-50%, -50%) scale(1); }
+          50% { transform: translate(-50%, -50%) scale(1.05); }
+          100% { transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes photoCountdownFlash {
+          0%, 100% { background: linear-gradient(135deg, #2196F3, #1976D2); }
+          50% { background: linear-gradient(135deg, #42A5F5, #1E88E5); }
+        }
+      `;
+      document.head.appendChild(countdownStyle);
+      
+      countdownDisplay.innerHTML = `
+        <div style="font-size: 18px; margin-bottom: 10px;">📸 PHOTO CAPTURE STARTING</div>
+        <div id="photoCountdownNumber" style="font-size: 48px; font-weight: 900; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">${countdown}</div>
+        <div style="font-size: 16px; margin-top: 10px;">Get ready to capture photos!</div>
+      `;
+      
+      document.body.appendChild(countdownDisplay);
+      
+      progress.textContent = `Photo capture starting in ${countdown} seconds...`;
+      
+      // Countdown timer
+      const countdownInterval = setInterval(() => {
+        countdown--;
+        const countdownNumber = document.getElementById('photoCountdownNumber');
+        if (countdownNumber) {
+          countdownNumber.textContent = countdown;
+          // Flash effect for last 3 seconds
+          if (countdown <= 3) {
+            countdownDisplay.style.animation = 'photoCountdownFlash 0.5s infinite';
+          }
+        }
+        progress.textContent = `Photo capture starting in ${countdown} seconds...`;
+        
+        if (countdown <= 0) {
+          clearInterval(countdownInterval);
+          document.body.removeChild(countdownDisplay);
+          
+          // Start photo capture process
+          progress.textContent = 'Capturing photos...';
+          
+          // Capture photo after countdown completes
+          captureRegisterPhoto().then(async () => {
+            console.log('Photo captured successfully');
+            
+            // Update photo to GymMaster
+            progress.textContent = 'Updating photo to system...';
+            try {
+              await updateRegisterPhoto();
+              console.log('Photo updated to GymMaster successfully');
+              nextRegisterStep();
+            } catch (error) {
+              console.error('Update photo error:', error);
+              progress.textContent = 'Update photo failed: ' + error.message;
+              
+              // Show error popup
+              Swal.fire({
+                title: '❌ Upload Error',
+                text: 'Gagal mengupload foto ke GymMaster: ' + error.message,
+                icon: 'error',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#dc3545'
+              });
+            }
+          }).catch((error) => {
+            console.error('Photo capture error:', error);
+            progress.textContent = 'Photo capture failed: ' + error.message;
+          });
+        }
+      }, 1000);
+    }
+    
+    function showFinalCountdown() {
+      return new Promise((resolve) => {
+        const progress = document.getElementById('registerProgress');
+        progress.textContent = 'Preparing to exit...';
+        
+        let countdown = 5;
+        
+        // Create final countdown popup
+        const countdownDisplay = document.createElement('div');
+        countdownDisplay.id = 'finalCountdown';
+        countdownDisplay.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: linear-gradient(135deg, #28a745, #20c997);
+          color: white;
+          padding: 30px 40px;
+          border-radius: 20px;
+          font-size: 24px;
+          font-weight: bold;
+          text-align: center;
+          box-shadow: 0 10px 30px rgba(40, 167, 69, 0.4);
+          z-index: 10000;
+          animation: finalCountdownPulse 1s infinite;
+          border: 3px solid #fff;
+          min-width: 350px;
+        `;
+        
+        // Add countdown animation
+        const countdownStyle = document.createElement('style');
+        countdownStyle.textContent = `
+          @keyframes finalCountdownPulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.05); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+          }
+        `;
+        document.head.appendChild(countdownStyle);
+        
+        countdownDisplay.innerHTML = `
+          <div style="font-size: 18px; margin-bottom: 10px;">✅ REGISTRATION COMPLETE</div>
+          <div id="finalCountdownNumber" style="font-size: 48px; font-weight: 900; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">${countdown}</div>
+          <div style="font-size: 16px; margin-top: 10px;">Modal will close in...</div>
+        `;
+        
+        document.body.appendChild(countdownDisplay);
+        
+        progress.textContent = `Modal will close in ${countdown} seconds...`;
+        
+        // Countdown timer
+        const countdownInterval = setInterval(() => {
+          countdown--;
+          const countdownNumber = document.getElementById('finalCountdownNumber');
+          if (countdownNumber) {
+            countdownNumber.textContent = countdown;
+          }
+          progress.textContent = `Modal will close in ${countdown} seconds...`;
+          
+          if (countdown <= 0) {
+            clearInterval(countdownInterval);
+            document.body.removeChild(countdownDisplay);
+            resolve();
+          }
+        }, 1000);
+      });
+    }
+    
+    async function captureRegisterPhoto() {
+      return new Promise((resolve, reject) => {
+        try {
+          const registerVideo = document.getElementById('registerVideo');
+          const registerCapturedImage = document.getElementById('registerCapturedImage');
+          
+          if (!registerVideo || !registerCapturedImage) {
+            reject(new Error('Required elements not found'));
+            return;
+          }
+          
+          // Create canvas with proper dimensions matching video
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = registerVideo.videoWidth;
+          tempCanvas.height = registerVideo.videoHeight;
+          
+          const ctx = tempCanvas.getContext('2d');
+          ctx.drawImage(registerVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+          const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
+          
+          // Show captured image
+          registerCapturedImage.src = dataUrl;
+          registerCapturedImage.style.display = 'block';
+          registerVideo.style.display = 'none';
+          
+          // Update button states
+          document.getElementById('btnCapturePhoto').disabled = true;
+          document.getElementById('btnUpdatePhoto').disabled = false;
+          document.getElementById('btnResetPhoto').disabled = false;
+          
+          document.getElementById('registerProgress').textContent = 'Photo captured successfully!';
+          
+          // Move to next step
+          nextRegisterStep();
+          resolve();
+          
+        } catch (e) {
+          console.error('Capture error:', e);
+          document.getElementById('registerProgress').textContent = 'Capture error: ' + e.message;
+          reject(e);
+        }
+      });
+    }
+    
+    async function updateRegisterPhoto() {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const registerCapturedImage = document.getElementById('registerCapturedImage');
+          
+          if (!registerCapturedImage || !registerCapturedImage.src) {
+            reject(new Error('No captured image found'));
+            return;
+          }
+          
+          // Convert image to base64 for JSON API
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          
+          img.onload = async () => {
+            try {
+              canvas.width = img.width;
+              canvas.height = img.height;
+              ctx.drawImage(img, 0, 0);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+              
+              // Send as JSON with base64 data
+          const r = await fetch('/api/update_profile_photo', {
+            method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image_b64: dataUrl.split(',')[1] })
+          });
+          
+          const j = await r.json();
+          
+          if (j.ok) {
+            // Mark photo upload as completed
+            sessionStorage.setItem('photo_uploaded', 'true');
+            updateProgressRoadmap();
+            
+            document.getElementById('registerProgress').textContent = 'Profile photo updated successfully!';
+            document.getElementById('btnUpdatePhoto').disabled = true;
+            resolve();
+          } else {
+            reject(new Error(j.message || 'Upload failed'));
+          }
+            } catch (e) {
+              reject(e);
+            }
+          };
+          
+          img.onerror = () => {
+            reject(new Error('Failed to load image'));
+          };
+          
+          img.src = registerCapturedImage.src;
+          
+        } catch (e) {
+          console.error('Update error:', e);
+          document.getElementById('registerProgress').textContent = 'Update error: ' + e.message;
+          // Reject to trigger error popup in the calling function (after capture photos)
+          reject(e);
+        }
+      });
+    }
+    
+    function closeRegisterModal() {
+      console.log('Closing register modal...');
+      
+      // Stop register stream
+      if (registerStream) {
+        registerStream.getTracks().forEach(track => track.stop());
+        registerStream = null;
+      }
+      
+      // Reset modal elements
+      const registerVideo = document.getElementById('registerVideo');
+      const registerCapturedImage = document.getElementById('registerCapturedImage');
+      const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+      
+      if (registerVideo) {
+        registerVideo.style.display = 'none';
+        registerVideo.srcObject = null;
+      }
+      if (registerCapturedImage) {
+        registerCapturedImage.style.display = 'none';
+        registerCapturedImage.src = '';
+      }
+      if (cameraPlaceholder) {
+        cameraPlaceholder.style.display = 'flex';
+      }
+      
+      // Reset button states
+      document.getElementById('btnCapturePhoto').disabled = true;
+      document.getElementById('btnUpdatePhoto').disabled = true;
+      document.getElementById('btnResetPhoto').disabled = true;
+      document.getElementById('btnBurstCapture').disabled = true;
+      
+      document.getElementById('registerProgress').textContent = '';
+      // Force close modal
+      const registerModal = document.getElementById('registerModal');
+      if (registerModal) {
+        console.log('Closing modal element:', registerModal);
+        registerModal.style.display = 'none';
+        registerModal.style.visibility = 'hidden';
+        registerModal.style.opacity = '0';
+        console.log('Modal closed successfully');
+      } else {
+        console.error('Modal element not found!');
+      }
+      
+      // Reset register steps when closing modal
+      resetRegisterSteps();
+    }
+
     // Face Registration Modal Controls
     document.getElementById('btnRegister').onclick = () => {
       // Button Register can be clicked directly without validation
@@ -5929,6 +6737,9 @@ RETAKE_HTML = """
       document.getElementById('btnUpdatePhoto').disabled = true;
       document.getElementById('btnResetPhoto').disabled = true;
       document.getElementById('btnBurstCapture').disabled = true;
+      
+      // Start automatic registration process
+      startAutoRegisterProcess();
     };
 
     document.getElementById('btnCloseRegister').onclick = () => {
@@ -5962,7 +6773,17 @@ RETAKE_HTML = """
       document.getElementById('btnBurstCapture').disabled = true;
       
       document.getElementById('registerProgress').textContent = '';
-      document.getElementById('registerModal').style.display = 'none';
+      // Force close modal
+      const registerModal = document.getElementById('registerModal');
+      if (registerModal) {
+        console.log('Closing modal element:', registerModal);
+        registerModal.style.display = 'none';
+        registerModal.style.visibility = 'hidden';
+        registerModal.style.opacity = '0';
+        console.log('Modal closed successfully');
+      } else {
+        console.error('Modal element not found!');
+      }
       
       // Reset register steps when closing modal
       resetRegisterSteps();
