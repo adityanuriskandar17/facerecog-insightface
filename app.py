@@ -4594,39 +4594,56 @@ RETAKE_HTML = """
       border: 1px solid rgba(76, 167, 229, 0.2);
     }
     
-    .stepper {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      position: relative;
-    }
-    
-    .step {
+    .stepper-horizontal {
       display: flex;
       align-items: center;
-      gap: 20px;
-      padding: 20px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-      border: 2px solid #e9ecef;
-      transition: all 0.3s ease;
+      justify-content: space-between;
       position: relative;
+      padding: 20px 0;
     }
     
-    .step:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    .step-horizontal {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      position: relative;
+      z-index: 2;
     }
     
-    .step.active {
-      border-color: #4ca7e5;
-      background: linear-gradient(135deg, #f8fbff 0%, #e8f4fd 100%);
+    .step-horizontal:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 25px;
+      left: 50%;
+      right: -50%;
+      height: 2px;
+      background: #e9ecef;
+      z-index: 1;
     }
     
-    .step.completed {
+    .step-horizontal.completed:not(:last-child)::after {
+      background: linear-gradient(135deg, #4CAF50, #388E3C);
+    }
+    
+    .step-horizontal:hover .step-circle {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+    
+    .step-horizontal.active .step-circle {
+      background: linear-gradient(135deg, #4ca7e5 0%, #0072bc 100%);
+      border-color: #0072bc;
+      color: white;
+      box-shadow: 0 4px 12px rgba(76, 167, 229, 0.4);
+    }
+    
+    .step-horizontal.completed .step-circle {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
       border-color: #28a745;
-      background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
     }
     
     .step-circle {
@@ -4678,31 +4695,40 @@ RETAKE_HTML = """
     }
     
     .step-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      text-align: center;
+      max-width: 120px;
     }
     
     .step-title {
-      font-size: 18px;
+      font-size: 14px;
       font-weight: 600;
       color: #333;
       margin: 0;
+      line-height: 1.2;
     }
     
-    .step.active .step-title {
+    .step-horizontal.active .step-title {
       color: #0072bc;
+      font-weight: 700;
     }
     
-    .step.completed .step-title {
+    .step-horizontal.completed .step-title {
       color: #28a745;
     }
     
     .step-description {
-      font-size: 14px;
+      font-size: 12px;
       color: #6c757d;
       margin: 0;
+      line-height: 1.3;
+    }
+    
+    .step-horizontal.active .step-description {
+      color: #1976D2;
+    }
+    
+    .step-horizontal.completed .step-description {
+      color: #388E3C;
     }
     
     .step-action-btn {
@@ -5103,73 +5129,68 @@ RETAKE_HTML = """
       </style>
       
       <!-- Control Buttons -->
-      <!-- Modern Stepper Component -->
+      <!-- Modern Horizontal Stepper Component -->
       <div class="stepper-container">
-        <div class="stepper">
+        <div class="stepper-horizontal">
           <!-- Step 1: Start Camera -->
-          <div class="step" data-step="1">
+          <div class="step-horizontal" data-step="1">
             <div class="step-circle" id="stepCircle1">
               <span class="step-number">1</span>
               <i class="fas fa-check step-check" style="display: none;"></i>
             </div>
             <div class="step-content">
               <div class="step-title">Start Camera</div>
-              <div class="step-description">Initialize camera for face capture</div>
+              <div class="step-description">Initialize camera</div>
             </div>
           </div>
           
           <!-- Step 2: Burst Capture -->
-          <div class="step" data-step="2">
+          <div class="step-horizontal" data-step="2">
             <div class="step-circle" id="stepCircle2">
               <span class="step-number">2</span>
               <i class="fas fa-check step-check" style="display: none;"></i>
             </div>
             <div class="step-content">
               <div class="step-title">Burst Capture</div>
-              <div class="step-description">Capture multiple frames for better accuracy</div>
+              <div class="step-description">Capture frames</div>
             </div>
           </div>
           
           <!-- Step 3: Capture Photo -->
-          <div class="step" data-step="3">
+          <div class="step-horizontal" data-step="3">
             <div class="step-circle" id="stepCircle3">
               <span class="step-number">3</span>
               <i class="fas fa-check step-check" style="display: none;"></i>
             </div>
             <div class="step-content">
               <div class="step-title">Capture Photo</div>
-              <div class="step-description">Take final photo for registration</div>
+              <div class="step-description">Take final photo</div>
             </div>
           </div>
           
           <!-- Step 4: Update Photo -->
-          <div class="step" data-step="4">
+          <div class="step-horizontal" data-step="4">
             <div class="step-circle" id="stepCircle4">
               <span class="step-number">4</span>
               <i class="fas fa-check step-check" style="display: none;"></i>
             </div>
             <div class="step-content">
               <div class="step-title">Update Photo</div>
-              <div class="step-description">Upload photo to GymMaster system</div>
+              <div class="step-description">Upload to system</div>
             </div>
           </div>
           
           <!-- Step 5: Reset Photo -->
-          <div class="step" data-step="5">
+          <div class="step-horizontal" data-step="5">
             <div class="step-circle" id="stepCircle5">
               <span class="step-number">5</span>
               <i class="fas fa-check step-check" style="display: none;"></i>
             </div>
             <div class="step-content">
               <div class="step-title">Reset Photo</div>
-              <div class="step-description">Reset and start over if needed</div>
+              <div class="step-description">Start over</div>
             </div>
           </div>
-        </div>
-        
-        <!-- Progress Line -->
-        <div class="stepper-progress">
-          <div class="progress-line" id="stepperProgressLine"></div>
         </div>
       </div>
       
@@ -5389,8 +5410,7 @@ RETAKE_HTML = """
     
     // Stepper Management Functions
     function updateStepperStates() {
-      const steps = document.querySelectorAll('.step');
-      const progressLine = document.getElementById('stepperProgressLine');
+      const steps = document.querySelectorAll('.step-horizontal');
       
       steps.forEach((step, index) => {
         const stepNumber = index + 1;
@@ -5417,12 +5437,6 @@ RETAKE_HTML = """
           stepCheck.style.display = 'none';
         }
       });
-      
-      // Update progress line
-      if (progressLine) {
-        const progressPercentage = ((currentRegisterStep - 1) / (steps.length - 1)) * 100;
-        progressLine.style.height = progressPercentage + '%';
-      }
     }
     
     function nextStepperStep() {
