@@ -4282,7 +4282,7 @@ INDEX_HTML = """
             
             // Tampilkan foto profil di pojok kanan bawah
             if (j.member_id) {
-              ensureProfilePhotoVisible(j.member_id, name);
+              showMemberProfilePhoto(j.member_id, name);
             }
           } else if (j.gate && j.gate.popup_style === 'GRANTED') {
             // Check-in berhasil (fallback untuk response tanpa success field)
@@ -4291,7 +4291,7 @@ INDEX_HTML = """
             
             // Tampilkan foto profil di pojok kanan bawah
             if (j.member_id) {
-              ensureProfilePhotoVisible(j.member_id, name);
+              showMemberProfilePhoto(j.member_id, name);
             }
           } else if (j.gate && j.gate.throttled) {
             // User dalam cooldown
@@ -4300,7 +4300,7 @@ INDEX_HTML = """
             
             // Tampilkan foto profil di pojok kanan bawah untuk cooldown juga
             if (j.member_id) {
-              ensureProfilePhotoVisible(j.member_id, name);
+              showMemberProfilePhoto(j.member_id, name);
             }
           } else if (j.gate && (j.gate.popup_style === 'DENIED' || j.gate.response?.popup_style === 'DENIED')) {
             // Access denied
@@ -4496,10 +4496,12 @@ INDEX_HTML = """
             // Show profile photo immediately after successful recognition
             if (j.member_id) {
               console.log('Showing profile photo for successful recognition:', j.member_id, name);
-              ensureProfilePhotoVisible(j.member_id, name);
+              console.log('Calling showMemberProfilePhoto with member_id:', j.member_id, 'name:', name);
+              await showMemberProfilePhoto(j.member_id, name);
               console.log('Profile photo should be visible now');
             } else {
               console.log('No member_id in response, cannot show profile photo');
+              console.log('Response data:', j);
             }
             
             // Stop recognition interval immediately after successful scan to prevent multiple scans
@@ -4731,63 +4733,6 @@ INDEX_HTML = """
     // Global variable to track current displayed member
     let currentDisplayedMember = null;
     
-    // Function to show member profile photo in bottom right corner
-    async function ensureProfilePhotoVisible(memberId, memberName) {
-      try {
-        // If different member is detected, hide current photo first
-        if (currentDisplayedMember !== null && currentDisplayedMember !== memberId) {
-          console.log('Different member detected, hiding current photo');
-          hideMemberProfilePhoto();
-        }
-        
-        // Always show photo for recognized member, even if same member
-        console.log('Showing profile photo for member:', memberId);
-        
-        // Always show photo, even for same member
-        console.log('Always showing photo for member:', memberId);
-        
-        console.log('Fetching profile photo for member:', memberId);
-        currentDisplayedMember = memberId;
-        
-        const response = await fetch(`/api/get_member_photo/${memberId}`);
-        const data = await response.json();
-        
-        if (data.ok && data.photo_url) {
-          const container = document.getElementById('profilePhotoContainer');
-          const placeholder = document.getElementById('profilePhotoPlaceholder');
-          const photo = document.getElementById('profilePhoto');
-          const nameOverlay = document.getElementById('profileNameOverlay');
-          
-          // Set photo source
-          photo.src = data.photo_url + (data.photo_url.includes('?') ? '&' : '?') + 't=' + Date.now();
-          
-          // Set member name
-          nameOverlay.textContent = data.full_name || memberName || `Member ${memberId}`;
-          
-          // Show photo and hide placeholder
-          photo.style.display = 'block';
-          placeholder.style.display = 'none';
-          
-          // Show container with animation
-          container.classList.add('show');
-          container.style.display = 'block';
-          
-          console.log('Profile photo displayed for:', data.full_name);
-          
-          // Keep photo visible - no auto-hide
-          
-        } else {
-          console.log('No profile photo available for member:', memberId);
-          // Show placeholder with member name
-          showMemberProfilePlaceholder(memberName || `Member ${memberId}`);
-        }
-        
-      } catch (error) {
-        console.error('Error fetching profile photo:', error);
-        // Show placeholder with member name
-        showMemberProfilePlaceholder(memberName || `Member ${memberId}`);
-      }
-    }
     
     // Function to show profile placeholder
     function showMemberProfilePlaceholder(memberName) {
@@ -4839,35 +4784,77 @@ INDEX_HTML = """
         console.log('Fetching profile photo for member:', memberId);
         currentDisplayedMember = memberId;
         
+        console.log('Making API call to /api/get_member_photo/' + memberId);
         const response = await fetch(`/api/get_member_photo/${memberId}`);
+        console.log('API response status:', response.status);
         const data = await response.json();
+        console.log('API response data:', data);
         
         if (data.ok && data.photo_url) {
+          console.log('Profile photo data is valid, setting up DOM elements');
           const container = document.getElementById('profilePhotoContainer');
           const placeholder = document.getElementById('profilePhotoPlaceholder');
           const photo = document.getElementById('profilePhoto');
           const nameOverlay = document.getElementById('profileNameOverlay');
           
+          console.log('DOM elements found:', {
+            container: !!container,
+            placeholder: !!placeholder,
+            photo: !!photo,
+            nameOverlay: !!nameOverlay
+          });
+          
           // Set photo source
-          photo.src = data.photo_url + (data.photo_url.includes('?') ? '&' : '?') + 't=' + Date.now();
+          const photoUrl = data.photo_url + (data.photo_url.includes('?') ? '&' : '?') + 't=' + Date.now();
+          console.log('Setting photo source to:', photoUrl);
+          photo.src = photoUrl;
           
           // Set member name
-          nameOverlay.textContent = data.full_name || memberName || `Member ${memberId}`;
+          const memberName = data.full_name || memberName || `Member ${memberId}`;
+          console.log('Setting member name to:', memberName);
+          nameOverlay.textContent = memberName;
           
           // Show photo and hide placeholder
+          console.log('Showing photo and hiding placeholder');
           photo.style.display = 'block';
+          photo.style.visibility = 'visible';
+          photo.style.opacity = '1';
           placeholder.style.display = 'none';
           
           // Show container with animation
+          console.log('Adding show class and setting display block');
           container.classList.add('show');
           container.style.display = 'block';
           
+          // Force visibility with important styles
+          container.style.visibility = 'visible';
+          container.style.opacity = '1';
+          container.style.zIndex = '1000';
+          
           console.log('Profile photo displayed for:', data.full_name);
+          console.log('Container final state:', {
+            display: container.style.display,
+            classList: container.classList.toString(),
+            photoDisplay: photo.style.display,
+            placeholderDisplay: placeholder.style.display
+          });
           
           // Keep photo visible - no auto-hide
           
+          // Fallback: Force show after a short delay
+          setTimeout(() => {
+            if (container.style.display === 'none' || !container.classList.contains('show')) {
+              console.log('Fallback: Forcing container to show');
+              container.style.display = 'block';
+              container.style.visibility = 'visible';
+              container.style.opacity = '1';
+              container.classList.add('show');
+            }
+          }, 100);
+          
         } else {
           console.log('No profile photo available for member:', memberId);
+          console.log('API response was not ok or no photo_url:', data);
           // Show placeholder with member name
           showMemberProfilePlaceholder(memberName || `Member ${memberId}`);
         }
@@ -9516,6 +9503,10 @@ def api_get_member_photo(member_id):
         first_name = profile.get("firstname", "")
         last_name = profile.get("surname", "")
         
+        print(f"DEBUG: Returning successful response for member_id {member_id}")
+        print(f"DEBUG: Photo URL: {profile_photo_url}")
+        print(f"DEBUG: Full name: {full_name}")
+        
         return jsonify({
             "ok": True,
             "member_id": member_id,
@@ -9528,6 +9519,43 @@ def api_get_member_photo(member_id):
     except Exception as e:
         print(f"DEBUG: Error getting member photo: {e}")
         return jsonify({"ok": False, "error": f"Error: {str(e)}"}), 500
+
+# Test endpoint untuk debugging profile photo
+@app.route("/api/test_profile_photo/<int:member_id>", methods=["GET"])
+def test_profile_photo(member_id):
+    """Test endpoint untuk debugging profile photo"""
+    try:
+        print(f"DEBUG: Testing profile photo for member_id: {member_id}")
+        
+        # Test login
+        token = gym_login_with_memberid(member_id)
+        if not token:
+            return jsonify({"ok": False, "error": "Failed to login"})
+        
+        # Test profile fetch
+        profile = gym_get_profile(token)
+        if not profile:
+            return jsonify({"ok": False, "error": "Failed to fetch profile"})
+        
+        # Check if memberphoto exists
+        memberphoto = profile.get("memberphoto")
+        if not memberphoto:
+            return jsonify({
+                "ok": False, 
+                "error": "No memberphoto in profile",
+                "profile_keys": list(profile.keys()) if isinstance(profile, dict) else "Not a dict"
+            })
+        
+        return jsonify({
+            "ok": True,
+            "member_id": member_id,
+            "has_memberphoto": bool(memberphoto),
+            "memberphoto_url": memberphoto,
+            "profile_keys": list(profile.keys()) if isinstance(profile, dict) else "Not a dict"
+        })
+        
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Test error: {str(e)}"}), 500
 
 # DIOPTIMALKAN: Fast recognition endpoint untuk skala besar
 # Note: No rate limiting to support high-frequency face recognition requests
@@ -9645,12 +9673,14 @@ def api_recognize_fast():
                         if isinstance(gate_result, dict):
                             gate_popup_style = gate_result.get("popup_style", "GRANTED")
                         resp["gate"] = {"throttled": False, "popup_style": gate_popup_style, "response": gate_result}
+                        resp["member_id"] = member_id  # Add member_id to response
                         return jsonify(resp)
             
             # Recognized but gate not opened (fallback)
             mark_user_recognized(member_id)
             resp["success"] = True
             resp["gate"] = {"throttled": False, "popup_style": "GRANTED"}
+            resp["member_id"] = member_id  # Add member_id to response
             return jsonify(resp)
         
         # Not matched
