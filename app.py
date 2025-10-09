@@ -2959,6 +2959,7 @@ INDEX_HTML = """
       let hasSuccessfulScan = false; // Flag to prevent multiple successful scans
       let noFaceCount = 0; // Counter for consecutive no face detections
       let isPopupShowing = false; // Flag to prevent multiple popups
+      let lastNoFaceResetTime = 0; // Track when noFaceCount was last reset
 
     function setLog(obj) {
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
@@ -4235,12 +4236,16 @@ INDEX_HTML = """
         // Check if we should reset noFaceCount based on client-side face detection
         // This is a simple check - if we're in no-face mode, try to reset it occasionally
         if (noFaceCount >= 3) {
-          // Reset counter every 5 attempts to allow re-scanning (20% chance)
-          if (Math.random() < 0.2) { // 20% chance to reset
+          const now = Date.now();
+          const timeSinceLastReset = now - lastNoFaceResetTime;
+          
+          // Only reset if it's been at least 30 seconds since last reset
+          if (timeSinceLastReset > 30000 && Math.random() < 0.1) { // 10% chance to reset after 30 seconds
             console.log('Resetting noFaceCount from', noFaceCount, 'to 0 to allow re-scanning');
             noFaceCount = 0;
+            lastNoFaceResetTime = now;
           } else {
-            console.log('Skipping "Scanning..." display due to no-face mode (count:', noFaceCount, ')');
+            console.log('Skipping "Scanning..." display due to no-face mode (count:', noFaceCount, ', time since reset:', Math.round(timeSinceLastReset/1000), 's)');
             return;
           }
         }
@@ -4574,6 +4579,7 @@ INDEX_HTML = """
             if (noFaceCount > 0) {
               console.log('Resetting noFaceCount from', noFaceCount, 'to 0 on successful recognition');
               noFaceCount = 0;
+              lastNoFaceResetTime = Date.now();
             }
             
             // Start cooldown after successful scan
@@ -4621,6 +4627,7 @@ INDEX_HTML = """
             // Face detected but not recognized - reset no face counter
             console.log('Face detected but not recognized, resetting noFaceCount from', noFaceCount, 'to 0');
             noFaceCount = 0;
+            lastNoFaceResetTime = Date.now();
             
             // Only show popup for actual unknown faces (not no face detected)
             const popupStyle = j.popup_style || 'DENIED';
@@ -4742,6 +4749,7 @@ INDEX_HTML = """
               // Face detected but other error - reset no face counter
               console.log('Face detected but other error, resetting noFaceCount from', noFaceCount, 'to 0');
               noFaceCount = 0;
+              lastNoFaceResetTime = Date.now();
               
               // Show popup for other errors
               updateDetectionDisplay(null, errorMessage, null, 'DENIED');
