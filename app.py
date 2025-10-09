@@ -2884,6 +2884,12 @@ INDEX_HTML = """
           </div>
           <div style="font-size: 14px; font-weight: 500; color: #856404;">Next scan: <span id="countdownSeconds" style="font-weight: bold; color: #d63384;">0</span>s</div>
         </div>
+        
+        <!-- Center Countdown Animation -->
+        <div id="centerCountdown" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; text-align: center; background: rgba(0,0,0,0.8); color: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+          <div style="font-size: 48px; font-weight: bold; margin-bottom: 10px;" id="centerCountdownNumber">3</div>
+          <div style="font-size: 18px; opacity: 0.8;">Scan akan tersedia dalam</div>
+        </div>
       </div>
       
       <div style="color: #999; font-size: 14px; text-align: center; margin-top: 16px;">
@@ -2950,6 +2956,7 @@ INDEX_HTML = """
       let remainingCooldown = 0; // Remaining cooldown time in seconds
       let isFullscreen = false; // Fullscreen state
       let lastSuccessfulRecognitionTime = 0; // Track when user was last successfully recognized
+      let hasSuccessfulScan = false; // Flag to prevent multiple successful scans
 
     function setLog(obj) {
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
@@ -3443,38 +3450,54 @@ INDEX_HTML = """
     }
 
     function showCountdownTimer(seconds) {
-      const countdownTimer = document.getElementById('countdownTimer');
-      const countdownSeconds = document.getElementById('countdownSeconds');
+      const centerCountdown = document.getElementById('centerCountdown');
+      const centerCountdownNumber = document.getElementById('centerCountdownNumber');
       
-      console.log('showCountdownTimer called with:', seconds);
+      console.log('showCenterCountdown called with:', seconds);
       
-      if (seconds > 0) {
+      // Ensure seconds is a positive integer
+      const validSeconds = Math.max(1, Math.floor(seconds));
+      console.log('Validated seconds:', validSeconds);
+      
+      if (validSeconds > 0) {
         // Clear any existing interval
         if (countdownInterval) {
           clearInterval(countdownInterval);
         }
         
-        // Show timer with smooth transition
-        countdownTimer.style.display = 'flex';
-        countdownTimer.style.opacity = '0';
-        countdownTimer.style.transform = 'translateY(10px)';
+        // Show center countdown animation
+        centerCountdown.style.display = 'block';
+        centerCountdown.style.opacity = '0';
+        centerCountdown.style.transform = 'translate(-50%, -50%) scale(0.8)';
         
         // Animate in
         setTimeout(() => {
-          countdownTimer.style.transition = 'all 0.3s ease';
-          countdownTimer.style.opacity = '1';
-          countdownTimer.style.transform = 'translateY(0)';
+          centerCountdown.style.transition = 'all 0.3s ease';
+          centerCountdown.style.opacity = '1';
+          centerCountdown.style.transform = 'translate(-50%, -50%) scale(1)';
         }, 10);
         
-        countdownSeconds.textContent = seconds;
-        remainingCooldown = seconds;
+        centerCountdownNumber.textContent = validSeconds;
+        remainingCooldown = validSeconds;
         
-        // Start countdown
+        // Start countdown with animation
         countdownInterval = setInterval(() => {
           remainingCooldown--;
-          countdownSeconds.textContent = remainingCooldown;
           
-          console.log('Countdown:', remainingCooldown);
+          // Ensure countdown never goes below 0
+          if (remainingCooldown < 0) {
+            remainingCooldown = 0;
+          }
+          
+          centerCountdownNumber.textContent = remainingCooldown;
+          
+          // Add pulse animation for each count
+          centerCountdownNumber.style.transform = 'scale(1.2)';
+          setTimeout(() => {
+            centerCountdownNumber.style.transform = 'scale(1)';
+          }, 150);
+          
+          console.log('Center countdown:', remainingCooldown);
           
           if (remainingCooldown <= 0) {
             hideCountdownTimer();
@@ -3486,24 +3509,36 @@ INDEX_HTML = """
     }
 
       function hideCountdownTimer() {
-        const countdownTimer = document.getElementById('countdownTimer');
-        
         console.log('hideCountdownTimer called');
         
-        // Animate out
-        countdownTimer.style.transition = 'all 0.3s ease';
-        countdownTimer.style.opacity = '0';
-        countdownTimer.style.transform = 'translateY(-10px)';
-        
-        setTimeout(() => {
-          countdownTimer.style.display = 'none';
-        }, 300);
+        // Hide center countdown animation
+        const centerCountdown = document.getElementById('centerCountdown');
+        if (centerCountdown) {
+          centerCountdown.style.transition = 'all 0.3s ease';
+          centerCountdown.style.opacity = '0';
+          centerCountdown.style.transform = 'translate(-50%, -50%) scale(0.8)';
+          
+          setTimeout(() => {
+            centerCountdown.style.display = 'none';
+          }, 300);
+        }
         
         if (countdownInterval) {
           clearInterval(countdownInterval);
           countdownInterval = null;
         }
         remainingCooldown = 0;
+        
+        // Reset successful scan flag and restart recognition interval after cooldown ends
+        hasSuccessfulScan = false; // Reset flag to allow scanning again
+        console.log('Cooldown ended, resetting hasSuccessfulScan flag');
+        
+        if (stream && DOOR_TOKEN && !recognitionInterval) {
+          recognitionInterval = setInterval(performRecognition, 1000);
+          console.log('Recognition interval restarted after cooldown');
+        } else {
+          console.log('Cannot restart recognition - stream:', !!stream, 'token:', !!DOOR_TOKEN, 'interval:', !!recognitionInterval);
+        }
       }
 
       async function toggleFullscreen() {
@@ -4014,6 +4049,9 @@ INDEX_HTML = """
         // Hide any existing countdown timer when camera starts
         hideCountdownTimer();
         
+        // Reset successful scan flag when starting camera
+        hasSuccessfulScan = false;
+        
         // DIOPTIMALKAN: Start automatic face recognition every 1 second for faster response
         recognitionInterval = setInterval(performRecognition, 1000);
         console.log('Recognition interval started');
@@ -4060,12 +4098,67 @@ INDEX_HTML = """
     }
 
     async function performRecognition() {
-      if (!stream || !DOOR_TOKEN || !canvas || isProcessing) return;
+      if (!stream || !DOOR_TOKEN || !canvas || isProcessing) {
+        console.log('Recognition skipped - stream:', !!stream, 'token:', !!DOOR_TOKEN, 'canvas:', !!canvas, 'processing:', isProcessing);
+        return;
+      }
+      
+      // Check if we're in cooldown period - if so, don't scan at all
+      if (remainingCooldown > 0) {
+        console.log('In cooldown period, skipping recognition');
+        return;
+      }
+      
+      // Check if we already had a successful scan - prevent multiple scans
+      if (hasSuccessfulScan) {
+        console.log('Already had successful scan, skipping recognition - hasSuccessfulScan:', hasSuccessfulScan);
+        return;
+      }
       
       const now = Date.now();
-      if (now - lastRecognitionTime < 1000) return; // DIOPTIMALKAN: Reduced throttle to 1 second
+      if (now - lastRecognitionTime < 1000) {
+        console.log('Throttling recognition - too soon since last scan');
+        return;
+      }
+      
+      console.log('Starting recognition process...');
       lastRecognitionTime = now;
       isProcessing = true; // Set flag to prevent multiple requests
+      
+      // Add basic face detection validation before sending to server
+      // This helps reduce false positives when no face is actually visible
+      // You can disable this check by setting ENABLE_BRIGHTNESS_CHECK to false
+      const ENABLE_BRIGHTNESS_CHECK = false; // Set to true to enable brightness validation
+      
+      if (ENABLE_BRIGHTNESS_CHECK) {
+        try {
+          const ctx = canvas.getContext('2d');
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          
+          // Simple brightness check - if image is too dark, likely no face
+          let totalBrightness = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            totalBrightness += (r + g + b) / 3;
+          }
+          const avgBrightness = totalBrightness / (data.length / 4);
+          
+          // If image is too dark (likely no person), skip recognition
+          // Reduced threshold to be less restrictive
+          if (avgBrightness < 30) {
+            console.log('Image too dark, likely no face present, skipping recognition');
+            isProcessing = false;
+            return;
+          }
+          
+          console.log('Image brightness check passed:', avgBrightness);
+        } catch (e) {
+          console.log('Brightness check failed, proceeding with recognition:', e);
+        }
+      }
       
       try {
       const ctx = canvas.getContext('2d');
@@ -4294,35 +4387,28 @@ INDEX_HTML = """
           
           // Check if user is throttled
           if (j.gate && j.gate.throttled) {
-            console.log('User is throttled, showing cooldown timer');
-            const popupStyle = j.gate.popup_style || 'WARNING';
-            updateDetectionDisplay(name, 'User in cooldown period', confidence, popupStyle);
+            console.log('User is throttled, showing center countdown animation');
+            // Don't show popup, just show countdown animation
+            updateDetectionDisplay(name, 'Cooldown active', confidence, null);
             
             // Get exact remaining time from server
             const serverCooldownSeconds = j.gate.cooldown_remaining || 10;
             console.log('Server cooldown seconds:', serverCooldownSeconds);
             
-            // Calculate time elapsed since last successful recognition
-            const currentTime = Date.now();
-            
-            // If we don't have lastSuccessfulRecognitionTime, use server time directly
-            let actualRemainingTime;
-            if (lastSuccessfulRecognitionTime === 0) {
-              // First time or no previous successful recognition, use server time
-              actualRemainingTime = serverCooldownSeconds;
-              console.log('No previous successful recognition, using server time:', actualRemainingTime);
-            } else {
-              const timeSinceLastSuccessfulRecognition = Math.floor((currentTime - lastSuccessfulRecognitionTime) / 1000);
-              actualRemainingTime = Math.max(0, serverCooldownSeconds - timeSinceLastSuccessfulRecognition);
-              console.log('Time since last successful recognition:', timeSinceLastSuccessfulRecognition, 'seconds');
-            }
-            
-            console.log('Server cooldown:', serverCooldownSeconds, 'seconds');
-            console.log('Actual remaining time:', actualRemainingTime, 'seconds');
+            // Use server time directly - server already calculated the correct remaining time
+            const actualRemainingTime = Math.max(1, serverCooldownSeconds); // Ensure at least 1 second
+            console.log('Using server cooldown time:', actualRemainingTime, 'seconds');
             
             // Show countdown timer with corrected time
             if (actualRemainingTime > 0) {
               showCountdownTimer(actualRemainingTime);
+              
+              // Stop recognition interval during cooldown
+              if (recognitionInterval) {
+                clearInterval(recognitionInterval);
+                recognitionInterval = null;
+                console.log('Recognition interval stopped due to cooldown');
+              }
             } else {
               hideCountdownTimer();
             }
@@ -4405,7 +4491,33 @@ INDEX_HTML = """
             }
             
             updateDetectionDisplay(name, gateMessage, confidence, popupStyle);
-            hideCountdownTimer(); // Hide timer if gate opened successfully
+            // Don't hide countdown timer here - we want to show cooldown after successful scan
+            
+            // Show profile photo immediately after successful recognition
+            if (j.member_id) {
+              console.log('Showing profile photo for successful recognition:', j.member_id, name);
+              ensureProfilePhotoVisible(j.member_id, name);
+              console.log('Profile photo should be visible now');
+            } else {
+              console.log('No member_id in response, cannot show profile photo');
+            }
+            
+            // Stop recognition interval immediately after successful scan to prevent multiple scans
+            if (recognitionInterval) {
+              clearInterval(recognitionInterval);
+              recognitionInterval = null;
+              console.log('Recognition interval stopped after successful scan');
+            }
+            
+            // Also set isProcessing to false to prevent any pending requests
+            isProcessing = false;
+            hasSuccessfulScan = true; // Mark that we had a successful scan
+            console.log('Processing flag reset after successful scan');
+            
+            // Start cooldown after successful scan
+            console.log('Starting cooldown after successful scan');
+            remainingCooldown = 10; // Set 10 seconds cooldown
+            showCountdownTimer(remainingCooldown);
             
             // Record successful recognition time for cooldown calculation
             lastSuccessfulRecognitionTime = Date.now();
@@ -4767,13 +4879,6 @@ INDEX_HTML = """
       }
     }
     
-    // Function to ensure profile photo is always visible for recognized user
-    function ensureProfilePhotoVisible(memberId, memberName) {
-      console.log('Ensuring profile photo visible for member:', memberId);
-      
-      // Always call showMemberProfilePhoto to ensure photo is displayed
-      showMemberProfilePhoto(memberId, memberName);
-    }
 
     setButtons(false);
     if (DOOR_TOKEN) {
@@ -9456,11 +9561,28 @@ def api_recognize_fast():
             return jsonify({"ok": False, "error": "Model not ready"}), 503
         
         faces = model.get(bgr)
+        print(f"DEBUG: Face detection found {len(faces)} faces")
         if not faces:
+            print("DEBUG: No faces detected by model")
             return jsonify({"ok": True, "matched": False, "error": "No face detected"})
         
-        # choose largest face
-        f = max(faces, key=lambda x: (x.bbox[2]-x.bbox[0])*(x.bbox[3]-x.bbox[1]))
+        # Filter faces by size to avoid false positives
+        # Only consider faces that are reasonably sized (not too small)
+        min_face_area = 500  # Reduced minimum face area in pixels
+        valid_faces = []
+        for face in faces:
+            bbox = face.bbox
+            face_area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+            if face_area >= min_face_area:
+                valid_faces.append(face)
+        
+        print(f"DEBUG: After filtering, {len(valid_faces)} valid faces remain")
+        if not valid_faces:
+            print("DEBUG: No valid faces after size filtering")
+            return jsonify({"ok": True, "matched": False, "error": "No valid face detected (face too small)"})
+        
+        # choose largest valid face
+        f = max(valid_faces, key=lambda x: (x.bbox[2]-x.bbox[0])*(x.bbox[3]-x.bbox[1]))
         q = f.normed_embedding.astype(np.float32)
         
         best_member, best_score, second_score = find_best_match(q)
