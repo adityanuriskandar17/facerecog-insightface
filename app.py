@@ -2960,9 +2960,44 @@ INDEX_HTML = """
       let noFaceCount = 0; // Counter for consecutive no face detections
       let isPopupShowing = false; // Flag to prevent multiple popups
       let lastNoFaceResetTime = 0; // Track when noFaceCount was last reset
+      let lastImageData = null; // Track last image data to detect changes
 
     function setLog(obj) {
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
+    }
+    
+    // Simple image similarity calculation
+    function calculateImageSimilarity(img1, img2) {
+      try {
+        // Simple comparison based on data URL length and hash
+        if (img1 === img2) return 1.0;
+        
+        // Extract base64 data
+        const data1 = img1.split(',')[1];
+        const data2 = img2.split(',')[1];
+        
+        if (!data1 || !data2) return 0.0;
+        
+        // Simple length-based similarity
+        const len1 = data1.length;
+        const len2 = data2.length;
+        const lengthDiff = Math.abs(len1 - len2) / Math.max(len1, len2);
+        
+        // If length difference is too large, images are very different
+        if (lengthDiff > 0.3) return 0.0;
+        
+        // Simple character-based similarity
+        let matches = 0;
+        const minLen = Math.min(len1, len2);
+        for (let i = 0; i < minLen; i++) {
+          if (data1[i] === data2[i]) matches++;
+        }
+        
+        return matches / minLen;
+      } catch (error) {
+        console.error('Error calculating image similarity:', error);
+        return 0.0;
+      }
     }
     
     // Progress Roadmap Functions
@@ -4239,9 +4274,22 @@ INDEX_HTML = """
           const now = Date.now();
           const timeSinceLastReset = now - lastNoFaceResetTime;
           
-          // Only reset if it's been at least 30 seconds since last reset
-          if (timeSinceLastReset > 30000 && Math.random() < 0.1) { // 10% chance to reset after 30 seconds
-            console.log('Resetting noFaceCount from', noFaceCount, 'to 0 to allow re-scanning');
+          // Check if image has changed significantly (camera condition changed)
+          const currentImageData = canvas.toDataURL('image/jpeg', 0.1); // Low quality for comparison
+          let imageChanged = false;
+          
+          if (lastImageData) {
+            // Simple comparison - if images are very different, camera condition changed
+            const similarity = calculateImageSimilarity(lastImageData, currentImageData);
+            if (similarity < 0.7) { // Less than 70% similar
+              imageChanged = true;
+              console.log('Image changed significantly, similarity:', similarity);
+            }
+          }
+          
+          // Reset if image changed significantly OR if it's been at least 30 seconds since last reset
+          if (imageChanged || (timeSinceLastReset > 30000 && Math.random() < 0.1)) {
+            console.log('Resetting noFaceCount from', noFaceCount, 'to 0 due to', imageChanged ? 'image change' : 'timeout');
             noFaceCount = 0;
             lastNoFaceResetTime = now;
           } else {
@@ -4249,6 +4297,9 @@ INDEX_HTML = """
             return;
           }
         }
+        
+        // Store current image data for next comparison
+        lastImageData = canvas.toDataURL('image/jpeg', 0.1);
         
         // Show "Scanning..." display
         updateDetectionDisplay(null, 'Scanning...');
