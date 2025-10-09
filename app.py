@@ -2346,6 +2346,50 @@ INDEX_HTML = """
     }
     
     /* Fullscreen Styles */
+    .fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+      background: #000 !important;
+    }
+    
+    .fullscreen #video {
+      width: 100vw !important;
+      height: 100vh !important;
+      object-fit: contain !important;
+      object-position: center !important;
+      transform: scaleX(-1) !important;
+      background: #000 !important;
+    }
+    
+    /* Fullscreen responsive to video orientation */
+    .fullscreen.video-vertical #video {
+      object-fit: contain !important;
+      object-position: center !important;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+    
+    .fullscreen.video-horizontal #video {
+      object-fit: contain !important;
+      object-position: center !important;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+    
+    /* Mobile fullscreen optimization */
+    @media (max-width: 768px) {
+      .fullscreen #video {
+        object-fit: contain !important;
+        object-position: center !important;
+        width: 100vw !important;
+        height: 100vh !important;
+      }
+    }
+    
     .fullscreen .profile-photo-container {
       width: 120px;
       height: 120px;
@@ -2458,15 +2502,16 @@ INDEX_HTML = """
       transform: scaleX(-1) !important; /* Fix mirror effect in fullscreen */
     }
     
-    /* Mobile fullscreen video - force 16:9 aspect ratio */
+    /* Mobile fullscreen video - responsive to orientation */
     @media (max-width: 768px) {
       .fullscreen #video {
         width: 100vw !important;
-        height: 56.25vw !important; /* 16:9 aspect ratio (9/16 = 0.5625) */
+        height: 100vh !important;
+        object-fit: contain !important;
         max-height: 100vh !important;
-        object-fit: cover !important;
         object-position: center !important;
         transform: scaleX(-1) !important; /* Fix mirror effect in mobile fullscreen */
+        background: #000 !important;
       }
       
       /* If video is taller than screen, center it vertically */
@@ -2490,18 +2535,19 @@ INDEX_HTML = """
       }
     }
     
-    /* Tablet fullscreen video - force 16:9 aspect ratio */
+    /* Tablet fullscreen video - responsive to orientation */
     @media (min-width: 769px) and (max-width: 1024px) {
       .fullscreen #video {
         width: 100vw !important;
-        height: 56.25vw !important; /* 16:9 aspect ratio */
+        height: 100vh !important;
+        object-fit: contain !important;
         max-height: 100vh !important;
-        object-fit: cover !important;
         object-position: center !important;
         position: absolute !important;
         top: 50% !important;
         left: 50% !important;
         transform: translate(-50%, -50%) scaleX(-1) !important; /* Fix mirror effect in tablet fullscreen */
+        background: #000 !important;
       }
       
       /* Tablet fullscreen overlay positioning - match 16:9 video */
@@ -3043,19 +3089,12 @@ INDEX_HTML = """
       const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
       
       if (isFullscreen) {
-        // In fullscreen, use 16:9 aspect ratio
-        const aspectRatio = 9/16; // 16:9 aspect ratio
+        // In fullscreen, use full screen dimensions
         const maxWidth = window.innerWidth;
         const maxHeight = window.innerHeight;
         
         let overlayWidth = maxWidth;
-        let overlayHeight = maxWidth * aspectRatio;
-        
-        // If height exceeds screen, adjust based on height
-        if (overlayHeight > maxHeight) {
-          overlayHeight = maxHeight;
-          overlayWidth = maxHeight / aspectRatio;
-        }
+        let overlayHeight = maxHeight;
         
         overlay.width = overlayWidth;
         overlay.height = overlayHeight;
@@ -3091,19 +3130,12 @@ INDEX_HTML = """
       const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
       
       if (isFullscreen) {
-        // In fullscreen, use 16:9 aspect ratio
-        const aspectRatio = 9/16; // 16:9 aspect ratio
+        // In fullscreen, use full screen dimensions
         const maxWidth = window.innerWidth;
         const maxHeight = window.innerHeight;
         
         let overlayWidth = maxWidth;
-        let overlayHeight = maxWidth * aspectRatio;
-        
-        // If height exceeds screen, adjust based on height
-        if (overlayHeight > maxHeight) {
-          overlayHeight = maxHeight;
-          overlayWidth = maxHeight / aspectRatio;
-        }
+        let overlayHeight = maxHeight;
         
         overlay.width = overlayWidth;
         overlay.height = overlayHeight;
@@ -3497,6 +3529,14 @@ INDEX_HTML = """
             cameraContainer.classList.add('fullscreen');
             fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
             
+            // Maintain video orientation in fullscreen
+            const isVertical = cameraContainer.classList.contains('video-vertical');
+            if (isVertical) {
+              cameraContainer.classList.add('video-vertical');
+            } else {
+              cameraContainer.classList.add('video-horizontal');
+            }
+            
             // Add exit button
             
             
@@ -3541,9 +3581,16 @@ INDEX_HTML = """
               await document.msExitFullscreen();
             }
             
-            // Remove CSS classes
+            // Remove CSS classes but maintain orientation
             cameraContainer.classList.remove('fullscreen');
             fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+            
+            // Ensure orientation classes are maintained
+            const isVertical = cameraContainer.classList.contains('video-vertical');
+            if (!isVertical && !cameraContainer.classList.contains('video-horizontal')) {
+              // Default to vertical if no orientation class
+              cameraContainer.classList.add('video-vertical');
+            }
             
             // Remove exit button
             const exitBtn = document.getElementById('fullscreenExitBtn');
@@ -3597,6 +3644,13 @@ INDEX_HTML = """
           
           cameraContainer.classList.remove('fullscreen');
           fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
+          
+          // Ensure orientation classes are maintained
+          const isVertical = cameraContainer.classList.contains('video-vertical');
+          if (!isVertical && !cameraContainer.classList.contains('video-horizontal')) {
+            // Default to vertical if no orientation class
+            cameraContainer.classList.add('video-vertical');
+          }
           
           // Remove exit button
           const exitBtn = document.getElementById('fullscreenExitBtn');
