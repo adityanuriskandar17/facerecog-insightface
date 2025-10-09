@@ -2859,32 +2859,30 @@ INDEX_HTML = """
         </button>
       </div>
       
-      <!-- Status Cards -->
-      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+      <!-- Status Cards - Simplified -->
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
         <!-- Face Detection Status -->
-        <div id="detectionResult" style="padding: 16px; border-radius: 12px; background: #f8f9fa; border: 1px solid #e9ecef; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-          <div style="width: 32px; height: 32px; border-radius: 50%; background: #dc3545; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
+        <div id="detectionResult" style="padding: 12px; border-radius: 8px; background: #f8f9fa; border: 1px solid #e9ecef; display: flex; align-items: center; gap: 8px;">
+          <div style="width: 24px; height: 24px; border-radius: 50%; background: #dc3545; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
             <i class="fas fa-times"></i>
           </div>
-          <div id="detectedName" style="font-size: 16px; font-weight: 500; color: #333;">No face detected</div>
+          <div id="detectedName" style="font-size: 14px; font-weight: 500; color: #333;">No face detected</div>
         </div>
         
         <!-- Camera Status -->
-        <div id="cameraStatusCard" style="padding: 16px; border-radius: 12px; background: #f8f9fa; border: 1px solid #e9ecef; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-          <div id="cameraStatusIcon" style="width: 32px; height: 32px; border-radius: 50%; background: #dc3545; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
+        <div id="cameraStatusCard" style="padding: 12px; border-radius: 8px; background: #f8f9fa; border: 1px solid #e9ecef; display: flex; align-items: center; gap: 8px;">
+          <div id="cameraStatusIcon" style="width: 24px; height: 24px; border-radius: 50%; background: #dc3545; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
             <i class="fas fa-times"></i>
           </div>
-          <div id="detectionStatus" style="font-size: 16px; font-weight: 500; color: #333;">Camera inactive</div>
+          <div id="detectionStatus" style="font-size: 14px; font-weight: 500; color: #333;">Camera inactive</div>
         </div>
         
         <!-- Countdown Timer -->
-        <div id="countdownTimer" style="display: none; padding: 16px; border-radius: 12px; background: #fff3cd; border: 1px solid #ffeaa7; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.3s ease; opacity: 0; transform: translateY(10px);">
-          <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffc107; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
+        <div id="countdownTimer" style="display: none; padding: 12px; border-radius: 8px; background: #fff3cd; border: 1px solid #ffeaa7; display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; opacity: 0; transform: translateY(10px);">
+          <div style="width: 24px; height: 24px; border-radius: 50%; background: #ffc107; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
             <i class="fas fa-clock"></i>
           </div>
-          <div style="flex: 1;">
-            <div style="font-size: 14px; font-weight: 500; color: #856404;">Next scan available in: <span id="countdownSeconds" style="font-weight: bold; color: #d63384;">0</span> seconds</div>
-          </div>
+          <div style="font-size: 14px; font-weight: 500; color: #856404;">Next scan: <span id="countdownSeconds" style="font-weight: bold; color: #d63384;">0</span>s</div>
         </div>
       </div>
       
@@ -6370,19 +6368,11 @@ RETAKE_HTML = """
           profileInfo.innerHTML = `
             <div class="profile-field">
               <i class="fas fa-user"></i>
-              <input type="text" value="${profile.fullname || 'N/A'}" readonly>
+              <span>${profile.fullname || 'N/A'}</span>
             </div>
             <div class="profile-field">
               <i class="fas fa-envelope"></i>
-              <input type="text" value="${profile.email || 'N/A'}" readonly>
-            </div>
-            <div class="profile-field">
-              <i class="fas fa-phone"></i>
-              <input type="text" value="${profile.phonecell || 'N/A'}" readonly>
-            </div>
-            <div class="profile-field">
-              <i class="fas fa-id-card"></i>
-              <input type="text" value="${profile.id || 'N/A'}" readonly>
+              <span>${profile.email || 'N/A'}</span>
             </div>
           `;
           
