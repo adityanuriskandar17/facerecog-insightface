@@ -2208,13 +2208,16 @@ INDEX_HTML = """
     @media (max-width: 480px) {
       body { margin: 5px; padding: 5px; }
       #cameraContainer { 
-        height: 350px !important; 
-        min-height: 350px !important;
+        height: 500px !important; 
+        min-height: 500px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto 16px auto !important;
       }
       video, canvas, img { 
         width: 100%; 
         height: 100%;
-        object-fit: contain !important;
+        object-fit: cover !important;
       }
       
       /* Profile photo responsive for small mobile */
@@ -2239,6 +2242,107 @@ INDEX_HTML = """
         max-width: 80px;
       }
       button { padding: 8px 12px; font-size: 12px; }
+    }
+    
+    /* Mobile portrait optimization */
+    @media (max-width: 414px) {
+      #cameraContainer {
+        height: 450px !important;
+        min-height: 450px !important;
+        width: 95% !important;
+        margin: 0 auto 12px auto !important;
+      }
+    }
+    
+    /* Small mobile devices */
+    @media (max-width: 375px) {
+      #cameraContainer {
+        height: 400px !important;
+        min-height: 400px !important;
+        width: 95% !important;
+        margin: 0 auto 10px auto !important;
+      }
+    }
+    
+    /* Very small mobile devices */
+    @media (max-width: 320px) {
+      #cameraContainer {
+        height: 350px !important;
+        min-height: 350px !important;
+        width: 95% !important;
+        margin: 0 auto 8px auto !important;
+      }
+    }
+    
+    /* Mobile responsive for horizontal orientation */
+    @media (max-width: 768px) {
+      .video-horizontal {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 300px !important;
+        margin: 0 auto 16px auto !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .video-horizontal {
+        height: 250px !important;
+        margin: 0 auto 12px auto !important;
+      }
+    }
+    
+    @media (max-width: 414px) {
+      .video-horizontal {
+        height: 220px !important;
+        margin: 0 auto 10px auto !important;
+      }
+    }
+    
+    @media (max-width: 375px) {
+      .video-horizontal {
+        height: 200px !important;
+        margin: 0 auto 8px auto !important;
+      }
+    }
+    
+    @media (max-width: 320px) {
+      .video-horizontal {
+        height: 180px !important;
+        margin: 0 auto 6px auto !important;
+      }
+    }
+    
+    /* Video Orientation Styles */
+    .video-vertical {
+      width: 100% !important;
+      max-width: 400px !important;
+      height: 600px !important;
+      margin: 0 auto 24px auto !important;
+    }
+    
+    .video-horizontal {
+      width: 100% !important;
+      max-width: 600px !important;
+      height: 400px !important;
+      margin: 0 auto 24px auto !important;
+    }
+    
+    /* Orientation Toggle Button Styles */
+    #orientationToggle {
+      transition: all 0.3s ease;
+    }
+    
+    #orientationToggle:hover {
+      background: #5a6268 !important;
+      transform: translateY(-1px);
+    }
+    
+    #orientationToggle.vertical {
+      background: #6c757d !important;
+    }
+    
+    #orientationToggle.horizontal {
+      background: #007bff !important;
     }
     
     /* Fullscreen Styles */
@@ -2646,8 +2750,8 @@ INDEX_HTML = """
       </div>
       
         <!-- Camera Display Area -->
-        <div id="cameraContainer" style="position: relative; width: 100%; height: 450px; background: #f8f9fa; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <video id="video" autoplay playsinline muted style="width: 100%; height: 100%; background: #f8f9fa; border-radius: 12px; object-fit: contain; border: none; transform: scaleX(-1); display: none;"></video>
+        <div id="cameraContainer" class="video-vertical" style="position: relative; width: 100%; max-width: 400px; height: 600px; background: #f8f9fa; border-radius: 12px; margin: 0 auto 24px auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <video id="video" autoplay playsinline muted style="width: 100%; height: 100%; background: #f8f9fa; border-radius: 12px; object-fit: cover; border: none; transform: scaleX(-1); display: none;"></video>
             <canvas id="overlay" style="position: absolute; top: 0; left: 0; pointer-events: none; border-radius: 12px; width: 100%; height: 100%; z-index: 10; background: transparent;"></canvas>
             
             <!-- Loading Overlay for Recognizing State -->
@@ -2685,11 +2789,19 @@ INDEX_HTML = """
               <span>Profile</span>
             </div>
             <img id="profilePhoto" style="display: none; transform: scaleX(-1);" alt="Profile Photo">
-            <div id="profileNameOverlay" class="profile-name-overlay"></div>
+            <div id="profileNameOverlay" class="profile-name-overlay">            </div>
           </div>
         </div>
-      
-      <!-- Control Buttons -->
+        
+        <!-- Orientation Toggle Button -->
+        <div style="text-align: center; margin-bottom: 16px;">
+          <button id="orientationToggle" onclick="toggleVideoOrientation()" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; margin: 0 auto;">
+            <i class="fas fa-mobile-alt"></i>
+            <span>Vertical</span>
+          </button>
+        </div>
+        
+        <!-- Control Buttons -->
       <div style="margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
         <button id="btnStart" disabled style="padding: 12px 20px; border: none; border-radius: 8px; background: #007bff; color: white; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,123,255,0.3);">
           <i class="fas fa-camera" style="font-size: 14px;"></i>
@@ -3510,17 +3622,69 @@ INDEX_HTML = """
         }
       }
 
+    // Video orientation toggle function
+    function toggleVideoOrientation() {
+      const cameraContainer = document.getElementById('cameraContainer');
+      const toggleButton = document.getElementById('orientationToggle');
+      const icon = toggleButton.querySelector('i');
+      const text = toggleButton.querySelector('span');
+      
+      if (cameraContainer.classList.contains('video-vertical')) {
+        // Switch to horizontal
+        cameraContainer.classList.remove('video-vertical');
+        cameraContainer.classList.add('video-horizontal');
+        toggleButton.classList.remove('vertical');
+        toggleButton.classList.add('horizontal');
+        icon.className = 'fas fa-desktop';
+        text.textContent = 'Horizontal';
+        console.log('Switched to horizontal orientation');
+      } else {
+        // Switch to vertical
+        cameraContainer.classList.remove('video-horizontal');
+        cameraContainer.classList.add('video-vertical');
+        toggleButton.classList.remove('horizontal');
+        toggleButton.classList.add('vertical');
+        icon.className = 'fas fa-mobile-alt';
+        text.textContent = 'Vertical';
+        console.log('Switched to vertical orientation');
+      }
+      
+      // Update camera constraints based on orientation
+      updateCameraConstraints();
+    }
+    
+    // Update camera constraints based on current orientation
+    function updateCameraConstraints() {
+      const cameraContainer = document.getElementById('cameraContainer');
+      if (cameraContainer.classList.contains('video-vertical')) {
+        // Vertical constraints
+        window.cameraConstraints = {
+          video: { 
+            facingMode: { ideal: 'user' },
+            width: { ideal: 720, max: 1080 },
+            height: { ideal: 1280, max: 1920 },
+            frameRate: { ideal: 15, max: 30 }
+          } 
+        };
+      } else {
+        // Horizontal constraints
+        window.cameraConstraints = {
+          video: { 
+            facingMode: { ideal: 'user' },
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            frameRate: { ideal: 15, max: 30 }
+          } 
+        };
+      }
+    }
+
     async function startCam() {
       try {
         console.log('Requesting camera access...');
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: { ideal: 'user' },
-            width: { ideal: 1080, max: 1920 },
-            height: { ideal: 1920, max: 2436 },
-            frameRate: { ideal: 15, max: 30 }
-          } 
-        });
+        // Use dynamic constraints based on current orientation
+        updateCameraConstraints();
+        stream = await navigator.mediaDevices.getUserMedia(window.cameraConstraints);
         console.log('Camera stream obtained:', stream);
         
         video.srcObject = stream;
@@ -4163,8 +4327,8 @@ INDEX_HTML = """
       // Test if we can access camera with mobile-optimized constraints
       navigator.mediaDevices.getUserMedia({ 
         video: { 
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          width: { ideal: 480 },
+          height: { ideal: 640 },
           frameRate: { ideal: 15 }
         } 
       })
@@ -4355,6 +4519,21 @@ INDEX_HTML = """
     if (DOOR_TOKEN) {
       btnStart.disabled = false;
     }
+    
+    // Initialize orientation toggle button
+    document.addEventListener('DOMContentLoaded', function() {
+      const toggleButton = document.getElementById('orientationToggle');
+      if (toggleButton) {
+        toggleButton.classList.add('vertical');
+        const icon = toggleButton.querySelector('i');
+        const text = toggleButton.querySelector('span');
+        icon.className = 'fas fa-mobile-alt';
+        text.textContent = 'Vertical';
+      }
+      
+      // Initialize camera constraints
+      updateCameraConstraints();
+    });
   </script>
   
   <!-- Footer -->
@@ -4563,8 +4742,8 @@ RETAKE_HTML = """
     }
     
     .camera-container {
-      width: 100%;
-      height: 300px;
+      width: 400px;
+      height: 600px;
       background: linear-gradient(135deg, #4ca7e5 0%, #0072bc 100%);
       border-radius: 12px;
       display: flex;
@@ -5442,7 +5621,7 @@ RETAKE_HTML = """
       
       <!-- Camera Section -->
       <div style="text-align: center; margin: 20px 0;">
-        <div style="position: relative; width: 100%; max-width: 500px; height: 300px; margin: 0 auto; background: #111; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <div style="position: relative; width: 100%; max-width: 400px; height: 600px; margin: 0 auto; background: #111; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
           <video id="registerVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 2; background: #000;"></video>
           <img id="registerCapturedImage" alt="captured" style="display: none; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; position: absolute; top: 0; left: 0; z-index: 3; transform: scaleX(-1);" />
           <div id="cameraPlaceholder" style="width: 100%; height: 100%; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d; position: absolute; top: 0; left: 0; border-radius: 12px;">
@@ -6081,14 +6260,11 @@ RETAKE_HTML = """
         
         // Request camera with specific facing mode
         console.log(`Requesting camera with facing mode: ${facingMode}`);
-        currentStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: { ideal: facingMode },
-            width: { ideal: 640, max: 1280 },
-            height: { ideal: 480, max: 720 },
-            frameRate: { ideal: 15, max: 30 }
-          } 
-        });
+        // Use dynamic constraints based on current orientation
+        updateCameraConstraints();
+        const constraints = { ...window.cameraConstraints };
+        constraints.video.facingMode = { ideal: facingMode };
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
         
         video.srcObject = currentStream;
         video.style.display = 'block';
@@ -6756,8 +6932,8 @@ RETAKE_HTML = """
           
           navigator.mediaDevices.getUserMedia({ 
             video: { 
-              width: { ideal: 1280 }, 
-              height: { ideal: 720 },
+              width: { ideal: 720 }, 
+              height: { ideal: 1280 },
               facingMode: 'user'
             } 
           }).then(stream => {
@@ -7664,8 +7840,8 @@ RETAKE_HTML = """
         // Request camera with mobile-optimized constraints
         registerStream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
-            width: { ideal: 640 },
-            height: { ideal: 480 },
+            width: { ideal: 480 },
+            height: { ideal: 640 },
             frameRate: { ideal: 15 }
           }
         });
