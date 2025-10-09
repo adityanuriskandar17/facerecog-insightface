@@ -3683,9 +3683,16 @@ INDEX_HTML = """
       const icon = toggleButton.querySelector('i');
       const text = toggleButton.querySelector('span');
       const video = document.getElementById('video');
+      const deviceInfo = getDeviceOrientation();
       
       // Check if camera is currently active
       const isCameraActive = video && video.srcObject && !video.paused;
+      
+      // Set manual override flag for tablets
+      if (deviceInfo.isTablet) {
+        cameraContainer.dataset.manualOverride = 'true';
+        console.log('Tablet manual override enabled');
+      }
       
       if (cameraContainer.classList.contains('video-vertical')) {
         // Switch to horizontal
@@ -3694,7 +3701,7 @@ INDEX_HTML = """
         toggleButton.classList.remove('vertical');
         toggleButton.classList.add('horizontal');
         icon.className = 'fas fa-desktop';
-        text.textContent = 'Horizontal';
+        text.textContent = deviceInfo.isTablet ? 'Manual Horizontal' : 'Horizontal';
         console.log('Switched to horizontal orientation');
       } else {
         // Switch to vertical
@@ -3703,7 +3710,7 @@ INDEX_HTML = """
         toggleButton.classList.remove('horizontal');
         toggleButton.classList.add('vertical');
         icon.className = 'fas fa-mobile-alt';
-        text.textContent = 'Vertical';
+        text.textContent = deviceInfo.isTablet ? 'Manual Vertical' : 'Vertical';
         console.log('Switched to vertical orientation');
       }
       
@@ -3763,20 +3770,37 @@ INDEX_HTML = """
       const deviceInfo = getDeviceOrientation();
       const icon = toggleButton.querySelector('i');
       const text = toggleButton.querySelector('span');
+      const cameraContainer = document.getElementById('cameraContainer');
+      const hasManualOverride = cameraContainer.dataset.manualOverride === 'true';
       
       if (deviceInfo.isTablet) {
-        if (deviceInfo.isPortrait) {
-          icon.className = 'fas fa-mobile-alt';
-          text.textContent = 'Auto Vertical';
-          toggleButton.title = 'Tablet in portrait mode - using vertical constraints';
+        if (hasManualOverride) {
+          // Show manual override state
+          const isVerticalMode = cameraContainer.classList.contains('video-vertical');
+          if (isVerticalMode) {
+            icon.className = 'fas fa-mobile-alt';
+            text.textContent = 'Manual Vertical';
+            toggleButton.title = 'Manual vertical mode - click to switch to horizontal';
+          } else {
+            icon.className = 'fas fa-desktop';
+            text.textContent = 'Manual Horizontal';
+            toggleButton.title = 'Manual horizontal mode - click to switch to vertical';
+          }
         } else {
-          icon.className = 'fas fa-desktop';
-          text.textContent = 'Auto Horizontal';
-          toggleButton.title = 'Tablet in landscape mode - using horizontal constraints';
+          // Show auto-detection state
+          if (deviceInfo.isPortrait) {
+            icon.className = 'fas fa-mobile-alt';
+            text.textContent = 'Auto Vertical';
+            toggleButton.title = 'Auto-detected portrait mode - click to override';
+          } else {
+            icon.className = 'fas fa-desktop';
+            text.textContent = 'Auto Horizontal';
+            toggleButton.title = 'Auto-detected landscape mode - click to override';
+          }
         }
       } else {
         // For mobile and desktop, use button state
-        const isVerticalMode = document.getElementById('cameraContainer').classList.contains('video-vertical');
+        const isVerticalMode = cameraContainer.classList.contains('video-vertical');
         if (isVerticalMode) {
           icon.className = 'fas fa-mobile-alt';
           text.textContent = 'Vertical';
@@ -3795,29 +3819,58 @@ INDEX_HTML = """
       const deviceInfo = getDeviceOrientation();
       const isVerticalMode = cameraContainer.classList.contains('video-vertical');
       
-      // For tablets in portrait mode, always use vertical constraints regardless of button state
-      if (deviceInfo.isTablet && deviceInfo.isPortrait) {
-        window.cameraConstraints = {
-          video: { 
-            facingMode: { ideal: 'user' },
-            width: { ideal: 720, max: 1080 },
-            height: { ideal: 1280, max: 1920 },
-            frameRate: { ideal: 15, max: 30 }
-          } 
-        };
-        console.log('Tablet portrait mode - using VERTICAL constraints:', window.cameraConstraints);
-      }
-      // For tablets in landscape mode, use horizontal constraints
-      else if (deviceInfo.isTablet && !deviceInfo.isPortrait) {
-        window.cameraConstraints = {
-          video: { 
-            facingMode: { ideal: 'user' },
-            width: { ideal: 1280, max: 1920 },
-            height: { ideal: 720, max: 1080 },
-            frameRate: { ideal: 15, max: 30 }
-          } 
-        };
-        console.log('Tablet landscape mode - using HORIZONTAL constraints:', window.cameraConstraints);
+      // Check if user has manually toggled (override auto-detection)
+      const hasManualOverride = cameraContainer.dataset.manualOverride === 'true';
+      
+      // For tablets, use manual override if available, otherwise use device orientation
+      if (deviceInfo.isTablet) {
+        if (hasManualOverride) {
+          // Use manual button state
+          if (isVerticalMode) {
+            window.cameraConstraints = {
+              video: { 
+                facingMode: { ideal: 'user' },
+                width: { ideal: 720, max: 1080 },
+                height: { ideal: 1280, max: 1920 },
+                frameRate: { ideal: 15, max: 30 }
+              } 
+            };
+            console.log('Tablet MANUAL VERTICAL constraints:', window.cameraConstraints);
+          } else {
+            window.cameraConstraints = {
+              video: { 
+                facingMode: { ideal: 'user' },
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 },
+                frameRate: { ideal: 15, max: 30 }
+              } 
+            };
+            console.log('Tablet MANUAL HORIZONTAL constraints:', window.cameraConstraints);
+          }
+        } else {
+          // Use auto-detection based on device orientation
+          if (deviceInfo.isPortrait) {
+            window.cameraConstraints = {
+              video: { 
+                facingMode: { ideal: 'user' },
+                width: { ideal: 720, max: 1080 },
+                height: { ideal: 1280, max: 1920 },
+                frameRate: { ideal: 15, max: 30 }
+              } 
+            };
+            console.log('Tablet AUTO portrait - VERTICAL constraints:', window.cameraConstraints);
+          } else {
+            window.cameraConstraints = {
+              video: { 
+                facingMode: { ideal: 'user' },
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 },
+                frameRate: { ideal: 15, max: 30 }
+              } 
+            };
+            console.log('Tablet AUTO landscape - HORIZONTAL constraints:', window.cameraConstraints);
+          }
+        }
       }
       // For mobile devices, use button state
       else if (deviceInfo.isMobile) {
@@ -3874,6 +3927,7 @@ INDEX_HTML = """
         console.log('Requesting camera access...');
         // Use dynamic constraints based on current orientation
         updateCameraConstraints();
+        console.log('Using camera constraints:', window.cameraConstraints);
         stream = await navigator.mediaDevices.getUserMedia(window.cameraConstraints);
         console.log('Camera stream obtained:', stream);
         
@@ -3884,6 +3938,19 @@ INDEX_HTML = """
         video.onloadedmetadata = () => {
           console.log('Video metadata loaded');
           console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+          console.log('Video aspect ratio:', (video.videoWidth / video.videoHeight).toFixed(2));
+          
+          // Check if video orientation matches expected
+          const deviceInfo = getDeviceOrientation();
+          const isVerticalMode = document.getElementById('cameraContainer').classList.contains('video-vertical');
+          const isPortraitVideo = video.videoHeight > video.videoWidth;
+          
+          console.log('Orientation check:', {
+            devicePortrait: deviceInfo.isPortrait,
+            containerVertical: isVerticalMode,
+            videoPortrait: isPortraitVideo,
+            matches: (deviceInfo.isPortrait && isPortraitVideo) || (!deviceInfo.isPortrait && !isPortraitVideo)
+          });
           
           // Update canvas dimensions to match video
           if (canvas) {
@@ -4726,6 +4793,25 @@ INDEX_HTML = """
         text.textContent = 'Vertical';
       }
       
+      // Initialize camera container classes based on device orientation
+      const cameraContainer = document.getElementById('cameraContainer');
+      const deviceInfo = getDeviceOrientation();
+      
+      if (deviceInfo.isTablet) {
+        // For tablets, set initial classes based on device orientation
+        if (deviceInfo.isPortrait) {
+          cameraContainer.classList.remove('video-horizontal');
+          cameraContainer.classList.add('video-vertical');
+          console.log('Initialized tablet container to vertical for portrait device');
+        } else {
+          cameraContainer.classList.remove('video-vertical');
+          cameraContainer.classList.add('video-horizontal');
+          console.log('Initialized tablet container to horizontal for landscape device');
+        }
+        // Ensure manual override is false initially
+        cameraContainer.dataset.manualOverride = 'false';
+      }
+      
       // Initialize camera constraints
       updateCameraConstraints();
       
@@ -4744,6 +4830,28 @@ INDEX_HTML = """
         // Only restart camera if orientation changed and it's a tablet
         if (deviceInfo.isTablet && currentOrientation !== lastOrientation) {
           console.log('Tablet orientation changed, restarting camera...');
+          
+          // Reset manual override when device orientation changes
+          const cameraContainer = document.getElementById('cameraContainer');
+          cameraContainer.dataset.manualOverride = 'false';
+          console.log('Reset manual override due to device orientation change');
+          
+          // Update camera container classes to match device orientation
+          if (currentOrientation) {
+            // Device is in portrait - use vertical
+            cameraContainer.classList.remove('video-horizontal');
+            cameraContainer.classList.add('video-vertical');
+            console.log('Updated container to vertical for portrait device');
+          } else {
+            // Device is in landscape - use horizontal
+            cameraContainer.classList.remove('video-vertical');
+            cameraContainer.classList.add('video-horizontal');
+            console.log('Updated container to horizontal for landscape device');
+          }
+          
+          // Update camera constraints
+          updateCameraConstraints();
+          
           const video = document.getElementById('video');
           const isCameraActive = video && video.srcObject && !video.paused;
           
