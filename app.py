@@ -4933,7 +4933,7 @@ RETAKE_HTML = """
     .row { 
       display: flex; 
       gap: 30px; 
-      align-items: flex-start; 
+      align-items: stretch;  /* DIOPTIMALKAN: Semua card memiliki tinggi yang sama */
       flex-wrap: wrap;
       justify-content: center;
     }
@@ -4946,6 +4946,8 @@ RETAKE_HTML = """
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       min-width: 350px;
       max-width: 400px;
+      display: flex;
+      flex-direction: column;  /* DIOPTIMALKAN: Konsisten layout untuk semua card */
     }
     
     .card-header {
@@ -5075,8 +5077,9 @@ RETAKE_HTML = """
     }
     
     .camera-container {
-      width: 400px;
-      height: 600px;
+      width: 100%;
+      max-width: 400px;
+      height: 300px;  /* DIOPTIMALKAN: Proporsi yang lebih seimbang (4:3 aspect ratio) */
       background: linear-gradient(135deg, #4ca7e5 0%, #0072bc 100%);
       border-radius: 12px;
       display: flex;
@@ -5084,7 +5087,7 @@ RETAKE_HTML = """
       align-items: center;
       justify-content: center;
       color: white;
-      margin-bottom: 20px;
+      margin: 0 auto 20px;  /* DIOPTIMALKAN: Center alignment */
       position: relative;
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -5097,6 +5100,34 @@ RETAKE_HTML = """
       border-radius: 12px;
       position: relative;
       z-index: 1;
+    }
+    
+    /* DIOPTIMALKAN: Camera container alignment untuk card Validasi Member */
+    .card .camera-container {
+      flex: 1;  /* Mengisi ruang yang tersedia di card */
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    /* DIOPTIMALKAN: Responsive camera container untuk mobile */
+    @media (max-width: 768px) {
+      .camera-container {
+        width: 100%;
+        max-width: 350px;
+        height: 250px;  /* Proporsi yang lebih baik untuk mobile */
+        margin: 0 auto 15px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .camera-container {
+        width: 100%;
+        max-width: 300px;
+        height: 200px;  /* Proporsi yang lebih baik untuk mobile kecil */
+        margin: 0 auto 10px;
+      }
     }
     
     .camera-placeholder {
@@ -6545,10 +6576,40 @@ RETAKE_HTML = """
     let currentCameraFacing = 'user'; // 'user' for front, 'environment' for back
     let currentStream = null;
     
-    // Add event handler for Start button on retake page
+        // Add event handler for Start button on retake page
     document.getElementById('btnStart').onclick = async () => {
       try {
         setOut('Starting camera...');
+        console.log('Start Camera button clicked - attempting to start camera');
+        console.log('Current URL:', window.location.href);
+        console.log('Protocol:', location.protocol);
+        console.log('Hostname:', location.hostname);
+        
+        // Check if we're on HTTPS or localhost
+        const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        if (!isSecure) {
+          setOut('Camera requires HTTPS or localhost. Current protocol: ' + location.protocol);
+          console.warn('Camera access requires HTTPS or localhost');
+          return;
+        }
+        
+        // Check if getUserMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setOut('Camera not supported in this browser');
+          console.error('getUserMedia not supported');
+          return;
+        }
+        
+        // Check available devices
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          console.log('Available devices:', devices);
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          console.log('Video devices found:', videoDevices.length);
+        } catch (e) {
+          console.log('Could not enumerate devices:', e);
+        }
+        
         await startCameraWithFacing('user'); // Start with front camera by default
         
         setOut('Camera started. Click "Validasi" to start face recognition.');
@@ -6573,6 +6634,34 @@ RETAKE_HTML = """
       } catch (e) {
         setOut('Camera error: ' + e.message);
         console.error('Camera start error:', e);
+        console.error('Error name:', e.name);
+        console.error('Error message:', e.message);
+        
+        // Show specific error messages
+        if (e.name === 'NotAllowedError') {
+          setOut('Camera access denied. Please allow camera permission and try again.');
+        } else if (e.name === 'NotFoundError') {
+          setOut('No camera found. Please check if camera is connected.');
+        } else if (e.name === 'NotSupportedError') {
+          setOut('Camera not supported in this browser.');
+        } else if (e.name === 'OverconstrainedError') {
+          setOut('Camera constraints not supported. Trying with basic constraints...');
+          // Try with basic constraints as fallback
+          try {
+            const basicConstraints = { video: true };
+            console.log('Trying with basic constraints:', basicConstraints);
+            const stream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+            const video = document.getElementById('video');
+            video.srcObject = stream;
+            video.style.display = 'block';
+            document.getElementById('cameraPlaceholder').style.display = 'none';
+            setOut('Camera started with basic constraints');
+          } catch (fallbackError) {
+            setOut('Camera failed even with basic constraints: ' + fallbackError.message);
+          }
+        } else {
+          setOut('Camera error: ' + e.message);
+        }
       }
     };
     
@@ -6591,17 +6680,40 @@ RETAKE_HTML = """
         const cameraPlaceholder = document.getElementById('cameraPlaceholder');
         const overlay = document.getElementById('overlay');
         
-        // Request camera with specific facing mode
+        // Request camera with simplified constraints
         console.log(`Requesting camera with facing mode: ${facingMode}`);
-        // Use dynamic constraints based on current orientation
-        updateCameraConstraints();
-        const constraints = { ...window.cameraConstraints };
-        constraints.video.facingMode = { ideal: facingMode };
-        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // Use simple constraints that work on most devices
+        const constraints = {
+          video: {
+            facingMode: { ideal: facingMode },
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 },
+            frameRate: { ideal: 15, max: 30 }
+          }
+        };
+        
+        console.log('Camera constraints:', constraints);
+        
+        try {
+          currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (constraintError) {
+          console.log('First attempt failed, trying with basic constraints:', constraintError);
+          // Fallback to basic constraints
+          const basicConstraints = { video: true };
+          currentStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+        }
+        console.log('Camera stream obtained:', currentStream);
         
         video.srcObject = currentStream;
         video.style.display = 'block';
         cameraPlaceholder.style.display = 'none';
+        
+        // Wait for video to load
+        video.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+          console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+        };
         
         // Setup overlay canvas
         if (overlay) {
