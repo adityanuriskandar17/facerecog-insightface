@@ -5629,12 +5629,20 @@ RETAKE_HTML = """
             return;
           }
           
-          // Button Register (Step 3) - always enabled
+          // Button Register (Step 3) - only enabled after successful validation
           if (btnId === 'btnRegister') {
-            console.log('Processing btnRegister: Always enabled');
-            button.disabled = false;
-            button.style.opacity = '1';
-            button.style.cursor = 'pointer';
+            const validationCompleted = sessionStorage.getItem('validation_completed') === 'true';
+            if (validationCompleted) {
+              console.log('Processing btnRegister: Enabled after successful validation');
+              button.disabled = false;
+              button.style.opacity = '1';
+              button.style.cursor = 'pointer';
+            } else {
+              console.log('Processing btnRegister: Disabled - validation not completed');
+              button.disabled = true;
+              button.style.opacity = '0.5';
+              button.style.cursor = 'not-allowed';
+            }
             return;
           }
           
@@ -5662,6 +5670,7 @@ RETAKE_HTML = """
     
     function resetValidationSteps() {
       currentValidationStep = 1;
+      sessionStorage.removeItem('validation_completed');
       updateValidationButtonStates();
       console.log('Reset to validation step 1');
     }
@@ -5974,13 +5983,21 @@ RETAKE_HTML = """
     // Initialize validation button states
     updateValidationButtonStates();
     
-    // Initialize Register button as enabled (can be clicked directly)
+    // Initialize Register button based on validation status
     const btnRegister = document.getElementById('btnRegister');
     if (btnRegister) {
-      btnRegister.disabled = false;
-      btnRegister.style.opacity = '1';
-      btnRegister.style.cursor = 'pointer';
-      console.log('Button Register initialized as enabled');
+      const validationCompleted = sessionStorage.getItem('validation_completed') === 'true';
+      if (validationCompleted) {
+        btnRegister.disabled = false;
+        btnRegister.style.opacity = '1';
+        btnRegister.style.cursor = 'pointer';
+        console.log('Button Register initialized as enabled - validation completed');
+      } else {
+        btnRegister.disabled = true;
+        btnRegister.style.opacity = '0.5';
+        btnRegister.style.cursor = 'not-allowed';
+        console.log('Button Register initialized as disabled - validation not completed');
+      }
     }
 
     // Logout function
@@ -5997,6 +6014,9 @@ RETAKE_HTML = """
         if (j.ok) {
           // Clear local variables
           token = null;
+          
+          // Clear validation status
+          sessionStorage.removeItem('validation_completed');
           
           // Redirect to login page
           window.location.href = '/login';
