@@ -2957,6 +2957,8 @@ INDEX_HTML = """
       let isFullscreen = false; // Fullscreen state
       let lastSuccessfulRecognitionTime = 0; // Track when user was last successfully recognized
       let hasSuccessfulScan = false; // Flag to prevent multiple successful scans
+      let noFaceCount = 0; // Counter for consecutive no face detections
+      let isPopupShowing = false; // Flag to prevent multiple popups
 
     function setLog(obj) {
       console.log(typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2));
@@ -3169,11 +3171,26 @@ INDEX_HTML = """
     }
 
     function showPopup(name, status, popupStyle) {
+      // Don't show popup if one is already showing
+      if (isPopupShowing) {
+        console.log('Skipping popup - already showing:', name, status, popupStyle);
+        return;
+      }
+      
       // Remove existing popup if any
       const existingPopup = document.getElementById('facePopup');
       if (existingPopup) {
         existingPopup.remove();
       }
+      
+      // Don't show popup if we're in no-face mode (noFaceCount >= 3)
+      if (noFaceCount >= 3) {
+        console.log('Skipping popup due to no-face mode:', name, status, popupStyle);
+        return;
+      }
+      
+      // Set flag to prevent multiple popups
+      isPopupShowing = true;
       
       // Create popup element
       const popup = document.createElement('div');
@@ -3353,17 +3370,19 @@ INDEX_HTML = """
         console.log('Popup added to body');
       }
       
-      // Auto remove after 2 seconds
+      // Auto remove after 3 seconds to prevent multiple popups
       setTimeout(() => {
         if (popup && popup.parentNode) {
           popup.style.animation = 'popupSlideIn 0.3s ease-out reverse';
           setTimeout(() => {
             if (popup && popup.parentNode) {
               popup.remove();
+              isPopupShowing = false; // Reset flag when popup is removed
+              console.log('Popup auto-removed after 3 seconds');
             }
           }, 300);
         }
-      }, 2000);
+      }, 3000);
     }
 
     function updateDetectionDisplay(name, status, confidence = null, popupStyle = null) {
@@ -3388,13 +3407,19 @@ INDEX_HTML = """
       const isRecognizing = status === 'Scanning...';
       const loadingOverlay = document.getElementById('loadingOverlay');
       
-      // Show/hide loading overlay
+      // Show/hide loading overlay - only if not in no-face mode
       if (loadingOverlay) {
-        if (isRecognizing) {
+        if (isRecognizing && noFaceCount < 3) {
           loadingOverlay.classList.add('show');
         } else {
           loadingOverlay.classList.remove('show');
         }
+      }
+      
+      // Don't update status display if we're in no-face mode and status is "Scanning..."
+      if (isRecognizing && noFaceCount >= 3) {
+        console.log('Skipping "Scanning..." status update due to no-face mode (count:', noFaceCount, ')');
+        return;
       }
       
       // Check if it's a success message (gate opened, recognized, etc.)
@@ -3529,12 +3554,13 @@ INDEX_HTML = """
         }
         remainingCooldown = 0;
         
-        // Reset successful scan flag and restart recognition interval after cooldown ends
-        hasSuccessfulScan = false; // Reset flag to allow scanning again
-        console.log('Cooldown ended, resetting hasSuccessfulScan flag');
+            // Reset successful scan flag and restart recognition interval after cooldown ends
+            hasSuccessfulScan = false; // Reset flag to allow scanning again
+            noFaceCount = 0; // Reset no face counter
+            console.log('Cooldown ended, resetting hasSuccessfulScan flag and noFaceCount');
         
         if (stream && DOOR_TOKEN && !recognitionInterval) {
-          recognitionInterval = setInterval(performRecognition, 1000);
+          recognitionInterval = setInterval(performRecognition, 500);
           console.log('Recognition interval restarted after cooldown');
         } else {
           console.log('Cannot restart recognition - stream:', !!stream, 'token:', !!DOOR_TOKEN, 'interval:', !!recognitionInterval);
@@ -4052,8 +4078,8 @@ INDEX_HTML = """
         // Reset successful scan flag when starting camera
         hasSuccessfulScan = false;
         
-        // DIOPTIMALKAN: Start automatic face recognition every 1 second for faster response
-        recognitionInterval = setInterval(performRecognition, 1000);
+        // DIOPTIMALKAN: Start automatic face recognition every 500ms for faster response
+        recognitionInterval = setInterval(performRecognition, 500);
         console.log('Recognition interval started');
       } catch (e) {
         console.error('Camera error:', e);
@@ -4075,6 +4101,12 @@ INDEX_HTML = """
           clearInterval(recognitionInterval);
           recognitionInterval = null;
         }
+        
+        // Reset all processing flags when camera stops
+        isProcessing = false;
+        hasSuccessfulScan = false;
+        remainingCooldown = 0;
+        
         hideCountdownTimer(); // Hide countdown when camera stops
         setButtons(false);
         setLog('Camera stopped.');
@@ -4103,6 +4135,12 @@ INDEX_HTML = """
         return;
       }
       
+      // Additional check to ensure we're not running after camera stop
+      if (!stream) {
+        console.log('Stream is null, stopping recognition');
+        return;
+      }
+      
       // Check if we're in cooldown period - if so, don't scan at all
       if (remainingCooldown > 0) {
         console.log('In cooldown period, skipping recognition');
@@ -4116,12 +4154,13 @@ INDEX_HTML = """
       }
       
       const now = Date.now();
-      if (now - lastRecognitionTime < 1000) {
+      if (now - lastRecognitionTime < 500) {
         console.log('Throttling recognition - too soon since last scan');
         return;
       }
       
       console.log('Starting recognition process...');
+      const startTime = Date.now();
       lastRecognitionTime = now;
       isProcessing = true; // Set flag to prevent multiple requests
       
@@ -4193,7 +4232,22 @@ INDEX_HTML = """
         return;
       }
         
+        // Check if we should reset noFaceCount based on client-side face detection
+        // This is a simple check - if we're in no-face mode, try to reset it occasionally
+        if (noFaceCount >= 3) {
+          // Reset counter every 5 attempts to allow re-scanning (20% chance)
+          if (Math.random() < 0.2) { // 20% chance to reset
+            console.log('Resetting noFaceCount from', noFaceCount, 'to 0 to allow re-scanning');
+            noFaceCount = 0;
+          } else {
+            console.log('Skipping "Scanning..." display due to no-face mode (count:', noFaceCount, ')');
+            return;
+          }
+        }
+        
+        // Show "Scanning..." display
         updateDetectionDisplay(null, 'Scanning...');
+        console.log('Showing "Scanning..." display for recognition process');
         
       // DIOPTIMALKAN: Add timeout untuk mencegah hanging
       const controller = new AbortController();
@@ -4516,6 +4570,12 @@ INDEX_HTML = """
             hasSuccessfulScan = true; // Mark that we had a successful scan
             console.log('Processing flag reset after successful scan');
             
+            // Reset no face counter on successful recognition
+            if (noFaceCount > 0) {
+              console.log('Resetting noFaceCount from', noFaceCount, 'to 0 on successful recognition');
+              noFaceCount = 0;
+            }
+            
             // Start cooldown after successful scan
             console.log('Starting cooldown after successful scan');
             remainingCooldown = 10; // Set 10 seconds cooldown
@@ -4526,8 +4586,46 @@ INDEX_HTML = """
             console.log('Successful recognition recorded at:', new Date(lastSuccessfulRecognitionTime));
           }
         } else if (j.ok && !j.matched) {
-          const popupStyle = j.popup_style || 'DENIED';
-          updateDetectionDisplay('Wajah Belum Terdaftar Harap Retake', 'Face detected but not recognized', null, popupStyle);
+          // Check if it's a "no face" error - don't show popup for these
+          const isNoFaceError = j.error && (
+            j.error.includes('No face detected') || 
+            j.error.includes('No valid face detected') ||
+            j.error.includes('face too small')
+          );
+          
+          if (isNoFaceError) {
+            console.log('No face detected in matched=false case, updating display quietly:', j.error);
+            updateDetectionDisplay(null, j.error, null, null);
+            
+            // Hide loading overlay for no face detected
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+              loadingOverlay.classList.remove('show');
+            }
+            
+            // Increment no face counter and reduce scanning frequency
+            noFaceCount++;
+            console.log('No face detected in matched=false case, count:', noFaceCount);
+            
+            // If no face detected multiple times, reduce scanning frequency
+            if (noFaceCount >= 3) {
+              console.log('No face detected multiple times in matched=false case, reducing scanning frequency');
+              // Clear current interval and restart with longer interval
+              if (recognitionInterval) {
+                clearInterval(recognitionInterval);
+                recognitionInterval = setInterval(performRecognition, 2000); // 2 seconds instead of 500ms
+                console.log('Reduced scanning frequency to 2 seconds');
+              }
+            }
+          } else {
+            // Face detected but not recognized - reset no face counter
+            console.log('Face detected but not recognized, resetting noFaceCount from', noFaceCount, 'to 0');
+            noFaceCount = 0;
+            
+            // Only show popup for actual unknown faces (not no face detected)
+            const popupStyle = j.popup_style || 'DENIED';
+            updateDetectionDisplay('Wajah Belum Terdaftar Harap Retake', 'Face detected but not recognized', null, popupStyle);
+          }
           
           // Hide profile photo for unknown face
           hideMemberProfilePhoto();
@@ -4597,7 +4695,58 @@ INDEX_HTML = """
             // Bounding box removed
           }
         } else {
-          updateDetectionDisplay(null, j.error || 'No face detected');
+          // Don't show popup for "No face detected" or "No valid face detected" - just update display quietly
+          const errorMessage = j.error || 'No face detected';
+          console.log('No face detected, updating display quietly:', errorMessage);
+          
+          // Check if it's a "no face" or "no valid face" error - don't show popup for these
+          const isNoFaceError = errorMessage.includes('No face detected') || 
+                               errorMessage.includes('No valid face detected') ||
+                               errorMessage.includes('face too small');
+          
+          if (isNoFaceError) {
+            // Update display without popup for no face detected
+            updateDetectionDisplay(null, errorMessage, null, null);
+            
+            // Hide loading overlay for no face detected
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+              loadingOverlay.classList.remove('show');
+            }
+            
+            // Increment no face counter and reduce scanning frequency
+            noFaceCount++;
+            console.log('No face detected, count:', noFaceCount);
+            
+            // If no face detected multiple times, reduce scanning frequency
+            if (noFaceCount >= 3) {
+              console.log('No face detected multiple times, reducing scanning frequency');
+              // Clear current interval and restart with longer interval
+              if (recognitionInterval) {
+                clearInterval(recognitionInterval);
+                recognitionInterval = setInterval(performRecognition, 2000); // 2 seconds instead of 500ms
+                console.log('Reduced scanning frequency to 2 seconds');
+              }
+            }
+          } else {
+            // Check if this is a "no face detected" error or other error
+            const isNoFaceError = errorMessage.includes('No face detected') || 
+                                  errorMessage.includes('No valid face detected') || 
+                                  errorMessage.includes('face too small');
+            
+            if (isNoFaceError) {
+              // No face detected - don't reset counter, just update display
+              console.log('No face detected error, keeping noFaceCount at', noFaceCount);
+              updateDetectionDisplay(null, errorMessage, null, null); // No popup for no face
+            } else {
+              // Face detected but other error - reset no face counter
+              console.log('Face detected but other error, resetting noFaceCount from', noFaceCount, 'to 0');
+              noFaceCount = 0;
+              
+              // Show popup for other errors
+              updateDetectionDisplay(null, errorMessage, null, 'DENIED');
+            }
+          }
           clearFaceIndicator();
           
           // Hide profile photo when no face detected
@@ -4605,6 +4754,10 @@ INDEX_HTML = """
           currentDisplayedMember = null;
         }
         } catch (e) {
+        const endTime = Date.now();
+        const processingTime = endTime - startTime;
+        console.log(`Recognition processing time: ${processingTime}ms`);
+        
         if (e.name === 'AbortError') {
           updateDetectionDisplay(null, 'Recognition timeout - please try again');
           setLog('Recognition timeout - please try again');
@@ -4623,7 +4776,12 @@ INDEX_HTML = """
     };
     btnStop.onclick = () => {
       console.log('Stop camera button clicked');
-      stopCam();
+      console.log('Stopping camera and clearing recognition interval');
+      stopCam().then(() => {
+        console.log('Camera stopped successfully');
+        console.log('Recognition interval cleared:', !recognitionInterval);
+        console.log('Stream cleared:', !stream);
+      });
     };
     
     // Fullscreen functionality
