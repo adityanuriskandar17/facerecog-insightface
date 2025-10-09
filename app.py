@@ -6024,27 +6024,39 @@ RETAKE_HTML = """
             </div>
           </div>
           
-          <!-- Step 2: Burst Capture -->
+          <!-- Step 2: Capture Photo -->
           <div class="step-horizontal" data-step="2">
             <div class="step-circle" id="stepCircle2">
               <span class="step-number">2</span>
               <i class="fas fa-check step-check" style="display: none;"></i>
             </div>
             <div class="step-content">
-              <div class="step-title">Burst Capture</div>
-              <div class="step-description">Capture frames</div>
+              <div class="step-title">Capture Photo</div>
+              <div class="step-description">Take final photo</div>
             </div>
           </div>
           
-          <!-- Step 3: Capture Photo -->
+          <!-- Step 3: Update Photo -->
           <div class="step-horizontal" data-step="3">
             <div class="step-circle" id="stepCircle3">
               <span class="step-number">3</span>
               <i class="fas fa-check step-check" style="display: none;"></i>
             </div>
             <div class="step-content">
-              <div class="step-title">Capture Photo</div>
-              <div class="step-description">Take final photo</div>
+              <div class="step-title">Update Photo</div>
+              <div class="step-description">Upload to GymMaster</div>
+            </div>
+          </div>
+          
+          <!-- Step 4: Burst Capture -->
+          <div class="step-horizontal" data-step="4">
+            <div class="step-circle" id="stepCircle4">
+              <span class="step-number">4</span>
+              <i class="fas fa-check step-check" style="display: none;"></i>
+            </div>
+            <div class="step-content">
+              <div class="step-title">Burst Capture</div>
+              <div class="step-description">Capture frames</div>
             </div>
           </div>
           
@@ -6057,10 +6069,6 @@ RETAKE_HTML = """
           <i class="fas fa-camera" style="margin-right: 8px;"></i>
           Start Camera
         </button>
-        <button id="btnBurstCapture" class="step-action-btn" style="background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3); transition: all 0.3s ease; opacity: 0.5; cursor: not-allowed;" disabled>
-          <i class="fas fa-bolt" style="margin-right: 8px;"></i>
-          Burst Capture
-        </button>
         <button id="btnCapturePhoto" class="step-action-btn" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); transition: all 0.3s ease; opacity: 0.5; cursor: not-allowed;" disabled>
           <i class="fas fa-camera" style="margin-right: 8px;"></i>
           Capture Photo
@@ -6068,6 +6076,10 @@ RETAKE_HTML = """
         <button id="btnUpdatePhoto" class="step-action-btn" style="background: linear-gradient(135deg, #6f42c1, #5a32a3); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(111, 66, 193, 0.3); transition: all 0.3s ease; opacity: 0.5; cursor: not-allowed;" disabled>
           <i class="fas fa-upload" style="margin-right: 8px;"></i>
           Update Photo
+        </button>
+        <button id="btnBurstCapture" class="step-action-btn" style="background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3); transition: all 0.3s ease; opacity: 0.5; cursor: not-allowed;" disabled>
+          <i class="fas fa-bolt" style="margin-right: 8px;"></i>
+          Burst Capture
         </button>
         <button id="btnResetPhoto" class="step-action-btn reset-btn" style="background: linear-gradient(135deg, #ffc107, #ff9800); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3); transition: all 0.3s ease; opacity: 0.5; cursor: not-allowed;" disabled>
           <i class="fas fa-redo" style="margin-right: 8px;"></i>
@@ -6220,7 +6232,7 @@ RETAKE_HTML = """
     
     // Sequential register button state management
     let currentRegisterStep = 1;
-    const maxRegisterSteps = 3;
+    const maxRegisterSteps = 4;
     
     function updateRegisterButtonStates() {
       // Manual control - only reset states, don't override manual activation
@@ -6265,12 +6277,20 @@ RETAKE_HTML = """
     // Stepper Management Functions
     function updateStepperStates() {
       const steps = document.querySelectorAll('.step-horizontal');
+      console.log(`Updating stepper states: currentRegisterStep = ${currentRegisterStep}, total steps = ${steps.length}`);
       
       steps.forEach((step, index) => {
         const stepNumber = index + 1;
         const stepCircle = step.querySelector('.step-circle');
         const stepNumberSpan = stepCircle.querySelector('.step-number');
         const stepCheck = stepCircle.querySelector('.step-check');
+        
+        console.log(`Processing step ${stepNumber}:`, {
+          stepNumber,
+          currentRegisterStep,
+          isCompleted: stepNumber < currentRegisterStep,
+          isActive: stepNumber === currentRegisterStep
+        });
         
         // Remove all state classes
         step.classList.remove('active', 'completed');
@@ -6280,15 +6300,18 @@ RETAKE_HTML = """
           step.classList.add('completed');
           if (stepNumberSpan) stepNumberSpan.style.display = 'none';
           if (stepCheck) stepCheck.style.display = 'block';
+          console.log(`Step ${stepNumber} marked as completed`);
         } else if (stepNumber === currentRegisterStep) {
           // Current active step
           step.classList.add('active');
           if (stepNumberSpan) stepNumberSpan.style.display = 'block';
           if (stepCheck) stepCheck.style.display = 'none';
+          console.log(`Step ${stepNumber} marked as active`);
         } else {
           // Future steps
           if (stepNumberSpan) stepNumberSpan.style.display = 'block';
           if (stepCheck) stepCheck.style.display = 'none';
+          console.log(`Step ${stepNumber} marked as future`);
         }
       });
       
@@ -6928,8 +6951,8 @@ RETAKE_HTML = """
       
       if (registerVideo && registerCapturedImage) {
         // Handle register modal capture
-        if (currentRegisterStep !== 3) {
-          console.log('Button 3 can only be clicked when current step is 3');
+        if (currentRegisterStep !== 2) {
+          console.log('Button 2 can only be clicked when current step is 2');
           return;
         }
         
@@ -6985,8 +7008,8 @@ RETAKE_HTML = """
           
           document.getElementById('registerProgress').textContent = 'Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.';
           
-          // Move to step 4 (Update Photo) after photo capture completed
-          currentRegisterStep = 4;
+          // Move to step 3 (Update Photo) after photo capture completed
+          currentRegisterStep = 3;
           updateStepperStates();
           
           console.log('After photo capture: Only Update Photo and Reset Photo buttons are enabled');
@@ -7047,8 +7070,8 @@ RETAKE_HTML = """
           
           setOut('Photo captured! Review the result and click "Update to GymMaster" if satisfied, or "Reset Photo" to retake.');
           
-          // Move to step 4 (Update Photo) after photo capture completed
-          currentRegisterStep = 4;
+          // Move to step 3 (Update Photo) after photo capture completed
+          currentRegisterStep = 3;
           updateStepperStates();
           
           // Show success notification
@@ -7089,8 +7112,8 @@ RETAKE_HTML = """
         registerVideo.style.display = 'block';
         registerCapturedImage.style.display = 'none';
         
-        // Reset to step 3 (Capture Photo step) so user can capture again
-        currentRegisterStep = 3;
+        // Reset to step 2 (Capture Photo step) so user can capture again
+        currentRegisterStep = 2;
         updateStepperStates();
         
         // Enable Capture Photo button with proper styling
@@ -7144,8 +7167,8 @@ RETAKE_HTML = """
         
         // Check if we're in the correct step for register modal
         console.log('Current register step:', currentRegisterStep);
-        if (currentRegisterStep !== 4) {
-          console.log('Button 4 can only be clicked when current step is 4, but current step is:', currentRegisterStep);
+        if (currentRegisterStep !== 3) {
+          console.log('Button 3 can only be clicked when current step is 3, but current step is:', currentRegisterStep);
           return;
         }
       } else if (capturedImage && capturedImage.src && capturedImage.style.display !== 'none') {
@@ -7208,13 +7231,40 @@ RETAKE_HTML = """
             
             if (isRegisterModal) {
               // Success for register modal
-              document.getElementById('registerProgress').textContent = 'Profile photo updated successfully!';
+              document.getElementById('registerProgress').textContent = 'Profile photo updated successfully! You can now use Burst Capture.';
               document.getElementById('btnUpdatePhoto').disabled = true;
+              
+              // Move to step 4 (Burst Capture) after successful Update Photo
+              console.log('Update Photo successful, moving to step 4');
+              currentRegisterStep = 4;
+              
+              // Add small delay to ensure DOM is ready
+              setTimeout(() => {
+                updateStepperStates();
+                console.log('Stepper updated to step 4, step 3 should now show completed');
+                
+                // Additional check to ensure step 3 is marked as completed
+                const step3 = document.querySelector('[data-step="3"]');
+                if (step3) {
+                  console.log('Step 3 element found:', step3);
+                  console.log('Step 3 classes:', step3.classList.toString());
+                  const step3Circle = step3.querySelector('.step-circle');
+                  const step3Check = step3Circle.querySelector('.step-check');
+                  console.log('Step 3 check element:', step3Check);
+                  console.log('Step 3 check display:', step3Check ? step3Check.style.display : 'not found');
+                }
+              }, 100);
+              
+              // Enable Burst Capture button after successful Update Photo
+              const burstButton = document.getElementById('btnBurstCapture');
+              burstButton.disabled = false;
+              burstButton.style.opacity = '1';
+              burstButton.style.cursor = 'pointer';
               
               // Success notification for register modal
               Swal.fire({
                 title: '✅ Success!',
-                text: 'Success updated photos',
+                text: 'Success updated photos. Burst Capture is now available!',
                 icon: 'success',
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#28a745',
@@ -7346,13 +7396,15 @@ RETAKE_HTML = """
         currentRegisterStep = 2;
         updateStepperStates();
         
-        // Enable the Burst Capture button
-        const burstButton = document.getElementById('btnBurstCapture');
-        burstButton.disabled = false;
-        burstButton.style.opacity = '1';
-        burstButton.style.cursor = 'pointer';
-        document.getElementById('registerProgress').textContent = 'Camera started! Click "Burst Capture" to continue.';
-        console.log('Camera started automatically, step 1 completed, step 2 active');
+        // Enable Capture Photo button after camera starts
+        const captureButton = document.getElementById('btnCapturePhoto');
+        captureButton.disabled = false;
+        captureButton.style.opacity = '1';
+        captureButton.style.cursor = 'pointer';
+        
+        // Burst Capture button is now disabled until Update Photo is successful
+        document.getElementById('registerProgress').textContent = 'Camera started! Click "Capture Photo" to take a photo first.';
+        console.log('Camera started automatically, step 1 completed, step 2 active, Capture Photo enabled');
         
       } catch (error) {
         console.error('Register process error:', error);
@@ -7398,12 +7450,14 @@ RETAKE_HTML = """
                   console.log('Video started playing');
                   document.getElementById('registerProgress').textContent = 'Camera started successfully!';
                   
-                  // Enable burst capture button for manual control
-                  const burstButton = document.getElementById('btnBurstCapture');
-                  burstButton.disabled = false;
-                  burstButton.style.opacity = '1';
-                  burstButton.style.cursor = 'pointer';
-                  console.log('Burst capture button enabled');
+                  // Enable Capture Photo button after camera starts
+                  const captureButton = document.getElementById('btnCapturePhoto');
+                  captureButton.disabled = false;
+                  captureButton.style.opacity = '1';
+                  captureButton.style.cursor = 'pointer';
+                  
+                  // Burst capture button remains disabled until Update Photo success
+                  console.log('Camera ready, Capture Photo enabled, but Burst Capture disabled until Update Photo success');
                   
                   resolve();
                 }).catch(err => {
@@ -7947,8 +8001,8 @@ RETAKE_HTML = """
           
           document.getElementById('registerProgress').textContent = 'Photo captured successfully!';
           
-          // Move to step 4 (Update Photo) after photo capture completed
-          currentRegisterStep = 4;
+          // Move to step 3 (Update Photo) after photo capture completed
+          currentRegisterStep = 3;
           updateStepperStates();
           
           console.log('After photo capture: Only Update Photo and Reset Photo buttons are enabled');
@@ -8348,11 +8402,7 @@ RETAKE_HTML = """
           }
         }, 1000);
         
-        // Enable the burst capture button with proper styling
-        const burstButton = document.getElementById('btnBurstCapture');
-        burstButton.disabled = false;
-        burstButton.style.opacity = '1';
-        burstButton.style.cursor = 'pointer';
+        // Burst capture button remains disabled until Update Photo success
         
         // Disable the start camera button since camera is now running
         const startButton = document.getElementById('btnStartRegister');
@@ -8643,10 +8693,10 @@ RETAKE_HTML = """
             document.body.appendChild(successNotification);
             
             progress.textContent = 'Face recognition registered successfully!';
-            document.getElementById('btnBurstCapture').disabled = false;
+            // Burst Capture remains disabled until Update Photo success
             
-            // Move to step 3 (Capture Photo) after burst capture completed
-            currentRegisterStep = 3;
+            // Move to step 2 (Capture Photo) after burst capture completed
+            currentRegisterStep = 2;
             updateStepperStates();
             
             // Enable the capture photo button with proper styling
@@ -8681,7 +8731,7 @@ RETAKE_HTML = """
             }
             
             progress.textContent = 'Error: ' + j.error;
-            document.getElementById('btnBurstCapture').disabled = false;
+            // Burst Capture remains disabled until Update Photo success
           }
         }, 5000);
       }
