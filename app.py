@@ -2805,7 +2805,7 @@ INDEX_HTML = """
               <div class="loading-scan-line"></div>
               <div class="loading-content">
                 <div class="loading-spinner"></div>
-                <div class="loading-text-large">Recognizing...</div>
+                <div class="loading-text-large">Scanning...</div>
                 <div class="loading-text-small">Please wait while we scan your face</div>
               </div>
             </div>
@@ -3379,8 +3379,8 @@ INDEX_HTML = """
       }
       detectionStatus.textContent = status;
       
-      // Check if status is "Recognizing..." to show loading animation
-      const isRecognizing = status === 'Recognizing...';
+      // Check if status is "Scanning..." to show loading animation
+      const isRecognizing = status === 'Scanning...';
       const loadingOverlay = document.getElementById('loadingOverlay');
       
       // Show/hide loading overlay
@@ -4102,7 +4102,7 @@ INDEX_HTML = """
         return;
       }
         
-        updateDetectionDisplay(null, 'Recognizing...');
+        updateDetectionDisplay(null, 'Scanning...');
         
       // DIOPTIMALKAN: Add timeout untuk mencegah hanging
       const controller = new AbortController();
@@ -5901,7 +5901,7 @@ RETAKE_HTML = """
               <div class="loading-scan-line"></div>
               <div class="loading-content">
                 <div class="loading-spinner"></div>
-                <div class="loading-text-large">Recognizing...</div>
+                <div class="loading-text-large">Scanning...</div>
                 <div class="loading-text-small">Please wait while we scan your face</div>
               </div>
             </div>
@@ -8593,7 +8593,6 @@ RETAKE_HTML = """
 
 
 @app.route("/", methods=["GET", "POST"])
-@limiter.limit("50 per minute")  # Limit access to main page
 def index():
     doorid = None
     
@@ -8639,7 +8638,6 @@ def index():
 
 
 @app.route("/api/access_gate", methods=["POST"])
-@limiter.limit("10 per minute")  # More restrictive for door access
 def api_access_gate():
     """API endpoint untuk POST request dengan doorid"""
     data = request.get_json(force=True)
@@ -8980,7 +8978,6 @@ def api_security_status():
     })
 
 @app.route("/retake")
-@limiter.limit("20 per minute")  # Limit access to retake page
 def retake():
     # Check if user is logged in
     token = session.get('gym_token')
@@ -9078,8 +9075,8 @@ def extract_embedding_with_bbox(bgr: np.ndarray) -> Tuple[Optional[np.ndarray], 
 
 
 # -------------------- API Endpoints --------------------
+# Note: Rate limiting removed from face recognition endpoints to allow high-frequency check-in operations
 @app.route("/api/recognize_open_gate", methods=["POST"])
-@limiter.limit("30 per minute")  # Face recognition is resource intensive
 def api_recognize_open_gate():
     if not CHECKIN_ENABLED:
         return jsonify({"ok": False, "error": "Check-in disabled by config"}), 400
@@ -9235,8 +9232,8 @@ def api_get_member_photo(member_id):
         return jsonify({"ok": False, "error": f"Error: {str(e)}"}), 500
 
 # DIOPTIMALKAN: Fast recognition endpoint untuk skala besar
+# Note: No rate limiting to support high-frequency face recognition requests
 @app.route("/api/recognize_fast", methods=["POST"])
-@limiter.limit("30 per minute")  # Face recognition is resource intensive
 def api_recognize_fast():
     try:
         data = request.get_json(force=True)
@@ -9350,7 +9347,6 @@ def api_recognize_fast():
 
 
 @app.route("/api/retake_login", methods=["POST"])
-@limiter.limit(USER_RATE_LIMIT, key_func=lambda: get_user_identifier(request.get_json(force=True).get("email") if request.get_json(force=True) else None))
 def api_retake_login():
     data = request.get_json(force=True)
     email = data.get("email")
