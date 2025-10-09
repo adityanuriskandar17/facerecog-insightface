@@ -3682,6 +3682,10 @@ INDEX_HTML = """
       const toggleButton = document.getElementById('orientationToggle');
       const icon = toggleButton.querySelector('i');
       const text = toggleButton.querySelector('span');
+      const video = document.getElementById('video');
+      
+      // Check if camera is currently active
+      const isCameraActive = video && video.srcObject && !video.paused;
       
       if (cameraContainer.classList.contains('video-vertical')) {
         // Switch to horizontal
@@ -3705,13 +3709,94 @@ INDEX_HTML = """
       
       // Update camera constraints based on orientation
       updateCameraConstraints();
+      
+      // If camera is active, restart it with new constraints
+      if (isCameraActive) {
+        console.log('Restarting camera with new orientation...');
+        
+        // Show loading indicator
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+          loadingOverlay.style.display = 'flex';
+        }
+        
+        stopCam().then(() => {
+          setTimeout(() => {
+            startCam().then(() => {
+              // Hide loading indicator after camera starts
+              if (loadingOverlay) {
+                loadingOverlay.style.display = 'none';
+              }
+            }).catch((error) => {
+              console.error('Failed to restart camera:', error);
+              if (loadingOverlay) {
+                loadingOverlay.style.display = 'none';
+              }
+            });
+          }, 500); // Small delay to ensure clean restart
+        });
+      }
     }
     
-    // Update camera constraints based on current orientation
+    // Detect device orientation
+    function getDeviceOrientation() {
+      const isPortrait = window.innerHeight > window.innerWidth;
+      const isTablet = window.innerWidth >= 768 && window.innerWidth <= 1024;
+      const isMobile = window.innerWidth < 768;
+      
+      console.log('Device info:', {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        isPortrait: isPortrait,
+        isTablet: isTablet,
+        isMobile: isMobile
+      });
+      
+      return { isPortrait, isTablet, isMobile };
+    }
+    
+    // Update orientation button text based on device and current state
+    function updateOrientationButton() {
+      const toggleButton = document.getElementById('orientationToggle');
+      if (!toggleButton) return;
+      
+      const deviceInfo = getDeviceOrientation();
+      const icon = toggleButton.querySelector('i');
+      const text = toggleButton.querySelector('span');
+      
+      if (deviceInfo.isTablet) {
+        if (deviceInfo.isPortrait) {
+          icon.className = 'fas fa-mobile-alt';
+          text.textContent = 'Auto Vertical';
+          toggleButton.title = 'Tablet in portrait mode - using vertical constraints';
+        } else {
+          icon.className = 'fas fa-desktop';
+          text.textContent = 'Auto Horizontal';
+          toggleButton.title = 'Tablet in landscape mode - using horizontal constraints';
+        }
+      } else {
+        // For mobile and desktop, use button state
+        const isVerticalMode = document.getElementById('cameraContainer').classList.contains('video-vertical');
+        if (isVerticalMode) {
+          icon.className = 'fas fa-mobile-alt';
+          text.textContent = 'Vertical';
+          toggleButton.title = 'Click to switch to horizontal';
+        } else {
+          icon.className = 'fas fa-desktop';
+          text.textContent = 'Horizontal';
+          toggleButton.title = 'Click to switch to vertical';
+        }
+      }
+    }
+    
+    // Update camera constraints based on current orientation and device
     function updateCameraConstraints() {
       const cameraContainer = document.getElementById('cameraContainer');
-      if (cameraContainer.classList.contains('video-vertical')) {
-        // Vertical constraints
+      const deviceInfo = getDeviceOrientation();
+      const isVerticalMode = cameraContainer.classList.contains('video-vertical');
+      
+      // For tablets in portrait mode, always use vertical constraints regardless of button state
+      if (deviceInfo.isTablet && deviceInfo.isPortrait) {
         window.cameraConstraints = {
           video: { 
             facingMode: { ideal: 'user' },
@@ -3720,8 +3805,10 @@ INDEX_HTML = """
             frameRate: { ideal: 15, max: 30 }
           } 
         };
-      } else {
-        // Horizontal constraints
+        console.log('Tablet portrait mode - using VERTICAL constraints:', window.cameraConstraints);
+      }
+      // For tablets in landscape mode, use horizontal constraints
+      else if (deviceInfo.isTablet && !deviceInfo.isPortrait) {
         window.cameraConstraints = {
           video: { 
             facingMode: { ideal: 'user' },
@@ -3730,6 +3817,55 @@ INDEX_HTML = """
             frameRate: { ideal: 15, max: 30 }
           } 
         };
+        console.log('Tablet landscape mode - using HORIZONTAL constraints:', window.cameraConstraints);
+      }
+      // For mobile devices, use button state
+      else if (deviceInfo.isMobile) {
+        if (isVerticalMode) {
+          window.cameraConstraints = {
+            video: { 
+              facingMode: { ideal: 'user' },
+              width: { ideal: 480, max: 720 },
+              height: { ideal: 640, max: 1280 },
+              frameRate: { ideal: 15, max: 30 }
+            } 
+          };
+          console.log('Mobile VERTICAL constraints:', window.cameraConstraints);
+        } else {
+          window.cameraConstraints = {
+            video: { 
+              facingMode: { ideal: 'user' },
+              width: { ideal: 640, max: 1280 },
+              height: { ideal: 480, max: 720 },
+              frameRate: { ideal: 15, max: 30 }
+            } 
+          };
+          console.log('Mobile HORIZONTAL constraints:', window.cameraConstraints);
+        }
+      }
+      // For desktop, use button state
+      else {
+        if (isVerticalMode) {
+          window.cameraConstraints = {
+            video: { 
+              facingMode: { ideal: 'user' },
+              width: { ideal: 720, max: 1080 },
+              height: { ideal: 1280, max: 1920 },
+              frameRate: { ideal: 15, max: 30 }
+            } 
+          };
+          console.log('Desktop VERTICAL constraints:', window.cameraConstraints);
+        } else {
+          window.cameraConstraints = {
+            video: { 
+              facingMode: { ideal: 'user' },
+              width: { ideal: 1280, max: 1920 },
+              height: { ideal: 720, max: 1080 },
+              frameRate: { ideal: 15, max: 30 }
+            } 
+          };
+          console.log('Desktop HORIZONTAL constraints:', window.cameraConstraints);
+        }
       }
     }
 
@@ -3826,31 +3962,36 @@ INDEX_HTML = """
     }
 
     function stopCam() {
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-        video.srcObject = null;
-        stream = null;
-      }
-      if (recognitionInterval) {
-        clearInterval(recognitionInterval);
-        recognitionInterval = null;
-      }
-      hideCountdownTimer(); // Hide countdown when camera stops
-      setButtons(false);
-      setLog('Camera stopped.');
-      updateDetectionDisplay(null, 'Camera inactive');
-      
-      // Hide profile photo when camera stops
-      hideMemberProfilePhoto();
-      currentDisplayedMember = null;
-      
-      // Show placeholder and hide video
-      video.style.display = 'none';
-      document.getElementById('cameraPlaceholder').style.display = 'flex';
-      
-      // Update status
-      cameraStatus.innerHTML = '<i class="fas fa-circle" style="font-size: 8px; color: #dc3545;"></i><span>Offline</span>';
-      cameraStatus.style.background = 'rgba(108, 117, 125, 0.9)';
+      return new Promise((resolve) => {
+        if (stream) {
+          stream.getTracks().forEach(t => t.stop());
+          video.srcObject = null;
+          stream = null;
+        }
+        if (recognitionInterval) {
+          clearInterval(recognitionInterval);
+          recognitionInterval = null;
+        }
+        hideCountdownTimer(); // Hide countdown when camera stops
+        setButtons(false);
+        setLog('Camera stopped.');
+        updateDetectionDisplay(null, 'Camera inactive');
+        
+        // Hide profile photo when camera stops
+        hideMemberProfilePhoto();
+        currentDisplayedMember = null;
+        
+        // Show placeholder and hide video
+        video.style.display = 'none';
+        document.getElementById('cameraPlaceholder').style.display = 'flex';
+        
+        // Update status
+        cameraStatus.innerHTML = '<i class="fas fa-circle" style="font-size: 8px; color: #dc3545;"></i><span>Offline</span>';
+        cameraStatus.style.background = 'rgba(108, 117, 125, 0.9)';
+        
+        // Resolve after a small delay to ensure cleanup is complete
+        setTimeout(resolve, 100);
+      });
     }
 
     async function performRecognition() {
@@ -4587,6 +4728,36 @@ INDEX_HTML = """
       
       // Initialize camera constraints
       updateCameraConstraints();
+      
+      // Update button text based on device orientation
+      updateOrientationButton();
+      
+      // Add orientation change listener for tablets
+      let lastOrientation = window.innerHeight > window.innerWidth;
+      window.addEventListener('resize', function() {
+        const currentOrientation = window.innerHeight > window.innerWidth;
+        const deviceInfo = getDeviceOrientation();
+        
+        // Update button text for all devices
+        updateOrientationButton();
+        
+        // Only restart camera if orientation changed and it's a tablet
+        if (deviceInfo.isTablet && currentOrientation !== lastOrientation) {
+          console.log('Tablet orientation changed, restarting camera...');
+          const video = document.getElementById('video');
+          const isCameraActive = video && video.srcObject && !video.paused;
+          
+          if (isCameraActive) {
+            stopCam().then(() => {
+              setTimeout(() => {
+                startCam();
+              }, 500);
+            });
+          }
+        }
+        
+        lastOrientation = currentOrientation;
+      });
     });
   </script>
   
