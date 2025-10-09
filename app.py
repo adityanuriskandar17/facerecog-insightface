@@ -7255,6 +7255,22 @@ RETAKE_HTML = """
                 }
               }, 100);
               
+              // Ensure video stream is still active for burst capture
+              const registerVideo = document.getElementById('registerVideo');
+              const registerCapturedImage = document.getElementById('registerCapturedImage');
+              
+              if (registerVideo && registerStream) {
+                console.log('Video stream still active for burst capture');
+                // Show video and hide captured image for burst capture
+                registerVideo.style.display = 'block';
+                registerVideo.style.opacity = '1';
+                if (registerCapturedImage) {
+                  registerCapturedImage.style.display = 'none';
+                }
+              } else {
+                console.warn('Video stream not available for burst capture');
+              }
+              
               // Enable Burst Capture button after successful Update Photo
               const burstButton = document.getElementById('btnBurstCapture');
               burstButton.disabled = false;
@@ -8429,11 +8445,18 @@ RETAKE_HTML = """
     // Update Photo button in modal - handled by unified function above
 
     document.getElementById('btnBurstCapture').onclick = async () => {
-      if (!registerStream) return;
+      if (!registerStream) {
+        console.error('No register stream available for burst capture');
+        return;
+      }
       
       const registerVideo = document.getElementById('registerVideo');
       const registerCanvas = document.getElementById('registerCanvas');
       const progress = document.getElementById('registerProgress');
+      
+      console.log('Starting burst capture with video stream:', registerStream);
+      console.log('Video element:', registerVideo);
+      console.log('Video display:', registerVideo ? registerVideo.style.display : 'not found');
       
       let capturedFrames = [];
       
@@ -8695,16 +8718,34 @@ RETAKE_HTML = """
             progress.textContent = 'Face recognition registered successfully!';
             // Burst Capture remains disabled until Update Photo success
             
-            // Move to step 2 (Capture Photo) after burst capture completed
-            currentRegisterStep = 2;
-            updateStepperStates();
+            // Mark all steps as completed after burst capture
+            console.log('Burst capture completed, marking all steps as completed');
+            updateStepperToCompleted();
             
-            // Enable the capture photo button with proper styling
+            // Disable all buttons since process is complete
             const captureButton = document.getElementById('btnCapturePhoto');
-            captureButton.disabled = false;
-            captureButton.style.opacity = '1';
-            captureButton.style.cursor = 'pointer';
-            console.log('Capture Photo button enabled after burst capture');
+            const updateButton = document.getElementById('btnUpdatePhoto');
+            const burstButton = document.getElementById('btnBurstCapture');
+            
+            if (captureButton) {
+              captureButton.disabled = true;
+              captureButton.style.opacity = '0.5';
+              captureButton.style.cursor = 'not-allowed';
+            }
+            
+            if (updateButton) {
+              updateButton.disabled = true;
+              updateButton.style.opacity = '0.5';
+              updateButton.style.cursor = 'not-allowed';
+            }
+            
+            if (burstButton) {
+              burstButton.disabled = true;
+              burstButton.style.opacity = '0.5';
+              burstButton.style.cursor = 'not-allowed';
+            }
+            
+            console.log('All buttons disabled - process complete');
             
             // Mark face recognition as completed and update roadmap
             sessionStorage.setItem('face_registered', 'true');
