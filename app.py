@@ -1199,7 +1199,7 @@ def handle_internal_server_error(e):
     </html>
     """, timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")), 500
 
-
+# Ini untuk admin login saat mau ketik door id START
 ADMIN_LOGIN_HTML = """
 <!DOCTYPE html>
 <html>
@@ -1316,7 +1316,10 @@ ADMIN_LOGIN_HTML = """
 </body>
 </html>
 """
+# Ini untuk admin login saat mau ketik door id END
 
+
+# Ini untuk login menuju retake START
 LOGIN_HTML = """
 <!DOCTYPE html>
 <html>
@@ -1881,7 +1884,9 @@ LOGIN_HTML = """
 </body>
 </html>
 """
+# Ini untuk login menuju retake END
 
+# Ini untuk main page Face Recognition START
 INDEX_HTML = """
 <!doctype html>
 <html lang="en">
@@ -3780,6 +3785,11 @@ INDEX_HTML = """
             if (j.member_id) {
               ensureProfilePhotoVisible(j.member_id, name);
             }
+          } else if (j.gate && (j.gate.popup_style === 'DENIED' || j.gate.response?.popup_style === 'DENIED')) {
+            // Access denied
+            const popupStyle = j.gate.popup_style || j.gate.response?.popup_style || 'DENIED';
+            updateDetectionDisplay(name, 'Access Denied', confidence, popupStyle);
+            console.log('Access denied for:', name);
           } else {
             // Face recognized but no gate action
             updateDetectionDisplay(name, 'Face recognized', confidence);
@@ -3960,12 +3970,12 @@ INDEX_HTML = """
           } else if (j.gate && !j.gate.error) {
             // Auto-open gate if matched and not throttled
             console.log('Gate opened successfully, hiding cooldown timer');
-            const popupStyle = j.gate.popup_style || 'GRANTED';
+            const popupStyle = j.gate.popup_style || j.gate.response?.popup_style || j.popup_style || 'GRANTED';
             
             // Display appropriate message based on popup_style
             let gateMessage = 'Gate opened successfully!';
             if (popupStyle === 'DENIED') {
-              gateMessage = 'Gate Failed Opened';
+              gateMessage = 'Access Denied';
             } else if (popupStyle === 'WARNING') {
               gateMessage = 'Gate opened with warning';
             }
@@ -4360,8 +4370,9 @@ INDEX_HTML = """
 </body>
 </html>
 """
+# Ini untuk main page Face Recognition END
 
-
+# Setelah Login pasti masuk sini START
 RETAKE_HTML = """
 <!doctype html>
 <html lang="en">
@@ -8038,7 +8049,7 @@ RETAKE_HTML = """
   
   <!-- Footer -->
   <footer>
-    <p>© <span id="currentYearRetake"></span> FTL IT Developer. All rights reserved.</p>
+    <p>© <span id="currentYearRetake"></span> FTL IT Developer. All rights lol.</p>
   </footer>
   
   <!-- Dynamic Year Script -->
@@ -8049,6 +8060,7 @@ RETAKE_HTML = """
 </body>
 </html>
 """
+# Setelah Login pasti masuk sini END
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -8787,7 +8799,11 @@ def api_recognize_fast():
                     if gate_result:
                         mark_user_recognized(member_id)
                         resp["success"] = True
-                        resp["gate"] = {"throttled": False, "popup_style": "GRANTED", "response": gate_result}
+                        # Check gate response to determine popup style
+                        gate_popup_style = "GRANTED"  # Default
+                        if isinstance(gate_result, dict):
+                            gate_popup_style = gate_result.get("popup_style", "GRANTED")
+                        resp["gate"] = {"throttled": False, "popup_style": gate_popup_style, "response": gate_result}
                         return jsonify(resp)
             
             # Recognized but gate not opened (fallback)
