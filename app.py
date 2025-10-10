@@ -2647,6 +2647,142 @@ INDEX_HTML = """
       min-width: 300px !important;
       max-width: 400px !important;
       animation: popupSlideIn 0.3s ease-out !important;
+    }
+    
+    /* Fullscreen countdown timer styles */
+    .fullscreen #centerCountdown {
+      position: absolute !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      z-index: 10002 !important;
+      background: linear-gradient(135deg, rgba(0,0,0,0.9), rgba(20,20,20,0.95)) !important;
+      backdrop-filter: blur(10px) !important;
+      border: 2px solid rgba(255,255,255,0.1) !important;
+      border-radius: 25px !important;
+      padding: 40px 50px !important;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05) !important;
+      text-align: center !important;
+      color: white !important;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+      min-width: 200px !important;
+      animation: countdownPulse 0.5s ease-out !important;
+    }
+    
+    /* Enhanced fullscreen countdown with special class */
+    .fullscreen #centerCountdown.fullscreen-countdown {
+      background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,30,30,0.98)) !important;
+      border: 3px solid rgba(255,255,255,0.2) !important;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.9), 0 0 0 2px rgba(255,255,255,0.1), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+      animation: countdownPulse 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    }
+    
+    .fullscreen #centerCountdownNumber {
+      font-size: 72px !important;
+      font-weight: 900 !important;
+      margin-bottom: 15px !important;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4) !important;
+      background-size: 400% 400% !important;
+      -webkit-background-clip: text !important;
+      -webkit-text-fill-color: transparent !important;
+      background-clip: text !important;
+      animation: gradientShift 2s ease-in-out infinite, numberPulse 1s ease-in-out infinite !important;
+      text-shadow: 0 0 30px rgba(255,255,255,0.3) !important;
+    }
+    
+    .fullscreen #centerCountdown div:last-child {
+      font-size: 20px !important;
+      opacity: 0.9 !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.5px !important;
+      text-transform: uppercase !important;
+    }
+    
+    /* Fullscreen countdown message styling */
+    .fullscreen #countdownMessage {
+      font-size: 16px !important;
+      opacity: 0.8 !important;
+      font-weight: 400 !important;
+      letter-spacing: 0.3px !important;
+      margin-top: 12px !important;
+      color: rgba(255,255,255,0.9) !important;
+    }
+    
+    /* Enhanced fullscreen countdown message */
+    .fullscreen #centerCountdown.fullscreen-countdown #countdownMessage {
+      font-size: 18px !important;
+      opacity: 0.9 !important;
+      font-weight: 500 !important;
+      color: rgba(255,255,255,0.95) !important;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
+    }
+    
+    /* Fullscreen countdown animations */
+    @keyframes countdownPulse {
+      0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.8; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes numberPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    
+    /* Mobile fullscreen countdown adjustments */
+    @media (max-width: 768px) {
+      .fullscreen #centerCountdown {
+        padding: 30px 40px !important;
+        border-radius: 20px !important;
+        min-width: 180px !important;
+      }
+      
+      .fullscreen #centerCountdownNumber {
+        font-size: 60px !important;
+        margin-bottom: 12px !important;
+      }
+      
+      .fullscreen #centerCountdown div:last-child {
+        font-size: 18px !important;
+      }
+      
+      .fullscreen #countdownMessage {
+        font-size: 14px !important;
+        margin-top: 10px !important;
+      }
+      
+      .fullscreen #centerCountdown.fullscreen-countdown #countdownMessage {
+        font-size: 16px !important;
+      }
+    }
+    
+    /* Tablet fullscreen countdown adjustments */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .fullscreen #centerCountdown {
+        padding: 35px 45px !important;
+        border-radius: 22px !important;
+      }
+      
+      .fullscreen #centerCountdownNumber {
+        font-size: 66px !important;
+      }
+      
+      .fullscreen #countdownMessage {
+        font-size: 17px !important;
+        margin-top: 11px !important;
+      }
+      
+      .fullscreen #centerCountdown.fullscreen-countdown #countdownMessage {
+        font-size: 19px !important;
+      }
+    }
       pointer-events: none !important;
     }
     
@@ -2809,6 +2945,13 @@ INDEX_HTML = """
                 <div class="loading-text-small">Please wait while we scan your face</div>
               </div>
             </div>
+            
+            <!-- Center Countdown Animation - MOVED INSIDE CAMERA CONTAINER FOR FULLSCREEN -->
+            <div id="centerCountdown" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10002; text-align: center; background: rgba(0,0,0,0.8); color: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+              <div style="font-size: 48px; font-weight: bold; margin-bottom: 10px;" id="centerCountdownNumber">3</div>
+              <div style="font-size: 18px; opacity: 0.8;">Scan akan tersedia dalam</div>
+              <div style="font-size: 14px; opacity: 0.6; margin-top: 8px;" id="countdownMessage">Tunggu sebentar untuk scan berikutnya</div>
+            </div>
           
           <!-- Camera Placeholder -->
           <div id="cameraPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d;">
@@ -2883,12 +3026,6 @@ INDEX_HTML = """
             <i class="fas fa-clock"></i>
           </div>
           <div style="font-size: 14px; font-weight: 500; color: #856404;">Next scan: <span id="countdownSeconds" style="font-weight: bold; color: #d63384;">0</span>s</div>
-        </div>
-        
-        <!-- Center Countdown Animation -->
-        <div id="centerCountdown" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; text-align: center; background: rgba(0,0,0,0.8); color: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-          <div style="font-size: 48px; font-weight: bold; margin-bottom: 10px;" id="centerCountdownNumber">3</div>
-          <div style="font-size: 18px; opacity: 0.8;">Scan akan tersedia dalam</div>
         </div>
       </div>
       
@@ -3513,6 +3650,7 @@ INDEX_HTML = """
     function showCountdownTimer(seconds) {
       const centerCountdown = document.getElementById('centerCountdown');
       const centerCountdownNumber = document.getElementById('centerCountdownNumber');
+      const countdownMessage = document.getElementById('countdownMessage');
       
       console.log('showCenterCountdown called with:', seconds);
       
@@ -3526,22 +3664,48 @@ INDEX_HTML = """
           clearInterval(countdownInterval);
         }
         
+        // Check if we're in fullscreen mode for enhanced animations
+        const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
+        console.log('Countdown in fullscreen mode:', isFullscreen);
+        
         // Show center countdown animation
         centerCountdown.style.display = 'block';
         centerCountdown.style.opacity = '0';
         centerCountdown.style.transform = 'translate(-50%, -50%) scale(0.8)';
         
-        // Animate in
-        setTimeout(() => {
-          centerCountdown.style.transition = 'all 0.3s ease';
-          centerCountdown.style.opacity = '1';
-          centerCountdown.style.transform = 'translate(-50%, -50%) scale(1)';
-        }, 10);
+        // Enhanced animation for fullscreen mode
+        if (isFullscreen) {
+          // Add special fullscreen countdown class for enhanced styling
+          centerCountdown.classList.add('fullscreen-countdown');
+          
+          // Update message for fullscreen mode
+          if (countdownMessage) {
+            countdownMessage.textContent = 'Mode fullscreen - Tunggu untuk scan berikutnya';
+          }
+          
+          // Animate in with enhanced effect
+          setTimeout(() => {
+            centerCountdown.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            centerCountdown.style.opacity = '1';
+            centerCountdown.style.transform = 'translate(-50%, -50%) scale(1)';
+          }, 10);
+        } else {
+          // Standard animation for normal mode
+          if (countdownMessage) {
+            countdownMessage.textContent = 'Tunggu sebentar untuk scan berikutnya';
+          }
+          
+          setTimeout(() => {
+            centerCountdown.style.transition = 'all 0.3s ease';
+            centerCountdown.style.opacity = '1';
+            centerCountdown.style.transform = 'translate(-50%, -50%) scale(1)';
+          }, 10);
+        }
         
         centerCountdownNumber.textContent = validSeconds;
         remainingCooldown = validSeconds;
         
-        // Start countdown with animation
+        // Start countdown with enhanced animation
         countdownInterval = setInterval(() => {
           remainingCooldown--;
           
@@ -3552,11 +3716,41 @@ INDEX_HTML = """
           
           centerCountdownNumber.textContent = remainingCooldown;
           
-          // Add pulse animation for each count
-          centerCountdownNumber.style.transform = 'scale(1.2)';
-          setTimeout(() => {
-            centerCountdownNumber.style.transform = 'scale(1)';
-          }, 150);
+          // Enhanced pulse animation for fullscreen mode
+          if (isFullscreen) {
+            // More dramatic animation for fullscreen
+            centerCountdownNumber.style.transform = 'scale(1.3) rotate(5deg)';
+            centerCountdownNumber.style.transition = 'all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            
+            setTimeout(() => {
+              centerCountdownNumber.style.transform = 'scale(1) rotate(0deg)';
+              centerCountdownNumber.style.transition = 'all 0.3s ease';
+            }, 200);
+            
+            // Add special effects for last 3 seconds
+            if (remainingCooldown <= 3) {
+              centerCountdownNumber.style.animation = 'numberPulse 0.5s ease-in-out infinite';
+              centerCountdown.style.boxShadow = '0 0 50px rgba(255, 107, 107, 0.5), 0 20px 60px rgba(0,0,0,0.8)';
+              
+              // Update message for final countdown
+              if (countdownMessage) {
+                countdownMessage.textContent = 'Hampir selesai! Scan akan segera tersedia';
+                countdownMessage.style.color = 'rgba(255, 107, 107, 0.9)';
+              }
+            } else if (remainingCooldown <= 5) {
+              // Update message for 5 seconds remaining
+              if (countdownMessage) {
+                countdownMessage.textContent = 'Tinggal beberapa detik lagi...';
+                countdownMessage.style.color = 'rgba(255, 255, 255, 0.9)';
+              }
+            }
+          } else {
+            // Standard animation for normal mode
+            centerCountdownNumber.style.transform = 'scale(1.2)';
+            setTimeout(() => {
+              centerCountdownNumber.style.transform = 'scale(1)';
+            }, 150);
+          }
           
           console.log('Center countdown:', remainingCooldown);
           
@@ -3575,13 +3769,39 @@ INDEX_HTML = """
         // Hide center countdown animation
         const centerCountdown = document.getElementById('centerCountdown');
         if (centerCountdown) {
-          centerCountdown.style.transition = 'all 0.3s ease';
-          centerCountdown.style.opacity = '0';
-          centerCountdown.style.transform = 'translate(-50%, -50%) scale(0.8)';
+          // Check if we're in fullscreen mode for enhanced exit animation
+          const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
+          
+          if (isFullscreen) {
+            // Enhanced exit animation for fullscreen
+            centerCountdown.style.transition = 'all 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19)';
+            centerCountdown.style.opacity = '0';
+            centerCountdown.style.transform = 'translate(-50%, -50%) scale(0.5) rotate(10deg)';
+            
+            // Remove fullscreen countdown class
+            centerCountdown.classList.remove('fullscreen-countdown');
+          } else {
+            // Standard exit animation for normal mode
+            centerCountdown.style.transition = 'all 0.3s ease';
+            centerCountdown.style.opacity = '0';
+            centerCountdown.style.transform = 'translate(-50%, -50%) scale(0.8)';
+          }
           
           setTimeout(() => {
             centerCountdown.style.display = 'none';
-          }, 300);
+            // Reset any special effects
+            centerCountdown.style.boxShadow = '';
+            const centerCountdownNumber = document.getElementById('centerCountdownNumber');
+            const countdownMessage = document.getElementById('countdownMessage');
+            if (centerCountdownNumber) {
+              centerCountdownNumber.style.animation = '';
+              centerCountdownNumber.style.transform = '';
+            }
+            if (countdownMessage) {
+              countdownMessage.style.color = '';
+              countdownMessage.textContent = 'Tunggu sebentar untuk scan berikutnya';
+            }
+          }, isFullscreen ? 500 : 300);
         }
         
         if (countdownInterval) {
@@ -3594,10 +3814,26 @@ INDEX_HTML = """
             hasSuccessfulScan = false; // Reset flag to allow scanning again
             noFaceCount = 0; // Reset no face counter
             console.log('Cooldown ended, resetting hasSuccessfulScan flag and noFaceCount');
+            
+            // Show completion message briefly
+            const countdownMessage = document.getElementById('countdownMessage');
+            if (countdownMessage) {
+              countdownMessage.textContent = 'Cooldown selesai! Siap untuk scan berikutnya';
+              countdownMessage.style.color = 'rgba(76, 175, 80, 0.9)';
+            }
         
         if (stream && DOOR_TOKEN && !recognitionInterval) {
           recognitionInterval = setInterval(performRecognition, 500);
           console.log('Recognition interval restarted after cooldown');
+          
+          // Reset countdown message after a brief delay
+          setTimeout(() => {
+            const countdownMessage = document.getElementById('countdownMessage');
+            if (countdownMessage) {
+              countdownMessage.textContent = 'Tunggu sebentar untuk scan berikutnya';
+              countdownMessage.style.color = '';
+            }
+          }, 2000);
         } else {
           console.log('Cannot restart recognition - stream:', !!stream, 'token:', !!DOOR_TOKEN, 'interval:', !!recognitionInterval);
         }
@@ -4636,7 +4872,36 @@ INDEX_HTML = """
             // Start cooldown after successful scan
             console.log('Starting cooldown after successful scan');
             remainingCooldown = 10; // Set 10 seconds cooldown
-            showCountdownTimer(remainingCooldown);
+            
+            // Check if we're in fullscreen mode for enhanced countdown
+            const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
+            console.log('Starting countdown in fullscreen mode:', isFullscreen);
+            
+            // Add a small delay to ensure popup is shown first
+            setTimeout(() => {
+              showCountdownTimer(remainingCooldown);
+              
+            // Log countdown start for debugging
+            console.log('Countdown timer started with', remainingCooldown, 'seconds remaining');
+            
+            // Show success message in fullscreen mode
+            if (isFullscreen) {
+              console.log('Fullscreen countdown started - enhanced UI will be shown');
+              
+              // Add visual feedback for fullscreen countdown start
+              const centerCountdown = document.getElementById('centerCountdown');
+              if (centerCountdown) {
+                centerCountdown.style.border = '3px solid rgba(76, 175, 80, 0.8)';
+                centerCountdown.style.boxShadow = '0 0 30px rgba(76, 175, 80, 0.3), 0 20px 60px rgba(0,0,0,0.8)';
+                
+                // Reset border after countdown starts
+                setTimeout(() => {
+                  centerCountdown.style.border = '';
+                  centerCountdown.style.boxShadow = '';
+                }, 2000);
+              }
+            }
+            }, 500);
             
             // Record successful recognition time for cooldown calculation
             lastSuccessfulRecognitionTime = Date.now();
@@ -7220,7 +7485,7 @@ RETAKE_HTML = """
           // SweetAlert for error
           Swal.fire({
             title: '❌ Gagal Validasi',
-            text: 'Foto tidak dapat dibandingkan. Mohon perbarui foto Anda di Front Office, karena wajah tidak terdeteksi pada foto profil ' + (j.error || 'Unknown error'),
+            text: 'Harap menghubungi FTL Contact Center / FTL Front Office di cabang',
             icon: 'error',
             confirmButtonText: 'OK',
             confirmButtonColor: '#f44336'
