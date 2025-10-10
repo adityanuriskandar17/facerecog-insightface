@@ -438,7 +438,7 @@ def _rebuild_matrix():
 
 # Throttling system to prevent spam
 _LAST_RECOGNITION_TIME = {}  # {member_id: timestamp}
-_RECOGNITION_COOLDOWN = 10  # 10 seconds cooldown per user
+_RECOGNITION_COOLDOWN = 5  # 10 seconds cooldown per user
 
 # Face recognition model cache
 _face_rec_model = None
@@ -1293,6 +1293,9 @@ ADMIN_LOGIN_HTML = """
 """
 # Ini untuk admin login saat mau ketik door id END
 
+
+
+
 # Ini untuk main page Face Recognition START
 INDEX_HTML = """
 <!doctype html>
@@ -2054,6 +2057,142 @@ INDEX_HTML = """
       min-width: 300px !important;
       max-width: 400px !important;
       animation: popupSlideIn 0.3s ease-out !important;
+    }
+    
+    /* Fullscreen countdown timer styles */
+    .fullscreen #centerCountdown {
+      position: absolute !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      z-index: 10002 !important;
+      background: linear-gradient(135deg, rgba(0,0,0,0.9), rgba(20,20,20,0.95)) !important;
+      backdrop-filter: blur(10px) !important;
+      border: 2px solid rgba(255,255,255,0.1) !important;
+      border-radius: 25px !important;
+      padding: 40px 50px !important;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05) !important;
+      text-align: center !important;
+      color: white !important;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+      min-width: 200px !important;
+      animation: countdownPulse 0.5s ease-out !important;
+    }
+    
+    /* Enhanced fullscreen countdown with special class */
+    .fullscreen #centerCountdown.fullscreen-countdown {
+      background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,30,30,0.98)) !important;
+      border: 3px solid rgba(255,255,255,0.2) !important;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.9), 0 0 0 2px rgba(255,255,255,0.1), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+      animation: countdownPulse 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    }
+    
+    .fullscreen #centerCountdownNumber {
+      font-size: 72px !important;
+      font-weight: 900 !important;
+      margin-bottom: 15px !important;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4) !important;
+      background-size: 400% 400% !important;
+      -webkit-background-clip: text !important;
+      -webkit-text-fill-color: transparent !important;
+      background-clip: text !important;
+      animation: gradientShift 2s ease-in-out infinite, numberPulse 1s ease-in-out infinite !important;
+      text-shadow: 0 0 30px rgba(255,255,255,0.3) !important;
+    }
+    
+    .fullscreen #centerCountdown div:last-child {
+      font-size: 20px !important;
+      opacity: 0.9 !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.5px !important;
+      text-transform: uppercase !important;
+    }
+    
+    /* Fullscreen countdown message styling */
+    .fullscreen #countdownMessage {
+      font-size: 16px !important;
+      opacity: 0.8 !important;
+      font-weight: 400 !important;
+      letter-spacing: 0.3px !important;
+      margin-top: 12px !important;
+      color: rgba(255,255,255,0.9) !important;
+    }
+    
+    /* Enhanced fullscreen countdown message */
+    .fullscreen #centerCountdown.fullscreen-countdown #countdownMessage {
+      font-size: 18px !important;
+      opacity: 0.9 !important;
+      font-weight: 500 !important;
+      color: rgba(255,255,255,0.95) !important;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
+    }
+    
+    /* Fullscreen countdown animations */
+    @keyframes countdownPulse {
+      0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.8; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes numberPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    
+    /* Mobile fullscreen countdown adjustments */
+    @media (max-width: 768px) {
+      .fullscreen #centerCountdown {
+        padding: 30px 40px !important;
+        border-radius: 20px !important;
+        min-width: 180px !important;
+      }
+      
+      .fullscreen #centerCountdownNumber {
+        font-size: 60px !important;
+        margin-bottom: 12px !important;
+      }
+      
+      .fullscreen #centerCountdown div:last-child {
+        font-size: 18px !important;
+      }
+      
+      .fullscreen #countdownMessage {
+        font-size: 14px !important;
+        margin-top: 10px !important;
+      }
+      
+      .fullscreen #centerCountdown.fullscreen-countdown #countdownMessage {
+        font-size: 16px !important;
+      }
+    }
+    
+    /* Tablet fullscreen countdown adjustments */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .fullscreen #centerCountdown {
+        padding: 35px 45px !important;
+        border-radius: 22px !important;
+      }
+      
+      .fullscreen #centerCountdownNumber {
+        font-size: 66px !important;
+      }
+      
+      .fullscreen #countdownMessage {
+        font-size: 17px !important;
+        margin-top: 11px !important;
+      }
+      
+      .fullscreen #centerCountdown.fullscreen-countdown #countdownMessage {
+        font-size: 19px !important;
+      }
+    }
       pointer-events: none !important;
     }
     
@@ -2216,6 +2355,13 @@ INDEX_HTML = """
                 <div class="loading-text-small">Please wait while we scan your face</div>
               </div>
             </div>
+            
+            <!-- Center Countdown Animation - MOVED INSIDE CAMERA CONTAINER FOR FULLSCREEN -->
+            <div id="centerCountdown" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10002; text-align: center; background: rgba(0,0,0,0.8); color: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+              <div style="font-size: 48px; font-weight: bold; margin-bottom: 10px;" id="centerCountdownNumber">3</div>
+              
+              <div style="font-size: 14px; opacity: 0.6; margin-top: 8px;" id="countdownMessage">Tunggu sebentar untuk scan berikutnya</div>
+            </div>
           
           <!-- Camera Placeholder -->
           <div id="cameraPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d;">
@@ -2290,12 +2436,6 @@ INDEX_HTML = """
             <i class="fas fa-clock"></i>
           </div>
           <div style="font-size: 14px; font-weight: 500; color: #856404;">Next scan: <span id="countdownSeconds" style="font-weight: bold; color: #d63384;">0</span>s</div>
-        </div>
-        
-        <!-- Center Countdown Animation -->
-        <div id="centerCountdown" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; text-align: center; background: rgba(0,0,0,0.8); color: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-          <div style="font-size: 48px; font-weight: bold; margin-bottom: 10px;" id="centerCountdownNumber">3</div>
-          <div style="font-size: 18px; opacity: 0.8;">Scan akan tersedia dalam</div>
         </div>
       </div>
       
@@ -2920,6 +3060,7 @@ INDEX_HTML = """
     function showCountdownTimer(seconds) {
       const centerCountdown = document.getElementById('centerCountdown');
       const centerCountdownNumber = document.getElementById('centerCountdownNumber');
+      const countdownMessage = document.getElementById('countdownMessage');
       
       console.log('showCenterCountdown called with:', seconds);
       
@@ -2933,22 +3074,48 @@ INDEX_HTML = """
           clearInterval(countdownInterval);
         }
         
+        // Check if we're in fullscreen mode for enhanced animations
+        const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
+        console.log('Countdown in fullscreen mode:', isFullscreen);
+        
         // Show center countdown animation
         centerCountdown.style.display = 'block';
         centerCountdown.style.opacity = '0';
         centerCountdown.style.transform = 'translate(-50%, -50%) scale(0.8)';
         
-        // Animate in
-        setTimeout(() => {
-          centerCountdown.style.transition = 'all 0.3s ease';
-          centerCountdown.style.opacity = '1';
-          centerCountdown.style.transform = 'translate(-50%, -50%) scale(1)';
-        }, 10);
+        // Enhanced animation for fullscreen mode
+        if (isFullscreen) {
+          // Add special fullscreen countdown class for enhanced styling
+          centerCountdown.classList.add('fullscreen-countdown');
+          
+          // Update message for fullscreen mode
+          if (countdownMessage) {
+            countdownMessage.textContent = 'Tunggu untuk scan berikutnya';
+          }
+          
+          // Animate in with enhanced effect
+          setTimeout(() => {
+            centerCountdown.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            centerCountdown.style.opacity = '1';
+            centerCountdown.style.transform = 'translate(-50%, -50%) scale(1)';
+          }, 10);
+        } else {
+          // Standard animation for normal mode
+          if (countdownMessage) {
+            countdownMessage.textContent = 'Tunggu sebentar untuk scan berikutnya';
+          }
+          
+          setTimeout(() => {
+            centerCountdown.style.transition = 'all 0.3s ease';
+            centerCountdown.style.opacity = '1';
+            centerCountdown.style.transform = 'translate(-50%, -50%) scale(1)';
+          }, 10);
+        }
         
         centerCountdownNumber.textContent = validSeconds;
         remainingCooldown = validSeconds;
         
-        // Start countdown with animation
+        // Start countdown with enhanced animation
         countdownInterval = setInterval(() => {
           remainingCooldown--;
           
@@ -2959,11 +3126,41 @@ INDEX_HTML = """
           
           centerCountdownNumber.textContent = remainingCooldown;
           
-          // Add pulse animation for each count
-          centerCountdownNumber.style.transform = 'scale(1.2)';
-          setTimeout(() => {
-            centerCountdownNumber.style.transform = 'scale(1)';
-          }, 150);
+          // Enhanced pulse animation for fullscreen mode
+          if (isFullscreen) {
+            // More dramatic animation for fullscreen
+            centerCountdownNumber.style.transform = 'scale(1.3) rotate(5deg)';
+            centerCountdownNumber.style.transition = 'all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            
+            setTimeout(() => {
+              centerCountdownNumber.style.transform = 'scale(1) rotate(0deg)';
+              centerCountdownNumber.style.transition = 'all 0.3s ease';
+            }, 200);
+            
+            // Add special effects for last 3 seconds
+            if (remainingCooldown <= 3) {
+              centerCountdownNumber.style.animation = 'numberPulse 0.5s ease-in-out infinite';
+              centerCountdown.style.boxShadow = '0 0 50px rgba(255, 107, 107, 0.5), 0 20px 60px rgba(0,0,0,0.8)';
+              
+              // Update message for final countdown
+              if (countdownMessage) {
+                countdownMessage.textContent = 'Hampir selesai! Scan akan segera tersedia';
+                countdownMessage.style.color = 'rgba(255, 107, 107, 0.9)';
+              }
+            } else if (remainingCooldown <= 5) {
+              // Update message for 5 seconds remaining
+              if (countdownMessage) {
+                countdownMessage.textContent = 'Tinggal beberapa detik lagi...';
+                countdownMessage.style.color = 'rgba(255, 255, 255, 0.9)';
+              }
+            }
+          } else {
+            // Standard animation for normal mode
+            centerCountdownNumber.style.transform = 'scale(1.2)';
+            setTimeout(() => {
+              centerCountdownNumber.style.transform = 'scale(1)';
+            }, 150);
+          }
           
           console.log('Center countdown:', remainingCooldown);
           
@@ -2982,13 +3179,39 @@ INDEX_HTML = """
         // Hide center countdown animation
         const centerCountdown = document.getElementById('centerCountdown');
         if (centerCountdown) {
-          centerCountdown.style.transition = 'all 0.3s ease';
-          centerCountdown.style.opacity = '0';
-          centerCountdown.style.transform = 'translate(-50%, -50%) scale(0.8)';
+          // Check if we're in fullscreen mode for enhanced exit animation
+          const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
+          
+          if (isFullscreen) {
+            // Enhanced exit animation for fullscreen
+            centerCountdown.style.transition = 'all 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19)';
+            centerCountdown.style.opacity = '0';
+            centerCountdown.style.transform = 'translate(-50%, -50%) scale(0.5) rotate(10deg)';
+            
+            // Remove fullscreen countdown class
+            centerCountdown.classList.remove('fullscreen-countdown');
+          } else {
+            // Standard exit animation for normal mode
+            centerCountdown.style.transition = 'all 0.3s ease';
+            centerCountdown.style.opacity = '0';
+            centerCountdown.style.transform = 'translate(-50%, -50%) scale(0.8)';
+          }
           
           setTimeout(() => {
             centerCountdown.style.display = 'none';
-          }, 300);
+            // Reset any special effects
+            centerCountdown.style.boxShadow = '';
+            const centerCountdownNumber = document.getElementById('centerCountdownNumber');
+            const countdownMessage = document.getElementById('countdownMessage');
+            if (centerCountdownNumber) {
+              centerCountdownNumber.style.animation = '';
+              centerCountdownNumber.style.transform = '';
+            }
+            if (countdownMessage) {
+              countdownMessage.style.color = '';
+              countdownMessage.textContent = 'Tunggu sebentar untuk scan berikutnya';
+            }
+          }, isFullscreen ? 500 : 300);
         }
         
         if (countdownInterval) {
@@ -3001,10 +3224,26 @@ INDEX_HTML = """
             hasSuccessfulScan = false; // Reset flag to allow scanning again
             noFaceCount = 0; // Reset no face counter
             console.log('Cooldown ended, resetting hasSuccessfulScan flag and noFaceCount');
+            
+            // Show completion message briefly
+            const countdownMessage = document.getElementById('countdownMessage');
+            if (countdownMessage) {
+              countdownMessage.textContent = 'Cooldown selesai! Siap untuk scan berikutnya';
+              countdownMessage.style.color = 'rgba(76, 175, 80, 0.9)';
+            }
         
         if (stream && DOOR_TOKEN && !recognitionInterval) {
           recognitionInterval = setInterval(performRecognition, 500);
           console.log('Recognition interval restarted after cooldown');
+          
+          // Reset countdown message after a brief delay
+          setTimeout(() => {
+            const countdownMessage = document.getElementById('countdownMessage');
+            if (countdownMessage) {
+              countdownMessage.textContent = 'Tunggu sebentar untuk scan berikutnya';
+              countdownMessage.style.color = '';
+            }
+          }, 2000);
         } else {
           console.log('Cannot restart recognition - stream:', !!stream, 'token:', !!DOOR_TOKEN, 'interval:', !!recognitionInterval);
         }
@@ -4042,8 +4281,37 @@ INDEX_HTML = """
             
             // Start cooldown after successful scan
             console.log('Starting cooldown after successful scan');
-            remainingCooldown = 10; // Set 10 seconds cooldown
-            showCountdownTimer(remainingCooldown);
+            remainingCooldown = 5; // Set 10 seconds cooldown
+            
+            // Check if we're in fullscreen mode for enhanced countdown
+            const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
+            console.log('Starting countdown in fullscreen mode:', isFullscreen);
+            
+            // Add a small delay to ensure popup is shown first
+            setTimeout(() => {
+              showCountdownTimer(remainingCooldown);
+              
+            // Log countdown start for debugging
+            console.log('Countdown timer started with', remainingCooldown, 'seconds remaining');
+            
+            // Show success message in fullscreen mode
+            if (isFullscreen) {
+              console.log('Fullscreen countdown started - enhanced UI will be shown');
+              
+              // Add visual feedback for fullscreen countdown start
+              const centerCountdown = document.getElementById('centerCountdown');
+              if (centerCountdown) {
+                centerCountdown.style.border = '3px solid rgba(76, 175, 80, 0.8)';
+                centerCountdown.style.boxShadow = '0 0 30px rgba(76, 175, 80, 0.3), 0 20px 60px rgba(0,0,0,0.8)';
+                
+                // Reset border after countdown starts
+                setTimeout(() => {
+                  centerCountdown.style.border = '';
+                  centerCountdown.style.boxShadow = '';
+                }, 2000);
+              }
+            }
+            }, 500);
             
             // Record successful recognition time for cooldown calculation
             lastSuccessfulRecognitionTime = Date.now();
@@ -4598,6 +4866,10 @@ INDEX_HTML = """
 """
 # Ini untuk main page Face Recognition END
 
+# Setelah Login pasti masuk sini START
+
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     doorid = None
@@ -4797,6 +5069,7 @@ def admin_door_select():
     """)
 
 
+
 @app.route("/admin/login", methods=["GET", "POST"])
 @limiter.limit(LOGIN_RATE_LIMIT)
 def admin_login():
@@ -4977,6 +5250,8 @@ def api_security_status():
             "timestamp": datetime.now().isoformat()
         }
     })
+
+
 # -------------------- Image & Recognition Utils --------------------
 
 def b64_to_bgr(image_b64: str) -> Optional[np.ndarray]:
@@ -5220,42 +5495,7 @@ def api_get_member_photo(member_id):
         print(f"DEBUG: Error getting member photo: {e}")
         return jsonify({"ok": False, "error": f"Error: {str(e)}"}), 500
 
-# Test endpoint untuk debugging profile photo
-@app.route("/api/test_profile_photo/<int:member_id>", methods=["GET"])
-def test_profile_photo(member_id):
-    """Test endpoint untuk debugging profile photo"""
-    try:
-        print(f"DEBUG: Testing profile photo for member_id: {member_id}")
-        
-        # Test login
-        token = gym_login_with_memberid(member_id)
-        if not token:
-            return jsonify({"ok": False, "error": "Failed to login"})
-        
-        # Test profile fetch
-        profile = gym_get_profile(token)
-        if not profile:
-            return jsonify({"ok": False, "error": "Failed to fetch profile"})
-        
-        # Check if memberphoto exists
-        memberphoto = profile.get("memberphoto")
-        if not memberphoto:
-            return jsonify({
-                "ok": False, 
-                "error": "No memberphoto in profile",
-                "profile_keys": list(profile.keys()) if isinstance(profile, dict) else "Not a dict"
-            })
-        
-        return jsonify({
-            "ok": True,
-            "member_id": member_id,
-            "has_memberphoto": bool(memberphoto),
-            "memberphoto_url": memberphoto,
-            "profile_keys": list(profile.keys()) if isinstance(profile, dict) else "Not a dict"
-        })
-        
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"Test error: {str(e)}"}), 500
+
 
 # DIOPTIMALKAN: Fast recognition endpoint untuk skala besar
 # Note: No rate limiting to support high-frequency face recognition requests
@@ -5391,89 +5631,7 @@ def api_recognize_fast():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.route("/api/retake_login", methods=["POST"])
-def api_retake_login():
-    data = request.get_json(force=True)
-    email = data.get("email")
-    password = data.get("password")
-    
-    if not email or not password:
-        return jsonify({"ok": False, "error": "email and password required"}), 400
-    
-    # Get identifiers for multi-user rate limiting
-    user_id = get_user_identifier(email=email)
-    branch_id = get_branch_identifier()
-    client_id = get_client_identifier()
-    
-    # Check branch capacity
-    if not check_branch_capacity(branch_id):
-        return jsonify({
-            "ok": False, 
-            "error": f"Branch is at maximum capacity ({MAX_USERS_PER_BRANCH} users). Please try again later."
-        }), 429
-    
-    # Check if login is blocked due to brute force attempts (per user)
-    if is_login_blocked(user_id):
-        remaining_time = get_remaining_lockout_time(user_id)
-        return jsonify({
-            "ok": False, 
-            "error": f"Too many failed login attempts for this user. Please try again in {remaining_time} seconds."
-        }), 429
 
-    result = gym_login_with_email(email, password)
-    if not result:
-        # Increment failed login attempts (per user)
-        attempts = increment_login_attempts(user_id)
-        remaining_attempts = MAX_LOGIN_ATTEMPTS - attempts
-        
-        if remaining_attempts <= 0:
-            remaining_time = get_remaining_lockout_time(user_id)
-            error_msg = f"Too many failed login attempts for this user. Please try again in {remaining_time} seconds."
-        else:
-            error_msg = f"Login failed. {remaining_attempts} attempts remaining for this user."
-        
-        return jsonify({"ok": False, "error": error_msg})
-    
-    # Reset login attempts on successful login
-    reset_login_attempts(user_id)
-    
-    # Add user to branch tracking
-    add_user_to_branch(branch_id, user_id)
-    
-    token = result.get("token")
-    session['gym_token'] = token
-    session['user_id'] = user_id
-    session['branch_id'] = branch_id
-    
-    # Get profile data using the correct API endpoint
-    profile = gym_get_profile(token)
-    if profile:
-        session['profile_data'] = profile  # Cache profile data in session
-    
-    # Debug information for profile photo
-    debug_info = {}
-    if profile:
-        debug_info["profile_type"] = type(profile).__name__
-        debug_info["profile_data"] = str(profile)[:200] + "..." if len(str(profile)) > 200 else str(profile)
-        if isinstance(profile, dict):
-            debug_info["profile_photo_url"] = profile.get("memberphoto")
-            debug_info["profile_keys"] = list(profile.keys())
-        else:
-            debug_info["profile_photo_url"] = None
-            debug_info["profile_keys"] = []
-    else:
-        debug_info["profile_type"] = "None"
-        debug_info["profile_data"] = "No profile data received"
-        debug_info["profile_photo_url"] = None
-        debug_info["profile_keys"] = []
-    
-    return jsonify({
-        "ok": True, 
-        "token": token, 
-        "memberid": result.get("memberid"), 
-        "profile": profile,
-        "debug": debug_info
-    })
 
 
 @app.route("/api/get_profile", methods=["GET"])
@@ -5522,79 +5680,7 @@ def api_logout():
     })
 
 
-@app.route("/api/compare_with_profile", methods=["POST"])
-def api_compare_with_profile():
-    token = session.get('gym_token')
-    if not token:
-        print("DEBUG: No token found in session for compare_with_profile")
-        return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
 
-    print(f"DEBUG: compare_with_profile called with token: {token[:20]}...")
-
-    # Try to get profile from session first, then from API if needed
-    profile = session.get('profile_data')
-    if not profile:
-        print("DEBUG: No profile in session, fetching from API")
-        profile = gym_get_profile(token)
-        if profile:
-            session['profile_data'] = profile  # Cache for future use
-            print("DEBUG: Profile fetched and cached in session")
-        else:
-            print("DEBUG: Failed to fetch profile from API")
-    
-    if not profile:
-        return jsonify({"ok": False, "error": "Failed to fetch profile"})
-    
-    print(f"DEBUG: Profile data type: {type(profile)}, keys: {list(profile.keys()) if isinstance(profile, dict) else 'Not a dict'}")
-
-    image_b64 = request.json.get("image_b64")
-    bgr_live = b64_to_bgr(image_b64)
-    if bgr_live is None:
-        return jsonify({"ok": False, "error": "Invalid image"}), 400
-
-    # Fetch profile photo and embed
-    if not isinstance(profile, dict):
-        return jsonify({"ok": False, "error": f"Profile data is not a dictionary, got: {type(profile).__name__}"})
-    
-    profile_url = profile.get("memberphoto")
-    if not profile_url:
-        print("DEBUG: No memberphoto in profile data")
-        return jsonify({"ok": False, "error": "No profile photo on GymMaster"})
-    
-    print(f"DEBUG: Profile photo URL: {profile_url}")
-
-    try:
-        print(f"DEBUG: Attempting to download profile photo from: {profile_url}")
-        r = requests.get(profile_url, timeout=15)
-        r.raise_for_status()
-        im = np.frombuffer(r.content, np.uint8)
-        bgr_prof = cv2.imdecode(im, cv2.IMREAD_COLOR)
-        
-        if bgr_prof is None:
-            print(f"DEBUG: Failed to decode profile photo image")
-            return jsonify({"ok": False, "error": "Failed to decode profile photo"})
-            
-        print(f"DEBUG: Successfully downloaded and decoded profile photo, shape: {bgr_prof.shape}")
-    except requests.exceptions.Timeout:
-        print(f"DEBUG: Timeout downloading profile photo from: {profile_url}")
-        return jsonify({"ok": False, "error": "Timeout downloading profile photo"})
-    except requests.exceptions.RequestException as e:
-        print(f"DEBUG: Request error downloading profile photo: {e}")
-        return jsonify({"ok": False, "error": f"Network error downloading profile photo: {str(e)}"})
-    except Exception as e:
-        print(f"DEBUG: Unexpected error downloading profile photo: {e}")
-        return jsonify({"ok": False, "error": f"Failed to download profile photo: {str(e)}"})
-
-    emb_live = extract_embedding(bgr_live)
-    emb_prof = extract_embedding(bgr_prof)
-
-    if emb_live is None:
-        return jsonify({"ok": False, "error": "No face in live capture"})
-    if emb_prof is None:
-        return jsonify({"ok": False, "error": "No face in profile photo"})
-
-    sim = float(np.dot(emb_live, emb_prof) / (np.linalg.norm(emb_live)*np.linalg.norm(emb_prof)+1e-8))
-    return jsonify({"ok": True, "similarity": round(sim, 4), "threshold_note": "higher is more similar; ~0.6-0.8 usually same person for ArcFace crops"})
 
 
 @app.route("/api/cache/clear", methods=["POST"])
@@ -5649,265 +5735,6 @@ def api_refresh_cache():
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
-
-
-@app.route("/api/update_profile_photo", methods=["POST"])
-def api_update_profile_photo():
-    token = session.get('gym_token')
-    if not token:
-        return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
-
-    try:
-        data = request.get_json()
-        if data is None:
-            return jsonify({"ok": False, "error": "No JSON data provided"}), 400
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"Invalid JSON data: {str(e)}"}), 400
-    
-    image_b64 = data.get("image_b64")
-    if not image_b64:
-        return jsonify({"ok": False, "error": "No image provided"}), 400
-
-    try:
-        # Prepare the request payload - try different formats
-        payload = {
-            "api_key": GYM_API_KEY,
-            "token": token,
-            "memberphoto": f"data:image/jpeg;base64,{image_b64}"
-        }
-        
-        print(f"DEBUG: Updating profile photo to GymMaster...")
-        print(f"DEBUG: API Key: {GYM_API_KEY[:10]}...")
-        print(f"DEBUG: Token: {token[:20]}...")
-        print(f"DEBUG: Image size: {len(image_b64)} characters")
-        
-        # Based on API documentation: memberphoto accepts jpg, png, or base64 encoded string
-        # Type: formData file or string
-        success = False
-        error_msg = ""
-        data = {}
-        
-        # Try the working endpoint (endpoint 3) with correct format
-        endpoint = f"{GYM_BASE_URL}/portal/api/v1/member/profile"
-        
-        # Approach 1: Form data with file upload (recommended by API docs)
-        try:
-            print("DEBUG: Trying Form data with file upload (recommended approach)")
-            files = {
-                'memberphoto': ('photo.jpg', base64.b64decode(image_b64), 'image/jpeg')
-            }
-            form_data = {
-                'api_key': GYM_API_KEY,
-                'token': token
-            }
-            r = requests.post(endpoint, data=form_data, files=files, timeout=30)
-            r.raise_for_status()
-            data = r.json()
-            print(f"DEBUG: Form data response: {data}")
-            if data.get("error") is None:
-                success = True
-        except Exception as e:
-            error_msg = f"Form data failed: {str(e)}"
-            print(f"DEBUG: {error_msg}")
-        
-        # Approach 2: Form data with base64 string
-        if not success:
-            try:
-                print("DEBUG: Trying Form data with base64 string")
-                form_data = {
-                    'api_key': GYM_API_KEY,
-                    'token': token,
-                    'memberphoto': image_b64
-                }
-                r = requests.post(endpoint, data=form_data, timeout=30)
-                r.raise_for_status()
-                data = r.json()
-                print(f"DEBUG: Form data base64 response: {data}")
-                if data.get("error") is None:
-                    success = True
-            except Exception as e:
-                error_msg = f"Form data base64 failed: {str(e)}"
-                print(f"DEBUG: {error_msg}")
-        
-        # Approach 3: JSON with base64 (fallback)
-        if not success:
-            try:
-                print("DEBUG: Trying JSON with base64 (fallback)")
-                payload2 = {
-                    "api_key": GYM_API_KEY,
-                    "token": token,
-                    "memberphoto": image_b64
-                }
-                r = requests.post(endpoint, json=payload2, timeout=30)
-                r.raise_for_status()
-                data = r.json()
-                print(f"DEBUG: JSON base64 response: {data}")
-                if data.get("error") is None:
-                    success = True
-            except Exception as e:
-                error_msg = f"JSON base64 failed: {str(e)}"
-                print(f"DEBUG: {error_msg}")
-        
-        if not success:
-            return jsonify({
-                "ok": False, 
-                "error": f"All approaches failed. Last error: {error_msg}"
-            })
-        
-        print(f"DEBUG: Final GymMaster response: {data}")
-        
-        if data.get("error") is None:
-            # Clear cached profile data to force reload
-            session.pop('profile_data', None)
-            return jsonify({
-                "ok": True, 
-                "message": "Profile photo updated successfully",
-                "response": data.get("result", {})
-            })
-        else:
-            return jsonify({
-                "ok": False, 
-                "error": f"GymMaster API error: {data.get('error')}"
-            })
-            
-    except requests.exceptions.RequestException as e:
-        print(f"DEBUG: Request error: {e}")
-        return jsonify({"ok": False, "error": f"Failed to connect to GymMaster: {str(e)}"})
-    except Exception as e:
-        print(f"DEBUG: Unexpected error: {e}")
-        return jsonify({"ok": False, "error": f"Unexpected error: {str(e)}"})
-
-
-@app.route("/api/register_face", methods=["POST"])
-def api_register_face():
-    try:
-        token = session.get('gym_token')
-        if not token:
-            return jsonify({"ok": False, "error": "Not logged in. Please login first."}), 401
-
-        # Get user email from session or profile
-        profile = session.get('profile_data')
-        if not profile:
-            profile = gym_get_profile(token)
-            if profile:
-                session['profile_data'] = profile
-        
-        if not profile or not isinstance(profile, dict):
-            return jsonify({"ok": False, "error": "Failed to get user profile"})
-        
-        user_email = profile.get("email")
-        user_name = profile.get("fullname", "Unknown User")
-        if not user_email:
-            return jsonify({"ok": False, "error": "No email found in profile"})
-
-        data = request.get_json(force=True)
-        frames = data.get("frames", [])
-        if not frames:
-            return jsonify({"ok": False, "error": "No frames provided"})
-
-        print(f"DEBUG: Registering face for {user_email} with {len(frames)} frames")
-
-        # Process all frames to extract embeddings
-        embeddings = []
-        for i, frame_b64 in enumerate(frames):
-            print(f"DEBUG: Processing frame {i+1}/{len(frames)}")
-            try:
-                bgr = b64_to_bgr(frame_b64)
-                if bgr is not None:
-                    print(f"DEBUG: Frame {i+1}: Image decoded successfully, shape: {bgr.shape}")
-                    emb = extract_embedding(bgr)
-                    if emb is not None:
-                        embeddings.append(emb)
-                        print(f"DEBUG: Frame {i+1}: Face detected and embedding extracted, shape: {emb.shape}")
-                    else:
-                        print(f"DEBUG: Frame {i+1}: No face detected")
-                else:
-                    print(f"DEBUG: Frame {i+1}: Invalid image")
-            except Exception as e:
-                print(f"DEBUG: Error processing frame {i+1}: {e}")
-                import traceback
-                traceback.print_exc()
-
-        if not embeddings:
-            return jsonify({"ok": False, "error": "No faces detected in any frame"})
-
-        # Average all embeddings to create a single representative embedding
-        avg_embedding = np.mean(embeddings, axis=0)
-        # Normalize the averaged embedding
-        norm = np.linalg.norm(avg_embedding) + 1e-8
-        avg_embedding = avg_embedding / norm
-
-        print(f"DEBUG: Created average embedding from {len(embeddings)} faces")
-
-        # Save to database
-        try:
-            conn = get_db_conn()
-            cur = conn.cursor()
-            
-            # Convert embedding to NPY float16 format for storage efficiency
-            npy_buffer = io.BytesIO()
-            np.save(npy_buffer, avg_embedding.astype(np.float16))
-            embedding_npy = npy_buffer.getvalue()
-            
-            # Check if user already exists by email in profile data
-            # We need to find the member by email from GymMaster profile
-            cur.execute("SELECT id FROM member WHERE email = %s", (user_email,))
-            existing = cur.fetchone()
-            
-            # Ensure all results are consumed to avoid "Unread result found" error
-            try:
-                while cur.nextset():
-                    pass
-            except:
-                pass
-            
-            if existing:
-                # Update existing record
-                cur.execute(
-                    "UPDATE member SET enc = %s WHERE id = %s",
-                    (embedding_npy, existing[0])
-                )
-                print(f"DEBUG: Updated existing record for {user_name} (Email: {user_email}, ID: {existing[0]})")
-            else:
-                # Insert new record with member_id from profile
-                cur.execute(
-                    "INSERT INTO member (member_id, first_name, last_name, email, enc) VALUES (%s, %s, %s, %s, %s)",
-                    (profile.get("id", 0), profile.get("firstname", ""), profile.get("surname", ""), user_email, embedding_npy)
-                )
-                print(f"DEBUG: Created new record for {user_name} (Email: {user_email})")
-            
-            # Ensure all results are consumed to avoid "Unread result found" error
-            try:
-                while cur.nextset():
-                    pass
-            except:
-                pass
-            
-            conn.commit()
-            cur.close()
-            conn.close()
-            
-            # Clear cache to force reload
-            invalidate_member_cache()
-            reload_member_cache()
-            
-            return jsonify({
-                "ok": True, 
-                "message": f"Face recognition registered successfully for {user_email}",
-                "frames_processed": len(frames),
-                "faces_detected": len(embeddings)
-            })
-        
-        except Exception as e:
-            print(f"DEBUG: Database error: {e}")
-            return jsonify({"ok": False, "error": f"Database error: {str(e)}"})
-        
-    except Exception as e:
-        print(f"DEBUG: Unexpected error in register_face: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"ok": False, "error": f"Unexpected error: {str(e)}"}), 500
-
 
 # -------------------- Main --------------------
 if __name__ == "__main__":
