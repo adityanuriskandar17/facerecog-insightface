@@ -6683,6 +6683,14 @@ RETAKE_HTML = """
               <i class="fas fa-envelope"></i>
               <span>${profile.email || 'N/A'}</span>
             </div>
+            <div class="profile-field">
+              <i class="fas fa-id-card"></i>
+              <span>${profile.id || 'N/A'}</span>
+            </div>
+            <div class="profile-field">
+              <i class="fas fa-phone"></i>
+              <span>${profile.phonecell || 'N/A'}</span>
+            </div>
           `;
           
           // Load profile photo
@@ -7211,8 +7219,8 @@ RETAKE_HTML = """
           setOut('Comparison failed: ' + (j.error || 'Unknown error'));
           // SweetAlert for error
           Swal.fire({
-            title: '❌ Error',
-            text: 'Gagal membandingkan foto: ' + (j.error || 'Unknown error'),
+            title: '❌ Gagal Validasi',
+            text: 'Foto tidak dapat dibandingkan. Mohon perbarui foto Anda di Front Office, karena wajah tidak terdeteksi pada foto profil ' + (j.error || 'Unknown error'),
             icon: 'error',
             confirmButtonText: 'OK',
             confirmButtonColor: '#f44336'
@@ -9080,7 +9088,7 @@ RETAKE_HTML = """
   
   <!-- Footer -->
   <footer>
-    <p>© <span id="currentYearRetake"></span> FTL IT Developer. All rights lol.</p>
+    <p>© <span id="currentYearRetake"></span> FTL IT Developer. All rights reserved.</p>
   </footer>
   
   <!-- Dynamic Year Script -->
