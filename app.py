@@ -463,7 +463,7 @@ def _rebuild_matrix():
 
 # Throttling system to prevent spam
 _LAST_RECOGNITION_TIME = {}  # {member_id: timestamp}
-_RECOGNITION_COOLDOWN = 10  # 10 seconds cooldown per user
+_RECOGNITION_COOLDOWN = 5  # 10 seconds cooldown per user
 
 # Face recognition model cache
 _face_rec_model = None
@@ -2949,7 +2949,7 @@ INDEX_HTML = """
             <!-- Center Countdown Animation - MOVED INSIDE CAMERA CONTAINER FOR FULLSCREEN -->
             <div id="centerCountdown" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10002; text-align: center; background: rgba(0,0,0,0.8); color: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
               <div style="font-size: 48px; font-weight: bold; margin-bottom: 10px;" id="centerCountdownNumber">3</div>
-              <div style="font-size: 18px; opacity: 0.8;">Scan akan tersedia dalam</div>
+              
               <div style="font-size: 14px; opacity: 0.6; margin-top: 8px;" id="countdownMessage">Tunggu sebentar untuk scan berikutnya</div>
             </div>
           
@@ -3680,7 +3680,7 @@ INDEX_HTML = """
           
           // Update message for fullscreen mode
           if (countdownMessage) {
-            countdownMessage.textContent = 'Mode fullscreen - Tunggu untuk scan berikutnya';
+            countdownMessage.textContent = 'Tunggu untuk scan berikutnya';
           }
           
           // Animate in with enhanced effect
@@ -4871,7 +4871,7 @@ INDEX_HTML = """
             
             // Start cooldown after successful scan
             console.log('Starting cooldown after successful scan');
-            remainingCooldown = 10; // Set 10 seconds cooldown
+            remainingCooldown = 5; // Set 10 seconds cooldown
             
             // Check if we're in fullscreen mode for enhanced countdown
             const isFullscreen = document.getElementById('cameraContainer').classList.contains('fullscreen');
