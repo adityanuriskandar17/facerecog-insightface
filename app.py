@@ -1600,34 +1600,64 @@ ADMIN_CONTROL_HTML = """
                 return;
             }
 
-            listContainer.innerHTML = devices.map(device => `
-                <div class="device-card">
-                    <div class="device-info">
-                        <div class="device-name">
-                            <i class="fas fa-tablet-alt"></i> ${device.name || 'Unknown Device'}
+            listContainer.innerHTML = devices.map(device => {
+                let gpsInfo = '';
+                if (device.gps && device.gps.available) {
+                    const lat = device.gps.latitude.toFixed(6);
+                    const lng = device.gps.longitude.toFixed(6);
+                    const accuracy = Math.round(device.gps.accuracy);
+                    const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+                    gpsInfo = `
+                        <div class="device-detail" style="color: #10b981;">
+                            <i class="fas fa-map-marked-alt"></i> 
+                            <a href="${googleMapsUrl}" target="_blank" style="color: #10b981; text-decoration: none;">
+                                GPS: ${lat}, ${lng} (±${accuracy}m)
+                            </a>
                         </div>
-                        <div class="device-details">
-                            <div class="device-detail">
-                                <i class="fas fa-map-marker-alt"></i> ${device.location || 'Unknown'}
+                    `;
+                } else {
+                    gpsInfo = `
+                        <div class="device-detail" style="color: #ef4444;">
+                            <i class="fas fa-exclamation-triangle"></i> GPS: ${device.gps?.error || 'Not available'}
+                        </div>
+                    `;
+                }
+                
+                return `
+                    <div class="device-card">
+                        <div class="device-info">
+                            <div class="device-name">
+                                <i class="fas fa-tablet-alt"></i> ${device.name || 'Unknown Device'}
                             </div>
-                            <div class="device-detail">
-                                <i class="fas fa-door-open"></i> Door ID: ${device.doorid || 'N/A'}
+                            <div class="device-details">
+                                <div class="device-detail">
+                                    <i class="fas fa-map-marker-alt"></i> ${device.location || 'Unknown'}
+                                </div>
+                                <div class="device-detail">
+                                    <i class="fas fa-door-open"></i> Door ID: ${device.doorid || 'N/A'}
+                                </div>
+                                <div class="device-detail">
+                                    <i class="fas fa-network-wired"></i> ${device.ip}
+                                </div>
+                                <div class="device-detail">
+                                    <i class="fas fa-clock"></i> ${new Date(device.connected_at).toLocaleString()}
+                                </div>
+                                ${gpsInfo}
                             </div>
-                            <div class="device-detail">
-                                <i class="fas fa-network-wired"></i> ${device.ip}
-                            </div>
-                            <div class="device-detail">
-                                <i class="fas fa-clock"></i> ${new Date(device.connected_at).toLocaleString()}
-                            </div>
+                        </div>
+                        <div class="device-actions">
+                            ${device.gps && device.gps.available ? `
+                                <button class="btn btn-success btn-small" onclick="openMap('${device.gps.latitude}', '${device.gps.longitude}', '${device.name}')">
+                                    <i class="fas fa-map"></i> Map
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-primary btn-small" onclick="refreshDevice('${device.id}')">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
                         </div>
                     </div>
-                    <div class="device-actions">
-                        <button class="btn btn-primary btn-small" onclick="refreshDevice('${device.id}')">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         async function refreshAllDevices() {
@@ -1668,6 +1698,13 @@ ADMIN_CONTROL_HTML = """
             } catch (error) {
                 showNotification('Error: ' + error.message, 'error');
             }
+        }
+
+        function openMap(latitude, longitude, deviceName) {
+            // Open Google Maps in new tab
+            const url = `https://www.google.com/maps?q=${latitude},${longitude}&ll=${latitude},${longitude}&z=17`;
+            window.open(url, '_blank');
+            showNotification(`Opening map for ${deviceName}`, 'info');
         }
 
         // Initial load
@@ -5266,19 +5303,80 @@ INDEX_HTML = """
         console.log('✅ WebSocket connected!');
         reconnectAttempts = 0;
         
-        // Register device with server
-        socket.emit('register_device', {
-          device_name: navigator.userAgent.includes('Mobile') ? 'Tablet Device' : 'Desktop Device',
-          device_type: navigator.userAgent.includes('Mobile') ? 'Tablet' : 'Desktop',
-          location: window.location.hostname,
-          doorid: '{{ doorid }}' || null
-        });
+        // Get GPS location and register device
+        getLocationAndRegister();
         
-        // Start heartbeat
+        // Start heartbeat with GPS update
         setInterval(function() {
           socket.emit('heartbeat', { timestamp: new Date().toISOString() });
+          
+          // Update GPS location every 5 minutes
+          if (Date.now() % 300000 < 30000) {
+            getLocationAndRegister();
+          }
         }, 30000); // Every 30 seconds
       });
+      
+      // Function to get GPS location and register device
+      function getLocationAndRegister() {
+        if ('geolocation' in navigator) {
+          console.log('📍 Requesting GPS location...');
+          
+          navigator.geolocation.getCurrentPosition(
+            function(position) {
+              // Success - got GPS location
+              const gpsData = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                timestamp: position.timestamp
+              };
+              
+              console.log('✅ GPS location obtained:', gpsData);
+              
+              // Register device with GPS data
+              socket.emit('register_device', {
+                device_name: navigator.userAgent.includes('Mobile') ? 'Tablet Device' : 'Desktop Device',
+                device_type: navigator.userAgent.includes('Mobile') ? 'Tablet' : 'Desktop',
+                location: window.location.hostname,
+                doorid: '{{ doorid }}' || null,
+                gps: gpsData
+              });
+            },
+            function(error) {
+              // Error or permission denied
+              console.warn('⚠️ GPS location failed:', error.message);
+              
+              // Register without GPS
+              socket.emit('register_device', {
+                device_name: navigator.userAgent.includes('Mobile') ? 'Tablet Device' : 'Desktop Device',
+                device_type: navigator.userAgent.includes('Mobile') ? 'Tablet' : 'Desktop',
+                location: window.location.hostname,
+                doorid: '{{ doorid }}' || null,
+                gps: null,
+                gps_error: error.message
+              });
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 300000 // Cache for 5 minutes
+            }
+          );
+        } else {
+          // Browser doesn't support geolocation
+          console.warn('⚠️ Geolocation not supported');
+          
+          socket.emit('register_device', {
+            device_name: navigator.userAgent.includes('Mobile') ? 'Tablet Device' : 'Desktop Device',
+            device_type: navigator.userAgent.includes('Mobile') ? 'Tablet' : 'Desktop',
+            location: window.location.hostname,
+            doorid: '{{ doorid }}' || null,
+            gps: null,
+            gps_error: 'Geolocation not supported'
+          });
+        }
+      }
       
       // Connection status
       socket.on('connection_status', function(data) {
@@ -6329,16 +6427,43 @@ def handle_heartbeat(data):
 
 @socketio.on('register_device')
 def handle_register_device(data):
-    """Handle device registration with additional info"""
+    """Handle device registration with additional info including GPS"""
     client_id = request.sid
     if client_id in connected_devices:
-        connected_devices[client_id].update({
+        gps_data = data.get('gps', None)
+        gps_error = data.get('gps_error', None)
+        
+        device_info = {
             'device_name': data.get('device_name', 'Unknown'),
             'device_type': data.get('device_type', 'Unknown'),
             'location': data.get('location', 'Unknown'),
-            'doorid': data.get('doorid', None)
-        })
-        print(f"📝 Device registered: {data.get('device_name')} at {data.get('location')}")
+            'doorid': data.get('doorid', None),
+            'last_update': datetime.now().isoformat()
+        }
+        
+        # Add GPS data if available
+        if gps_data:
+            device_info.update({
+                'gps_latitude': gps_data.get('latitude'),
+                'gps_longitude': gps_data.get('longitude'),
+                'gps_accuracy': gps_data.get('accuracy'),
+                'gps_timestamp': gps_data.get('timestamp'),
+                'gps_error': None
+            })
+            print(f"📝 Device registered: {data.get('device_name')} at {data.get('location')}")
+            print(f"   📍 GPS: {gps_data.get('latitude'):.6f}, {gps_data.get('longitude'):.6f} (±{gps_data.get('accuracy'):.0f}m)")
+        else:
+            device_info.update({
+                'gps_latitude': None,
+                'gps_longitude': None,
+                'gps_accuracy': None,
+                'gps_timestamp': None,
+                'gps_error': gps_error or 'Not available'
+            })
+            print(f"📝 Device registered: {data.get('device_name')} at {data.get('location')}")
+            print(f"   ⚠️ GPS: {gps_error or 'Not available'}")
+        
+        connected_devices[client_id].update(device_info)
         emit('registration_success', {'status': 'registered', 'client_id': client_id})
 
 
@@ -6354,13 +6479,13 @@ def admin_control_panel():
 
 @app.route("/api/admin/devices", methods=["GET"])
 def api_get_connected_devices():
-    """Get list of connected devices"""
+    """Get list of connected devices with GPS data"""
     if not session.get('admin_authenticated'):
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
     
     devices_list = []
     for device_id, device_info in connected_devices.items():
-        devices_list.append({
+        device_data = {
             'id': device_id,
             'name': device_info.get('device_name', 'Unknown'),
             'type': device_info.get('device_type', 'Unknown'),
@@ -6368,8 +6493,26 @@ def api_get_connected_devices():
             'doorid': device_info.get('doorid', None),
             'ip': device_info.get('ip', 'Unknown'),
             'connected_at': device_info.get('connected_at', 'Unknown'),
-            'last_heartbeat': device_info.get('last_heartbeat', 'N/A')
-        })
+            'last_heartbeat': device_info.get('last_heartbeat', 'N/A'),
+            'last_update': device_info.get('last_update', 'N/A')
+        }
+        
+        # Add GPS data if available
+        if device_info.get('gps_latitude') is not None and device_info.get('gps_longitude') is not None:
+            device_data['gps'] = {
+                'latitude': device_info.get('gps_latitude'),
+                'longitude': device_info.get('gps_longitude'),
+                'accuracy': device_info.get('gps_accuracy'),
+                'timestamp': device_info.get('gps_timestamp'),
+                'available': True
+            }
+        else:
+            device_data['gps'] = {
+                'available': False,
+                'error': device_info.get('gps_error', 'Not available')
+            }
+        
+        devices_list.append(device_data)
     
     return jsonify({
         "ok": True,
@@ -6461,6 +6604,73 @@ def api_send_notification():
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/device_location/<client_id>", methods=["GET"])
+def api_get_device_location(client_id):
+    """Get specific device location details"""
+    if not session.get('admin_authenticated'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    
+    if client_id not in connected_devices:
+        return jsonify({"ok": False, "error": "Device not found"}), 404
+    
+    device_info = connected_devices[client_id]
+    
+    location_data = {
+        'device_id': client_id,
+        'device_name': device_info.get('device_name', 'Unknown'),
+        'ip': device_info.get('ip', 'Unknown'),
+        'connected_at': device_info.get('connected_at', 'Unknown'),
+        'last_update': device_info.get('last_update', 'Unknown')
+    }
+    
+    # Add GPS data if available
+    if device_info.get('gps_latitude') is not None and device_info.get('gps_longitude') is not None:
+        location_data['gps'] = {
+            'latitude': device_info.get('gps_latitude'),
+            'longitude': device_info.get('gps_longitude'),
+            'accuracy': device_info.get('gps_accuracy'),
+            'timestamp': device_info.get('gps_timestamp'),
+            'available': True,
+            'google_maps_url': f"https://www.google.com/maps?q={device_info.get('gps_latitude')},{device_info.get('gps_longitude')}"
+        }
+    else:
+        location_data['gps'] = {
+            'available': False,
+            'error': device_info.get('gps_error', 'Not available')
+        }
+    
+    return jsonify({
+        "ok": True,
+        "location": location_data
+    })
+
+
+@app.route("/api/admin/devices_with_gps", methods=["GET"])
+def api_get_devices_with_gps():
+    """Get only devices with valid GPS data (for map visualization)"""
+    if not session.get('admin_authenticated'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    
+    devices_with_gps = []
+    for device_id, device_info in connected_devices.items():
+        if device_info.get('gps_latitude') is not None and device_info.get('gps_longitude') is not None:
+            devices_with_gps.append({
+                'id': device_id,
+                'name': device_info.get('device_name', 'Unknown'),
+                'doorid': device_info.get('doorid', None),
+                'latitude': device_info.get('gps_latitude'),
+                'longitude': device_info.get('gps_longitude'),
+                'accuracy': device_info.get('gps_accuracy'),
+                'timestamp': device_info.get('gps_timestamp')
+            })
+    
+    return jsonify({
+        "ok": True,
+        "devices": devices_with_gps,
+        "total": len(devices_with_gps)
+    })
 
 
 # -------------------- Main --------------------
