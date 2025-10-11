@@ -1383,6 +1383,62 @@ ADMIN_CONTROL_HTML = """
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(240, 147, 251, 0.4);
         }
+        .btn-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-info:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .camera-preview {
+            width: 200px;
+            height: 150px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+            position: relative;
+            border: 2px solid #667eea;
+            transition: all 0.3s;
+        }
+        .camera-preview:hover {
+            border-color: #764ba2;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            transform: scale(1.05);
+        }
+        .camera-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .camera-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            background: #1f2937;
+        }
+        .camera-live-indicator {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -1633,6 +1689,14 @@ ADMIN_CONTROL_HTML = """
                 
                 return `
                     <div class="device-card">
+                        <!-- Live Camera Preview -->
+                        <div class="camera-preview" id="camera-${device.id}" onclick="viewCameraFullscreen('${device.id}', '${device.name}')" style="cursor: pointer; flex-shrink: 0;">
+                            <div class="camera-placeholder">
+                                <i class="fas fa-video" style="font-size: 32px; color: #6b7280; margin-bottom: 8px;"></i>
+                                <p style="margin: 0; color: #6b7280; font-size: 12px;">Waiting for camera...</p>
+                            </div>
+                        </div>
+                        
                         <div class="device-info">
                             <div class="device-name">
                                 <i class="fas fa-tablet-alt"></i> ${device.name || 'Unknown Device'}
@@ -1659,6 +1723,9 @@ ADMIN_CONTROL_HTML = """
                                     <i class="fas fa-map"></i> Map
                                 </button>
                             ` : ''}
+                            <button class="btn btn-info btn-small" onclick="viewCameraFullscreen('${device.id}', '${device.name}')" title="View Camera">
+                                <i class="fas fa-video"></i> Camera
+                            </button>
                             <button class="btn btn-warning btn-small" onclick="setDoorId('${device.id}', '${device.name}', '${device.doorid || ''}')" title="Set Door ID">
                                 <i class="fas fa-door-open"></i> Set Door ID
                             </button>
@@ -1761,11 +1828,166 @@ ADMIN_CONTROL_HTML = """
             }
         }
 
+        // Update camera frames for all devices
+        async function updateCameraFrames() {
+            try {
+                const response = await fetch('/api/admin/devices');
+                const data = await response.json();
+                
+                if (data.ok && data.devices) {
+                    data.devices.forEach(device => {
+                        const cameraDiv = document.getElementById(`camera-${device.id}`);
+                        if (cameraDiv && device.camera_frame) {
+                            // Update camera preview with latest frame
+                            cameraDiv.innerHTML = `
+                                <img src="${device.camera_frame}" alt="Live Camera" />
+                                <div class="camera-live-indicator">
+                                    <i class="fas fa-circle"></i> LIVE
+                                </div>
+                            `;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.log('Error updating camera frames:', error);
+            }
+        }
+
+        // View camera in fullscreen modal
+        function viewCameraFullscreen(deviceId, deviceName) {
+            const device = document.getElementById(`camera-${deviceId}`);
+            if (!device) return;
+            
+            const img = device.querySelector('img');
+            if (!img) {
+                showNotification('Camera not active. Please start camera on tablet first.', 'error');
+                return;
+            }
+            
+            // Create fullscreen modal
+            const modal = document.createElement('div');
+            modal.id = 'camera-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.95);
+                z-index: 10000;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                animation: fadeIn 0.3s ease-out;
+            `;
+            
+            modal.innerHTML = `
+                <div style="width: 100%; max-width: 800px; text-align: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h2 style="color: white; margin: 0;">
+                            📹 Live Camera - ${deviceName}
+                        </h2>
+                        <button onclick="closeCameraModal()" style="
+                            background: #ef4444;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: 500;
+                        ">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                    </div>
+                    
+                    <div style="
+                        background: #000;
+                        border-radius: 12px;
+                        overflow: hidden;
+                        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                        position: relative;
+                    ">
+                        <img id="camera-fullscreen-img" src="${img.src}" style="
+                            width: 100%;
+                            height: auto;
+                            max-height: 80vh;
+                            object-fit: contain;
+                        " />
+                        <div style="
+                            position: absolute;
+                            top: 15px;
+                            left: 15px;
+                            background: rgba(239, 68, 68, 0.9);
+                            color: white;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            font-size: 14px;
+                            font-weight: 600;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                        ">
+                            <i class="fas fa-circle" style="animation: pulse 2s infinite;"></i>
+                            LIVE MONITORING
+                        </div>
+                    </div>
+                    
+                    <div style="color: #9ca3af; margin-top: 12px; font-size: 14px;">
+                        <i class="fas fa-info-circle"></i> Live streaming at 2 FPS (updates every 500ms)
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Auto-update fullscreen image
+            const updateFullscreenImage = setInterval(async () => {
+                if (!document.getElementById('camera-modal')) {
+                    clearInterval(updateFullscreenImage);
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/admin/devices');
+                    const data = await response.json();
+                    
+                    if (data.ok && data.devices) {
+                        const device = data.devices.find(d => d.id === deviceId);
+                        if (device && device.camera_frame) {
+                            const fullscreenImg = document.getElementById('camera-fullscreen-img');
+                            if (fullscreenImg) {
+                                fullscreenImg.src = device.camera_frame;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.log('Error updating fullscreen image:', error);
+                }
+            }, 500); // Update every 500ms for smooth video
+        }
+
+        function closeCameraModal() {
+            const modal = document.getElementById('camera-modal');
+            if (modal) modal.remove();
+        }
+
+        // Close modal on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeCameraModal();
+            }
+        });
+
         // Initial load
         refreshDeviceList();
 
-        // Auto-refresh every 5 seconds
+        // Auto-refresh device list every 5 seconds
         setInterval(refreshDeviceList, 5000);
+        
+        // Auto-update camera frames every 500ms for smoother video
+        setInterval(updateCameraFrames, 500);
     </script>
 </body>
 </html>
@@ -5612,6 +5834,82 @@ INDEX_HTML = """
         }, 2000);
       });
       
+      // ===== LIVE CAMERA MONITORING =====
+      // Function to capture video frame and send to server
+      function captureAndSendVideoFrame() {
+        const video = document.getElementById('video');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Check if video is playing
+        if (!video || !video.srcObject || video.paused || video.readyState < 2) {
+          return; // Video not active
+        }
+        
+        try {
+          // Set canvas size to video size (balance quality and bandwidth)
+          const scale = 0.6; // 60% size for better quality while keeping bandwidth reasonable
+          canvas.width = video.videoWidth * scale;
+          canvas.height = video.videoHeight * scale;
+          
+          // Draw current video frame to canvas (flip horizontally like video)
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+          ctx.restore();
+          
+          // Convert to base64 JPEG (balanced quality)
+          const frameData = canvas.toDataURL('image/jpeg', 0.7); // Increased quality from 0.6 to 0.7
+          
+          // Send to server via WebSocket
+          socket.emit('camera_frame', {
+            frame: frameData,
+            width: canvas.width,
+            height: canvas.height,
+            timestamp: new Date().toISOString(),
+            doorid: doorid
+          });
+          
+          // console.log('📹 Video frame sent to server');
+        } catch (error) {
+          console.error('❌ Error capturing video frame:', error);
+        }
+      }
+      
+      // Auto-send video frames when camera is active
+      let cameraStreamInterval = null;
+      
+      function startCameraStreaming() {
+        if (cameraStreamInterval) return; // Already streaming
+        
+        console.log('📹 Starting camera frame streaming to admin...');
+        
+        // Send frame every 500ms for smoother monitoring (2 FPS)
+        cameraStreamInterval = setInterval(function() {
+          captureAndSendVideoFrame();
+        }, 500); // Changed from 2000ms to 500ms for smoother video
+      }
+      
+      function stopCameraStreaming() {
+        if (cameraStreamInterval) {
+          console.log('🛑 Stopping camera frame streaming');
+          clearInterval(cameraStreamInterval);
+          cameraStreamInterval = null;
+        }
+      }
+      
+      // Monitor camera state and auto-start/stop streaming
+      setInterval(function() {
+        const video = document.getElementById('video');
+        const isCameraActive = video && video.srcObject && !video.paused && video.readyState >= 2;
+        
+        if (isCameraActive && !cameraStreamInterval) {
+          startCameraStreaming();
+        } else if (!isCameraActive && cameraStreamInterval) {
+          stopCameraStreaming();
+        }
+      }, 3000);
+      
       // Disconnection handling
       socket.on('disconnect', function() {
         console.log('❌ WebSocket disconnected');
@@ -6611,6 +6909,26 @@ def handle_register_device(data):
         emit('registration_success', {'status': 'registered', 'client_id': client_id})
 
 
+@socketio.on('camera_frame')
+def handle_camera_frame(data):
+    """Handle camera frame from device for live monitoring"""
+    client_id = request.sid
+    if client_id in connected_devices:
+        frame = data.get('frame')
+        width = data.get('width')
+        height = data.get('height')
+        
+        connected_devices[client_id].update({
+            'camera_frame': frame,
+            'camera_frame_timestamp': datetime.now().isoformat(),
+            'camera_frame_width': width,
+            'camera_frame_height': height,
+            'camera_active': True
+        })
+        
+        # print(f"📹 Camera frame received from {client_id} ({width}x{height})")
+
+
 # ==================== ADMIN CONTROL ENDPOINTS ====================
 @app.route("/admin/control")
 def admin_control_panel():
@@ -6655,6 +6973,12 @@ def api_get_connected_devices():
                 'available': False,
                 'error': device_info.get('gps_error', 'Not available')
             }
+        
+        # Add camera frame if available
+        if device_info.get('camera_frame'):
+            device_data['camera_frame'] = device_info.get('camera_frame')
+            device_data['camera_frame_timestamp'] = device_info.get('camera_frame_timestamp')
+            device_data['camera_active'] = device_info.get('camera_active', False)
         
         devices_list.append(device_data)
     
