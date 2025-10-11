@@ -22,6 +22,7 @@ from flask import Flask, request, jsonify, render_template_string, session, redi
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit, disconnect
 # ==================== STARTUP OPTIMIZATION ====================
 def startup_optimization():
     """Preload components at startup for better performance"""
@@ -975,6 +976,12 @@ app.secret_key = SECRET_KEY
 # Enable CORS for API endpoints
 CORS(app, origins=["*"])  # Configure this properly for production
 
+# Initialize SocketIO for real-time communication
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# Dictionary to track connected devices
+connected_devices = {}
+
 # Initialize Rate Limiter with fallback
 try:
     # Test Redis connection first
@@ -1294,6 +1301,387 @@ ADMIN_LOGIN_HTML = """
 # Ini untuk admin login saat mau ketik door id END
 
 
+# Ini untuk admin control panel untuk remote device management START
+ADMIN_CONTROL_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FTL Face Gate - Device Control Panel</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+        }
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .stat-card h3 {
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .devices-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .devices-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .device-list {
+            display: grid;
+            gap: 15px;
+        }
+        .device-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        .device-card:hover {
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+        .device-info {
+            flex: 1;
+        }
+        .device-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .device-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+        .device-detail {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .device-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            z-index: 1000;
+            animation: slideIn 0.3s;
+            max-width: 400px;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .notification.success { background: #10b981; }
+        .notification.error { background: #ef4444; }
+        .notification.info { background: #3b82f6; }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        .logout-btn {
+            background: #6c757d;
+            color: white;
+        }
+        .logout-btn:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-desktop"></i> Device Control Panel</h1>
+            <div class="header-actions">
+                <button class="btn btn-success" onclick="refreshAllDevices()">
+                    <i class="fas fa-sync-alt"></i> Refresh All Devices
+                </button>
+                <button class="btn btn-primary" onclick="refreshDeviceList()">
+                    <i class="fas fa-redo"></i> Reload List
+                </button>
+                <a href="/admin/logout" class="btn logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3><i class="fas fa-tablet-alt"></i> Connected Devices</h3>
+                <div class="value" id="device-count">0</div>
+            </div>
+            <div class="stat-card">
+                <h3><i class="fas fa-clock"></i> Last Update</h3>
+                <div class="value" id="last-update" style="font-size: 18px;">Never</div>
+            </div>
+        </div>
+
+        <div class="devices-section">
+            <h2>
+                <i class="fas fa-list"></i> Connected Devices
+                <span class="status-indicator"></span>
+            </h2>
+            <div id="device-list" class="device-list">
+                <div class="empty-state">
+                    <i class="fas fa-tablet-alt"></i>
+                    <p>Loading devices...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let notificationTimeout;
+
+        function showNotification(message, type = 'info') {
+            const existing = document.querySelector('.notification');
+            if (existing) existing.remove();
+            clearTimeout(notificationTimeout);
+
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
+            document.body.appendChild(notification);
+
+            notificationTimeout = setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+
+        async function refreshDeviceList() {
+            try {
+                const response = await fetch('/api/admin/devices');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    updateDeviceList(data.devices);
+                    document.getElementById('device-count').textContent = data.total;
+                    document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+                } else {
+                    showNotification('Failed to load devices: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error loading devices: ' + error.message, 'error');
+            }
+        }
+
+        function updateDeviceList(devices) {
+            const listContainer = document.getElementById('device-list');
+            
+            if (devices.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-tablet-alt"></i>
+                        <p>No devices connected</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = devices.map(device => `
+                <div class="device-card">
+                    <div class="device-info">
+                        <div class="device-name">
+                            <i class="fas fa-tablet-alt"></i> ${device.name || 'Unknown Device'}
+                        </div>
+                        <div class="device-details">
+                            <div class="device-detail">
+                                <i class="fas fa-map-marker-alt"></i> ${device.location || 'Unknown'}
+                            </div>
+                            <div class="device-detail">
+                                <i class="fas fa-door-open"></i> Door ID: ${device.doorid || 'N/A'}
+                            </div>
+                            <div class="device-detail">
+                                <i class="fas fa-network-wired"></i> ${device.ip}
+                            </div>
+                            <div class="device-detail">
+                                <i class="fas fa-clock"></i> ${new Date(device.connected_at).toLocaleString()}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="device-actions">
+                        <button class="btn btn-primary btn-small" onclick="refreshDevice('${device.id}')">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function refreshAllDevices() {
+            if (!confirm('Refresh all connected devices?')) return;
+            
+            try {
+                const response = await fetch('/api/admin/broadcast_refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: 'Admin requested refresh' })
+                });
+                const data = await response.json();
+                
+                if (data.ok) {
+                    showNotification(data.message, 'success');
+                } else {
+                    showNotification('Failed to refresh devices: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function refreshDevice(clientId) {
+            try {
+                const response = await fetch('/api/admin/refresh_device', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_id: clientId })
+                });
+                const data = await response.json();
+                
+                if (data.ok) {
+                    showNotification(data.message, 'success');
+                } else {
+                    showNotification('Failed to refresh device: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Initial load
+        refreshDeviceList();
+
+        // Auto-refresh every 5 seconds
+        setInterval(refreshDeviceList, 5000);
+    </script>
+</body>
+</html>
+"""
+# Ini untuk admin control panel untuk remote device management END
+
+
 
 
 # Ini untuk main page Face Recognition START
@@ -1305,6 +1693,7 @@ INDEX_HTML = """
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FTL Face Gate</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
     body { 
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial; 
@@ -4861,6 +5250,158 @@ INDEX_HTML = """
     // Set current year dynamically
     document.getElementById('currentYear').textContent = new Date().getFullYear();
   </script>
+
+  <!-- WebSocket Client for Real-time Control -->
+  <script>
+    (function() {
+      // Initialize Socket.IO connection
+      const socket = io();
+      let reconnectAttempts = 0;
+      const maxReconnectAttempts = 10;
+      
+      console.log('🔌 Initializing WebSocket connection...');
+      
+      // Connection established
+      socket.on('connect', function() {
+        console.log('✅ WebSocket connected!');
+        reconnectAttempts = 0;
+        
+        // Register device with server
+        socket.emit('register_device', {
+          device_name: navigator.userAgent.includes('Mobile') ? 'Tablet Device' : 'Desktop Device',
+          device_type: navigator.userAgent.includes('Mobile') ? 'Tablet' : 'Desktop',
+          location: window.location.hostname,
+          doorid: '{{ doorid }}' || null
+        });
+        
+        // Start heartbeat
+        setInterval(function() {
+          socket.emit('heartbeat', { timestamp: new Date().toISOString() });
+        }, 30000); // Every 30 seconds
+      });
+      
+      // Connection status
+      socket.on('connection_status', function(data) {
+        console.log('📱 Connection Status:', data);
+      });
+      
+      // Registration confirmation
+      socket.on('registration_success', function(data) {
+        console.log('✅ Device registered:', data);
+      });
+      
+      // Force refresh command from server
+      socket.on('force_refresh', function(data) {
+        console.log('🔄 Received refresh command from server:', data.message);
+        
+        // Show notification before refresh
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+          color: white;
+          padding: 15px 30px;
+          border-radius: 10px;
+          box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+          z-index: 10000;
+          font-weight: 600;
+          text-align: center;
+          animation: slideDown 0.3s ease-out;
+        `;
+        notification.innerHTML = `
+          <i class="fas fa-sync-alt"></i> ${data.message || 'Refreshing page...'}
+        `;
+        document.body.appendChild(notification);
+        
+        // Refresh page after 1.5 seconds
+        setTimeout(function() {
+          window.location.reload();
+        }, 1500);
+      });
+      
+      // Server notification
+      socket.on('notification', function(data) {
+        console.log('📢 Notification:', data);
+        
+        const colors = {
+          info: '#3b82f6',
+          success: '#10b981',
+          warning: '#f59e0b',
+          error: '#ef4444'
+        };
+        
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: ${colors[data.type] || colors.info};
+          color: white;
+          padding: 15px 30px;
+          border-radius: 10px;
+          box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+          z-index: 10000;
+          font-weight: 600;
+          text-align: center;
+          animation: slideDown 0.3s ease-out;
+        `;
+        notification.innerHTML = `<i class="fas fa-bell"></i> ${data.message}`;
+        document.body.appendChild(notification);
+        
+        setTimeout(function() {
+          notification.style.animation = 'slideUp 0.3s ease-out';
+          setTimeout(function() {
+            notification.remove();
+          }, 300);
+        }, 5000);
+      });
+      
+      // Device count update
+      socket.on('device_count', function(data) {
+        console.log('📊 Connected devices:', data.count);
+      });
+      
+      // Heartbeat acknowledgment
+      socket.on('heartbeat_ack', function(data) {
+        console.log('💓 Heartbeat acknowledged');
+      });
+      
+      // Disconnection handling
+      socket.on('disconnect', function() {
+        console.log('❌ WebSocket disconnected');
+        reconnectAttempts++;
+        
+        if (reconnectAttempts <= maxReconnectAttempts) {
+          console.log(`🔄 Reconnecting... (Attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
+        }
+      });
+      
+      // Connection error
+      socket.on('connect_error', function(error) {
+        console.error('❌ Connection error:', error);
+      });
+      
+      // Add CSS animations
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideDown {
+          from { transform: translate(-50%, -100px); opacity: 0; }
+          to { transform: translate(-50%, 0); opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translate(-50%, 0); opacity: 1; }
+          to { transform: translate(-50%, -100px); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      console.log('✅ WebSocket client initialized');
+    })();
+  </script>
 </body>
 </html>
 """
@@ -5736,7 +6277,194 @@ def api_refresh_cache():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
+
+# ==================== WEBSOCKET HANDLERS ====================
+@socketio.on('connect')
+def handle_connect():
+    """Handle client connection"""
+    client_id = request.sid
+    client_info = {
+        'id': client_id,
+        'connected_at': datetime.now().isoformat(),
+        'ip': request.remote_addr,
+        'user_agent': request.headers.get('User-Agent', 'Unknown')
+    }
+    connected_devices[client_id] = client_info
+    print(f"📱 Device connected: {client_id} from {request.remote_addr}")
+    print(f"   Total connected devices: {len(connected_devices)}")
+    
+    # Send welcome message to client
+    emit('connection_status', {
+        'status': 'connected',
+        'client_id': client_id,
+        'message': 'Successfully connected to server'
+    })
+    
+    # Broadcast device count to all clients
+    socketio.emit('device_count', {'count': len(connected_devices)})
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection"""
+    client_id = request.sid
+    if client_id in connected_devices:
+        device_info = connected_devices[client_id]
+        del connected_devices[client_id]
+        print(f"📴 Device disconnected: {client_id}")
+        print(f"   Total connected devices: {len(connected_devices)}")
+        
+        # Broadcast device count to remaining clients
+        socketio.emit('device_count', {'count': len(connected_devices)})
+
+
+@socketio.on('heartbeat')
+def handle_heartbeat(data):
+    """Handle heartbeat from client to keep connection alive"""
+    client_id = request.sid
+    if client_id in connected_devices:
+        connected_devices[client_id]['last_heartbeat'] = datetime.now().isoformat()
+        emit('heartbeat_ack', {'status': 'alive', 'timestamp': datetime.now().isoformat()})
+
+
+@socketio.on('register_device')
+def handle_register_device(data):
+    """Handle device registration with additional info"""
+    client_id = request.sid
+    if client_id in connected_devices:
+        connected_devices[client_id].update({
+            'device_name': data.get('device_name', 'Unknown'),
+            'device_type': data.get('device_type', 'Unknown'),
+            'location': data.get('location', 'Unknown'),
+            'doorid': data.get('doorid', None)
+        })
+        print(f"📝 Device registered: {data.get('device_name')} at {data.get('location')}")
+        emit('registration_success', {'status': 'registered', 'client_id': client_id})
+
+
+# ==================== ADMIN CONTROL ENDPOINTS ====================
+@app.route("/admin/control")
+def admin_control_panel():
+    """Admin panel for remote device control"""
+    if not session.get('admin_authenticated'):
+        return redirect(url_for('admin_login'))
+    
+    return render_template_string(ADMIN_CONTROL_HTML)
+
+
+@app.route("/api/admin/devices", methods=["GET"])
+def api_get_connected_devices():
+    """Get list of connected devices"""
+    if not session.get('admin_authenticated'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    
+    devices_list = []
+    for device_id, device_info in connected_devices.items():
+        devices_list.append({
+            'id': device_id,
+            'name': device_info.get('device_name', 'Unknown'),
+            'type': device_info.get('device_type', 'Unknown'),
+            'location': device_info.get('location', 'Unknown'),
+            'doorid': device_info.get('doorid', None),
+            'ip': device_info.get('ip', 'Unknown'),
+            'connected_at': device_info.get('connected_at', 'Unknown'),
+            'last_heartbeat': device_info.get('last_heartbeat', 'N/A')
+        })
+    
+    return jsonify({
+        "ok": True,
+        "devices": devices_list,
+        "total": len(devices_list)
+    })
+
+
+@app.route("/api/admin/broadcast_refresh", methods=["POST"])
+def api_broadcast_refresh():
+    """Broadcast refresh command to all connected devices"""
+    if not session.get('admin_authenticated'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    
+    try:
+        data = request.get_json(force=True) or {}
+        message = data.get('message', 'Server requested refresh')
+        
+        # Broadcast refresh command to all connected devices
+        socketio.emit('force_refresh', {
+            'message': message,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        print(f"🔄 Broadcast refresh to {len(connected_devices)} devices")
+        
+        return jsonify({
+            "ok": True,
+            "message": f"Refresh command sent to {len(connected_devices)} devices",
+            "device_count": len(connected_devices)
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/refresh_device", methods=["POST"])
+def api_refresh_specific_device():
+    """Refresh a specific device by client_id"""
+    if not session.get('admin_authenticated'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    
+    try:
+        data = request.get_json(force=True)
+        client_id = data.get('client_id')
+        message = data.get('message', 'Server requested refresh')
+        
+        if not client_id:
+            return jsonify({"ok": False, "error": "client_id is required"}), 400
+        
+        if client_id not in connected_devices:
+            return jsonify({"ok": False, "error": "Device not connected"}), 404
+        
+        # Send refresh command to specific device
+        socketio.emit('force_refresh', {
+            'message': message,
+            'timestamp': datetime.now().isoformat()
+        }, room=client_id)
+        
+        print(f"🔄 Refresh command sent to device: {client_id}")
+        
+        return jsonify({
+            "ok": True,
+            "message": f"Refresh command sent to device {client_id}"
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/send_notification", methods=["POST"])
+def api_send_notification():
+    """Send notification to all devices"""
+    if not session.get('admin_authenticated'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    
+    try:
+        data = request.get_json(force=True)
+        notification = data.get('notification', 'System notification')
+        notification_type = data.get('type', 'info')  # info, warning, success, error
+        
+        socketio.emit('notification', {
+            'message': notification,
+            'type': notification_type,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        return jsonify({
+            "ok": True,
+            "message": f"Notification sent to {len(connected_devices)} devices"
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 # -------------------- Main --------------------
 if __name__ == "__main__":
     startup_optimization()  # Now all functions are defined
-    app.run(host="0.0.0.0", port=APP_PORT, debug=True)
+    # Use socketio.run instead of app.run for WebSocket support
+    socketio.run(app, host="0.0.0.0", port=APP_PORT, debug=True, allow_unsafe_werkzeug=True)

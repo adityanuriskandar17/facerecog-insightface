@@ -10,3 +10,5 @@ redis
 PyJWT
 flask-limiter
 flask-cors
+flask-socketio
+python-socketio
