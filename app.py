@@ -1375,6 +1375,14 @@ ADMIN_CONTROL_HTML = """
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
         }
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(240, 147, 251, 0.4);
+        }
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -1651,6 +1659,9 @@ ADMIN_CONTROL_HTML = """
                                     <i class="fas fa-map"></i> Map
                                 </button>
                             ` : ''}
+                            <button class="btn btn-warning btn-small" onclick="setDoorId('${device.id}', '${device.name}', '${device.doorid || ''}')" title="Set Door ID">
+                                <i class="fas fa-door-open"></i> Set Door ID
+                            </button>
                             <button class="btn btn-primary btn-small" onclick="refreshDevice('${device.id}')">
                                 <i class="fas fa-sync-alt"></i> Refresh
                             </button>
@@ -1705,6 +1716,49 @@ ADMIN_CONTROL_HTML = """
             const url = `https://www.google.com/maps?q=${latitude},${longitude}&ll=${latitude},${longitude}&z=17`;
             window.open(url, '_blank');
             showNotification(`Opening map for ${deviceName}`, 'info');
+        }
+
+        // Set Door ID for device
+        async function setDoorId(deviceId, deviceName, currentDoorId) {
+            console.log('🚪 Setting door ID for device:', deviceId, deviceName);
+            
+            const doorId = prompt(`Set Door ID for ${deviceName}:`, currentDoorId || '1');
+            
+            if (doorId === null) return; // User cancelled
+            
+            if (!doorId || isNaN(doorId)) {
+                showNotification('Please enter a valid Door ID (number)', 'error');
+                return;
+            }
+            
+            try {
+                console.log('📤 Sending request to:', `/api/admin/set_door_id/${deviceId}`);
+                console.log('📤 Door ID:', parseInt(doorId));
+                
+                const response = await fetch(`/api/admin/set_door_id/${deviceId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ door_id: parseInt(doorId) })
+                });
+                
+                const data = await response.json();
+                console.log('📥 Response:', data);
+                
+                if (data.ok) {
+                    showNotification(`✅ Door ID ${doorId} set for ${deviceName}. Device will reload.`, 'success');
+                    // Refresh device list to show updated info
+                    setTimeout(refreshDeviceList, 2000);
+                } else {
+                    console.error('❌ Error:', data.error);
+                    if (data.available_devices) {
+                        console.log('📋 Available devices:', data.available_devices);
+                    }
+                    showNotification('Failed: ' + data.error + '. Please refresh the page and try again.', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Exception:', error);
+                showNotification('Error: ' + error.message, 'error');
+            }
         }
 
         // Initial load
@@ -2875,8 +2929,8 @@ INDEX_HTML = """
     const DOOR_TOKEN = '{{ door_token or "" }}' || null;
     
     // Debug logging
-    console.log('DEBUG: doorid =', doorid);
-    console.log('DEBUG: DOOR_TOKEN =', DOOR_TOKEN ? DOOR_TOKEN.substring(0, 20) + '...' : 'null');
+    console.log('🚪 Door ID from backend:', doorid);
+    console.log('🔑 Door Token available:', DOOR_TOKEN ? 'Yes (' + DOOR_TOKEN.substring(0, 20) + '...)' : 'No');
     
     // Function to refresh door token when expired
     async function refreshDoorToken() {
@@ -5186,8 +5240,63 @@ INDEX_HTML = """
     
 
     setButtons(false);
-    if (DOOR_TOKEN) {
+    
+    // Update Door ID display in UI
+    const doorIdElement = document.getElementById('doorid');
+    if (doorIdElement) {
+      if (doorid) {
+        doorIdElement.textContent = doorid;
+        doorIdElement.style.background = '#28a745';
+        doorIdElement.style.color = 'white';
+      } else {
+        doorIdElement.textContent = 'None';
+        doorIdElement.style.background = '#dc3545';
+        doorIdElement.style.color = 'white';
+      }
+    }
+    
+    // Enable Start Camera button if we have doorid and door_token
+    if (doorid && DOOR_TOKEN) {
+      console.log('✅ Door ID and token available, enabling Start Camera button');
       btnStart.disabled = false;
+      btnStart.style.cursor = 'pointer';
+      btnStart.style.opacity = '1';
+      btnStart.title = 'Click to start camera';
+      
+      // Show success message
+      const statusMsg = document.createElement('div');
+      statusMsg.style.cssText = `
+        position: fixed;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #28a745;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        z-index: 10000;
+        font-weight: 500;
+        animation: slideDown 0.3s ease-out;
+      `;
+      statusMsg.innerHTML = `<i class="fas fa-check-circle"></i> Door ID ${doorid} - Camera Ready!`;
+      document.body.appendChild(statusMsg);
+      setTimeout(() => statusMsg.remove(), 4000);
+      
+    } else if (doorid && !DOOR_TOKEN) {
+      // Has doorid but no token - try to reload to get token
+      console.log('⚠️ Door ID available but no token, reloading to get token...');
+      const currentUrl = new URL(window.location.href);
+      if (!currentUrl.searchParams.get('doorid')) {
+        currentUrl.searchParams.set('doorid', doorid);
+        window.location.href = currentUrl.toString();
+      }
+    } else {
+      console.log('❌ No Door ID available, Start Camera button disabled');
+      btnStart.disabled = true;
+      btnStart.style.cursor = 'not-allowed';
+      btnStart.style.opacity = '0.5';
+      btnStart.title = 'Door ID required. Please set Door ID from admin panel.';
     }
     
     // Initialize orientation toggle button
@@ -5466,6 +5575,41 @@ INDEX_HTML = """
       // Heartbeat acknowledgment
       socket.on('heartbeat_ack', function(data) {
         console.log('💓 Heartbeat acknowledged');
+      });
+      
+      // Handle Door ID setting from admin
+      socket.on('set_door_id', function(data) {
+        console.log('🚪 Door ID command received:', data);
+        const doorId = data.door_id;
+        const message = data.message || 'Door ID updated. Reloading...';
+        
+        // Show notification
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #3b82f6;
+          color: white;
+          padding: 15px 30px;
+          border-radius: 10px;
+          box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+          z-index: 10000;
+          font-weight: 600;
+          text-align: center;
+          animation: slideDown 0.3s ease-out;
+        `;
+        notification.innerHTML = `<i class="fas fa-door-open"></i> ${message}`;
+        document.body.appendChild(notification);
+        
+        // Reload page with new door ID after 2 seconds
+        setTimeout(function() {
+          console.log('🔄 Reloading with Door ID:', doorId);
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set('doorid', doorId);
+          window.location.href = currentUrl.toString();
+        }, 2000);
       });
       
       // Disconnection handling
@@ -6671,6 +6815,52 @@ def api_get_devices_with_gps():
         "devices": devices_with_gps,
         "total": len(devices_with_gps)
     })
+
+
+@app.route("/api/admin/set_door_id/<client_id>", methods=["POST"])
+def api_set_door_id(client_id):
+    """Set Door ID for a specific device and trigger reload"""
+    if not session.get('admin_authenticated'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    
+    # Debug logging
+    print(f"🔍 Set Door ID request for client: {client_id}")
+    print(f"🔍 Connected devices: {list(connected_devices.keys())}")
+    
+    if client_id not in connected_devices:
+        print(f"❌ Device {client_id} not found in connected_devices")
+        return jsonify({
+            "ok": False, 
+            "error": f"Device not found. Device may have disconnected. Please refresh the device list.",
+            "available_devices": list(connected_devices.keys())
+        }), 404
+    
+    try:
+        data = request.get_json(force=True) or {}
+        door_id = data.get('door_id')
+        
+        if door_id is None:
+            return jsonify({"ok": False, "error": "Missing door_id"}), 400
+        
+        # Update device info with new door_id
+        connected_devices[client_id]['doorid'] = door_id
+        
+        # Send reload command with new door ID to device
+        socketio.emit('set_door_id', {
+            'door_id': door_id,
+            'timestamp': datetime.now().isoformat(),
+            'message': f'Door ID set to {door_id}. Reloading page...'
+        }, room=client_id)
+        
+        print(f"✅ Door ID {door_id} set for device {client_id}")
+        
+        return jsonify({
+            "ok": True,
+            "message": f"Door ID {door_id} set successfully. Device will reload."
+        })
+    except Exception as e:
+        print(f"❌ Error setting door ID: {str(e)}")
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 # -------------------- Main --------------------
